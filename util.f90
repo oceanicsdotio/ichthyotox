@@ -71,7 +71,7 @@ subroutine spline(x,y,n2,yp1,ypn,y2)
   real(sp) :: p, qn, sig, un
   real(sp), dimension(nmax) :: u
  
-  if (yp1 .gt. 0.99e30) then ! force natural lower boundary
+  if (yp1 > 0.99e30) then ! force natural lower boundary
      y2(1) = 0.0_SP
      u(1) = 0.0_SP
   else ! or set specific values
@@ -84,7 +84,7 @@ subroutine spline(x,y,n2,yp1,ypn,y2)
      y2(i) = (sig-1.)/p
      u(i) = (6.0*((y(i+1) - y(i)) / (x(i+1) - x(i)) - (y(i) - y(i-1))/(x(i) - x(i-1)))/(x(i+1) - x(i-1)) - (- sig*u(i-1)))/p
   end do
-  if (ypn .gt. 0.99e30) then ! force natural upper boundary
+  if (ypn > 0.99e30) then ! force natural upper boundary
      qn = 0.0_SP
      un = 0.0_SP
   else
