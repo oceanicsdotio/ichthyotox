@@ -65,8 +65,7 @@ module MOD_FISH
   end type LAG_FISH; type(LAG_FISH), allocatable :: FISH
   contains
 
-  ! SECTION 1. INITIALIZATION / IO !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  ! INITIALIZATION / IO
   subroutine fish_initialize(self) ! OK
     ! Allocate fish specific variables
     use MOD_PREC, only : sp
@@ -152,6 +151,7 @@ module MOD_FISH
       use MOD_RAND, only : random
       use MOD_SIM, only : domain
       use ALL_VARS, only : pi, pi2, dti, VXMIN, VXMAX, VYMIN, VYMAX, zero
+
       class(LAG_FISH), intent(inout) :: self
       integer :: ii, jj, rule_index
       real(sp) :: maxutil = zero
@@ -161,9 +161,9 @@ module MOD_FISH
       do ii = 1, self%ndrft
         
         self%event(ii,:) = zero ; self%impaired(ii) = .false. ; self%effective_length(ii) = 1.0_SP
-        if ( self%microcystin(ii) .gt. threshold(1) ) self%event(ii, 1) = 1.0_SP ! sense state of intoxication/mortality
-        if ( self%suitability(ii) .gt. threshold(2) ) self%event(ii, 2) = 1.0_SP ! sense suitability of current location
-        if ( self%microcystin(ii)/self%mass(ii) .gt. toxfrac ) then ! induce impairment if toxin level above some threshold
+        if ( self%microcystin(ii) > threshold(1) ) self%event(ii, 1) = 1.0_SP ! intoxication/mortality
+        if ( self%suitability(ii) > threshold(2) ) self%event(ii, 2) = 1.0_SP ! current suitability
+        if ( self%microcystin(ii)/self%mass(ii) > toxfrac ) then ! induce impairment if toxin level above some threshold
           self%impaired(ii) = .true.
           self%effective_length(ii) = speedimpair
           
@@ -188,7 +188,7 @@ module MOD_FISH
         
         rule_index = 0
         do jj = 1,4
-          if (self%utility(ii,jj) .gt. maxutil) then
+          if (self%utility(ii,jj) > maxutil) then
             maxutil = self%utility(ii,jj) ! select highest util, or default behaviors
             rule_index = jj
           end if
@@ -201,7 +201,7 @@ module MOD_FISH
         end if
         
         
-        if ((rule_index .eq. 1).and.(self%reverse(ii) .lt. 0.5_SP)) then
+        if ((rule_index == 1).and.(self%reverse(ii) < 0.5_SP)) then
           self%reverse(ii) = 1.0_SP ! reverse direction for avoidance
         else
           self%reverse(ii) = zero
@@ -214,27 +214,27 @@ module MOD_FISH
           self%angle(ii) = self%angle(ii) + self%reverse(ii)*pi + random%clipped()*pi*angletable(rule_index) ! clipped gaussian random angle if sober, more directed
         end if
       
-        if (self%angle(ii) .lt. -pi) self%angle(ii) = self%angle(ii) + pi2 ! normalize angles to -pi, pi]
-        if (self%angle(ii) .gt. pi) self%angle(ii) = self%angle(ii) - pi2
+        if (self%angle(ii) < -pi) self%angle(ii) = self%angle(ii) + pi2 ! normalize angles to -pi, pi]
+        if (self%angle(ii) > pi) self%angle(ii) = self%angle(ii) - pi2
         self%xp(ii) = self%xp(ii) + cos(self%angle(ii)) * dti * 3600.0_sp * speedtable(rule_index) * self%length(ii) * self%effective_length(ii)
         self%yp(ii) = self%yp(ii) + sin(self%angle(ii)) * dti * 3600.0_sp * speedtable(rule_index) * self%length(ii) * self%effective_length(ii)
       end do
       
       ! when particles leave domain have them enter from the opposite boundary with no change to trajectory
-      where (self%xp(:) .gt. VXMAX) 
+      where (self%xp(:) > VXMAX)
         self%xp(:) = VXMIN + (self%xp(:) - VXMAX)
-      elsewhere (self%xp(:) .lt. VXMIN) 
+      elsewhere (self%xp(:) < VXMIN)
         self%xp(:) = VXMAX - (VXMIN - self%xp(:))
       end where
       
-      where (self%yp(:) .gt. VYMAX) 
+      where (self%yp(:) > VYMAX)
         self%yp(:) = VYMIN + (self%yp(:) - VYMAX)
-      elsewhere (self%yp(:) .lt. VYMIN) 
+      elsewhere (self%yp(:) < VYMIN)
         self%yp(:) = VYMAX - (VYMIN - self%yp(:))
       end where
       
       call self%growth()
       
   end subroutine fish_movement
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 end module MOD_FISH

@@ -49,7 +49,7 @@ subroutine Partition(A, B, marker)
         if (A(i) >= x) exit
         i = i+1
      end do
-     if (i .lt. j) then
+     if (i < j) then
         ! exchange A(i) and A(j)
         tempA = A(i)
         A(i) = A(j)

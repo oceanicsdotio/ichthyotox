@@ -5,7 +5,6 @@ program gaussian
   
   integer :: ii
 
-
   allocate(random)
   call random%init()
 
@@ -16,7 +15,5 @@ program gaussian
   end do
 
   call random%stats()
-
-
 
 end program gaussian

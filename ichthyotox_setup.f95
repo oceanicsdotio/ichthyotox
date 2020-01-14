@@ -31,17 +31,14 @@ program setup
   integer :: ncolony, nfish, step, x_nodes, y_nodes, ndays = 30
   
   call get_command_argument(1, foldername) ! Import casename from command line
-  if (len_trim(foldername) .eq. 0) then
+  if (len_trim(foldername) == 0) then
      print *, 'Please provide simulation ID on command line (###)'; print *, 'Stopping...'; stop
   end if
   folderprefix = adjustl(foldername)
   
   
   allocate(random); call random%init()
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
   mesh_construction: if (makeGrid) then
     write(*, *); write(*, *) "For the simulation we are going to build a simple triangular mesh representing a rectangular reservoir... "
     !write(*, *); write(*, '(A)', advance='no') "    What is the desired X range (meters)? "; read(*, *) x_range
@@ -76,19 +73,19 @@ program setup
         node_pos(node_index, 2) = float(ii-1)*div_inc
         node_pos(node_index, 3) = bottom_depth
         
-        if ( (jj .lt. x_nodes) .and. (ii .lt. y_nodes) ) then
+        if ( (jj < x_nodes) .and. (ii < y_nodes) ) then
           ! bottom row of triangles
           vertices(element_index, 1) = node_index
           vertices(element_index, 2) = node_index + x_nodes ! note index
           vertices(element_index, 3) = node_index + 1
-          if (alternate_pattern .lt. 0) vertices(element_index, 2) = vertices(element_index, 2) + 1
+          if (alternate_pattern < 0) vertices(element_index, 2) = vertices(element_index, 2) + 1
           element_index = element_index + 1
           
           ! upper row of triangles
           vertices(element_index, 1) = node_index + x_nodes
           vertices(element_index, 2) = node_index + x_nodes + 1
           vertices(element_index, 3) = node_index + 1
-          if (alternate_pattern .lt. 0) vertices(element_index, 3) = vertices(element_index, 3) - 1
+          if (alternate_pattern < 0) vertices(element_index, 3) = vertices(element_index, 3) - 1
           element_index = element_index + 1
     
           alternate_pattern = -alternate_pattern ! switch triangle pattern as you move x=0 to x=x_range
@@ -121,10 +118,7 @@ program setup
     write(*, *) "    Nodes:          ", nnodes
     write(*, *) "    Elements:       ", nelements
   end if mesh_construction
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
   physical_fields: if (writeFields) then
   
     allocate(diffusivity(nlayers))
@@ -158,10 +152,7 @@ program setup
     close(iophys)
     write(*, "(A)") "Finished"
   end if physical_fields
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
   ! write ichthyotox_run.dat
   open(unit=iorun, file="../"//trim(folderprefix)//"/ichthyotox_run.dat", status='replace')
   write(iorun,"(A)") "INFOFILE = screen"
@@ -183,17 +174,14 @@ program setup
   write(iorun,"(A)") "INPDIR=/"
   write(iorun,"(A)") "LAGINI=/"
   write(iorun,"(A)") "OUTDIR=/"
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
   ! Generate initial values for lagrangian particles and write these to file 
   write(*, *); write(*, *) "We will now generate the initial positions for lagrangian particles..."; 
   !write(*, *); write(*, '(A)', advance = 'no') "    How many cyanobacteria particles should be used? "; read(*, *) ncolony
   ncolony = 100
   write(*, *); write(*, '(A)', advance = 'no') "    What is the total initial protein biomass in grams? "; read(*, *) biomass
   write(*, *); write(*, '(A)', advance = 'no') "    What is the total initial microcystin load in grams? "; read(*, *) microcystin
-  cyanobacteria: if (ncolony .gt. 0) then
+  cyanobacteria: if (ncolony > 0) then
   
     ! write initial position
     open(unit = fid, file = "../"//trim(folderprefix)//"/cyanobacteria_ini.dat", status = 'replace')
@@ -225,13 +213,10 @@ program setup
   else
     write(*, *); write(*, *) "No cyanobacteria in this simulation..."; write(*, *)
   end if cyanobacteria
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
   !write(*, *); write(*, *); write(*, '(A)', advance = 'no') "    How many fish particles should be used? "; read(*, *) nfish
   nfish = 200
-  if (nfish .gt. 0) then
+  if (nfish > 0) then
     ! write initial position
     open(unit = fid, file = "./"//trim(folderprefix)//"/fish_ini.dat", status = 'replace')
     write(*, *); write(*, *) '        Writing initial positions to: ', './fish_ini.dat'
@@ -239,7 +224,7 @@ program setup
     layerdepth = bottom_depth/5.0_sp
 
     do ii = 1, nfish
-      if (ii .le. nfish/2) then ! write surface particles
+      if (ii <= nfish/2) then ! write surface particles
       
         write(fid, "(I4,3F20.6)") ii, abs(random%uniform()*x_range), abs(random%uniform()*y_range), -0.1_SP
         !write(fid, "(I4,3F20.6)") ii, 0.001_SP, abs(random%uniform()*y_range), -0.1_SP ! min growth case
@@ -257,10 +242,7 @@ program setup
   else
     write(*, *); write(*, *) "No fish in this simulation..."
   end if
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
   write(*, *); write(*, *) "Setup finished..."
   call random%stats(); write(*,*)
   deallocate(random)

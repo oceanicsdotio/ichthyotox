@@ -49,7 +49,7 @@ parameters.o: parameters.f95 mod_prec.o
 mod_inp.o: mod_inp.f90 mod_prec.o
 		$(FC) $(CFLAGS) mod_inp.f90
 
-util.o : util.f90 mod_prec.o
+util.o: util.f90 mod_prec.o
 		$(FC) $(CFLAGS) util.f90
 
 # no dependencies

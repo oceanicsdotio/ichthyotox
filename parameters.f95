@@ -20,7 +20,6 @@ module parameters
   real(sp), parameter :: planckNumber = 663.0_SP * 10.0_SP**(-7.0_SP) ! Js
   real(sp), parameter :: lightSpeed = 2998.0_SP  * 10.0_SP**(5.0_SP) ! meters per second
 
-  
   ! Runge-Kutta integration coefficients
   integer, parameter :: MSTAGE = 4 ! number of stages
   real(sp), parameter, dimension(4) :: A_RK = (/ 0.0_SP, 0.5_SP, 0.5_SP, 1.0_SP/) ! ERK coefficients (A)

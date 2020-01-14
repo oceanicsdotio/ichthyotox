@@ -1,5 +1,3 @@
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module MOD_LAG
   ! type and variables for lagrangian particle system
   use MOD_PREC, only : sp
@@ -61,8 +59,8 @@ module MOD_LAG
   end type LAG_OBJ
 
   contains
-    
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
   subroutine FHE_ROBUST(lag, XP, YP, INWATER) ! OK
   !  Find host elements of particles by searching progressively further elements
     use ALL_VARS
@@ -78,18 +76,18 @@ module MOD_LAG
     integer  :: LOCIJ(2)
 
     particle_loop: do ii = 1, lag%ndrft
-      if ( (lag%FOUND(ii) .eq. 1) .or. (lag%INDOMAIN(ii) .eq. 0) ) cycle ! skip if particle was already found by FHE_QUICK, or is known to be outside domain
+      if ( (lag%FOUND(ii) == 1) .or. (lag%INDOMAIN(ii) == 0) ) cycle ! skip if particle was already found by FHE_QUICK, or is known to be outside domain
       RADLIST(1:N, 1) = sqrt((XC(1:N) - XP(ii))**2 + (YC(1:N) - YP(ii))**2)
       RADLAST = 0.0_SP
       search: do jj = 1, 16
-        LOCIJ = minloc(RADLIST, RADLIST .gt. RADLAST)
+        LOCIJ = minloc(RADLIST, RADLIST > RADLAST)
         MIN_LOC = LOCIJ(1)
-        if (MIN_LOC .eq. 0) exit search
+        if (MIN_LOC == 0) exit search
         RADLAST = RADLIST(MIN_LOC, 1)
         element: if (ISINTRIANGLE(VX(NV(MIN_LOC, 1:3)), VY(NV(MIN_LOC, 1:3)) , XP(ii), YP(ii))) then
           lag%FOUND(ii) = 1
           lag%HOST(ii) = MIN_LOC
-          nodes: if ((ISONB(NV(lag%HOST(ii),1)) .eq. 1) .or. (ISONB(NV(lag%HOST(ii),2)) .eq. 1) .or. (ISONB(NV(lag%HOST(ii),3)) .eq. 1)) then
+          nodes: if ((ISONB(NV(lag%HOST(ii),1)) == 1) .or. (ISONB(NV(lag%HOST(ii),2)) == 1) .or. (ISONB(NV(lag%HOST(ii),3)) == 1)) then
             lag%SBOUND(ii) = 1
           else
             lag%SBOUND(ii) = 0
@@ -100,14 +98,14 @@ module MOD_LAG
       end do search
     end do particle_loop
 
-    where ((lag%FOUND(:) .eq. 0) .and. (lag%SBOUND(:) .eq. 0)) lag%INDOMAIN(:) = 0 ! if not found and not on solid boundary, then must have moved outside domain
-    where ((lag%FOUND(:) .eq. 0) .and. (lag%SBOUND(:) .eq. 1)) INWATER(:) = 0 ! if not found and on solid boundary, then no longer in water
+    where ((lag%FOUND(:) == 0) .and. (lag%SBOUND(:) == 0)) lag%INDOMAIN(:) = 0 ! if not found and not on solid boundary, then must have moved outside domain
+    where ((lag%FOUND(:) == 0) .and. (lag%SBOUND(:) == 1)) INWATER(:) = 0 ! if not found and on solid boundary, then no longer in water
 
     return
   end subroutine FHE_ROBUST
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  subroutine FHE_QUICK(lag, XP, YP, ALL_FOUND) ! OK
+  subroutine FHE_QUICK(lag, XP, YP, ALL_FOUND)
     ! Determine host elements of particles by searching neighboring elements
     use ALL_VARS
     implicit none
@@ -121,7 +119,7 @@ module MOD_LAG
 
     ALL_FOUND = .false.
     particle_loop: do ii = 1, lag%ndrft
-      if (lag%INDOMAIN(ii) .eq. 0) cycle ! skip particle not in domain
+      if (.not. lag%INDOMAIN(ii)) cycle
       last_known: if (ISINTRIANGLE(VX(NV(lag%HOST(ii), 1:3)), VY(NV(lag%HOST(ii), 1:3)), XP(ii), YP(ii))) then ! particle remains in element
          lag%FOUND(ii) = 1
       else
@@ -133,7 +131,7 @@ module MOD_LAG
             if (ISINTRIANGLE(XNEY, YNEY, XP(ii), YP(ii))) then
               lag%FOUND(ii) = 1
               lag%HOST(ii) = INEY
-              nodes: if ( (ISONB(NV(INEY,1)) .eq. 1) .or. (ISONB(NV(INEY,2)) .eq. 1) .or. (ISONB(NV(INEY,3)) .eq. 1)) then
+              nodes: if ( (ISONB(NV(INEY,1)) == 1) .or. (ISONB(NV(INEY,2)) == 1) .or. (ISONB(NV(INEY,3)) == 1)) then
                 lag%SBOUND(ii) = 1
               else
                 lag%SBOUND(ii) = 0
@@ -144,13 +142,13 @@ module MOD_LAG
         end do neighbors
       end if last_known
     end do particle_loop
-    if (sum(lag%FOUND) .eq. sum(lag%INDOMAIN)) ALL_FOUND = .true.
+    if (sum(lag%FOUND) == sum(lag%INDOMAIN)) ALL_FOUND = .true.
 
     return
   end subroutine FHE_QUICK
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  logical function ISINTRIANGLE(XT, YT, X0, Y0) ! OK
+  logical function ISINTRIANGLE(XT, YT, X0, Y0)
     ! Determine if point is in triangle defined by nodes (XT(3),YT(3))
     use MOD_PREC
     implicit none
@@ -159,16 +157,19 @@ module MOD_LAG
     real(sp), intent(in) :: XT(3), YT(3)
     real(sp) :: F1, F2, F3
 
-    ISINTRIANGLE = .false.
     F1 = (Y0-YT(1))*(XT(2)-XT(1)) - (X0-XT(1))*(YT(2)-YT(1))
     F2 = (Y0-YT(3))*(XT(1)-XT(3)) - (X0-XT(3))*(YT(1)-YT(3))
     F3 = (Y0-YT(2))*(XT(3)-XT(2)) - (X0-XT(2))*(YT(3)-YT(2))
-    if ((F1*F3 .ge. 0.0_SP) .and. (F3*F2 .ge. 0.0_SP)) ISINTRIANGLE = .true.
 
-    return
+    if ((F1*F3 >= 0.0_SP) .and. (F3*F2 >= 0.0_SP)) then
+      return .true.
+    else
+      return .false.
+    end if
+
   end function ISINTRIANGLE
 
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
   subroutine lag_alloc(self) ! OK
   
     use MOD_PREC
@@ -253,11 +254,8 @@ module MOD_LAG
     close(fid)
   
   end subroutine lag_readPosition
-  
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
   subroutine lag_writePosition(self, fid) ! OK
     ! write time and particle id/position to already open file
     use MOD_SIM, only : domain ! domain structure for current time only
@@ -268,10 +266,8 @@ module MOD_LAG
     write(fid, "(1F10.2,9000(I6,3F20.3))") domain%time, (self%ITAG(ii),  self%XPT(ii), self%YPT(ii), self%ZPT(ii), ii=1,self%ndrft)
   
   end subroutine lag_writePosition
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
   function lag_cart2sig(self, cartesian) ! OK
     ! Calculate sigma vertical position from cartesian
     use MOD_PREC, only : sp
@@ -282,10 +278,8 @@ module MOD_LAG
     lag_cart2sig(:) = -1.0_SP * abs(cartesian(:)-self%EP(:)) / abs(self%EP(:)-self%HP(:))
   
   end function lag_cart2sig
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
+
+
   function lag_sig2cart(self, sigma) ! OK
     ! calculate cartesian vertical from sigma coordinate
     use MOD_PREC, only : sp
@@ -309,14 +303,12 @@ module MOD_LAG
     integer, dimension(self%ndrft) :: lag_getlayers, layers
   
     layers(:) = ceiling(-KBM1*sigma(:))
-    where (layers(:) .lt. 1) layers(:) = 1
+    where (layers(:) < 1) layers(:) = 1
     lag_getlayers(:) = layers(:)
   
   end function lag_getlayers
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
   function lag_zinterp(self, verticalvar)
   
     use MOD_PREC, only : sp ! real precision
@@ -330,10 +322,8 @@ module MOD_LAG
     lag_zinterp(:) = verticalvar(self%layer(:))*(1.0_SP - idz(:)) + verticalvar(self%layer(:)+1)*idz(:)
   
   end function lag_zinterp
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
   subroutine TRAJECT(self, DELTAT, U1, U2, V1, V2, W1, W2, HL, EL1, EL2, salinity, temperature, density) !---fish change 20
 
     ! integrate particle position from x0 to xn using velocity fields at time t0 and time tn
@@ -381,7 +371,7 @@ module MOD_LAG
       CHIY(:, NS) = self%VP(:)
       CHIZ(:, NS) = self%WP(:) / (self%HP(:) - self%EP(:))    ! delta_sigma/deltaT = ww/D
 
-      where ((self%EP(:) - self%HP(:)) .lt. EPS) CHIZ(:, NS) = 0.0_SP ! Limit vertical motion in very shallow water
+      where ((self%EP(:) - self%HP(:)) < EPS) CHIZ(:, NS) = 0.0_SP ! Limit vertical motion in very shallow water
     end do runge_kutta ! Note: Keeney changed + to - in HP/EP equations
 
     PDXT(:) = self%xp(:) ! Assign position at previous time to current position
@@ -414,8 +404,6 @@ module MOD_LAG
     self%layer(:) = self%zlocate(self%zp(:)) ! only valid for sigma layers of equal separation
 
   end subroutine TRAJECT
-  
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
   subroutine KINESIS(self, random, deltat, salinity, temperature, density, HIN, EIN) !---Keeney change
@@ -472,13 +460,8 @@ module MOD_LAG
 
     return
   end subroutine KINESIS
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
   subroutine INTERP_V(lag, XP, YP, ZP, UIN, VIN, WIN) ! OK
     ! linear interpolation of velocity field at particle positions
     use ALL_VARS, only : A1U, A2U, NBE, YC, XC, DZ, ZZ
@@ -500,7 +483,7 @@ module MOD_LAG
     if (.not. ALL_FOUND) call lag%FHE_ROBUST(XP, YP, INWATER)
 
     particle_loop: do ii = 1, lag%ndrft
-      if ( (lag%INDOMAIN(ii) .eq. 0) .or. (INWATER(ii)) .eq. 0) cycle ! skip particles outside domain
+      if ( (lag%INDOMAIN(ii) == 0) .or. (INWATER(ii)) == 0) cycle ! skip particles outside domain
       host = lag%HOST(ii)
       E1  = NBE(host,1)
       E2  = NBE(host,2)
@@ -509,12 +492,12 @@ module MOD_LAG
       Y0C = YP(ii) - YC(host)
 
       ! Determine sigma layers above and below particle
-      if (ZP(ii) .gt. ZZ(1)) then ! Particle near surface
+      if (ZP(ii) > ZZ(1)) then ! Particle near surface
          K1  = 1
          K2  = 1
          ZF1 = 1.0_SP
          ZF2 = 0.0_SP
-      else if (ZP(ii) .lt. ZZ(KBM1)) then ! Particle near bottom
+      else if (ZP(ii) < ZZ(KBM1)) then ! Particle near bottom
          K1 = KBM1
          K2 = KBM1
          ZF1 = 1.0_SP
@@ -578,7 +561,7 @@ module MOD_LAG
     real(sp) :: H0, HX, HY, E0, EX, EY, X0C, Y0C
     logical :: ALL_FOUND
 
-    find_host: if (FHE .eq. 1) then
+    find_host: if (FHE == 1) then
       INWATER(:) = 1
       self%FOUND(:) = 0
       call self%FHE_QUICK(XP, YP, ALL_FOUND) ! Determine element containing point (XP,YP)
@@ -586,7 +569,7 @@ module MOD_LAG
     end if find_host
 
     particle_loop: do ii = 1, self%ndrft
-      if (self%INDOMAIN(ii) .eq. 0) cycle ! skip particle outside domain
+      if (.not. self%INDOMAIN(ii)) cycle ! skip particle outside domain
       host = self%host(ii) ! element containing particle
       N1 = NV(self%host(ii), 1); N2 = NV(self%host(ii), 2); N3 = NV(self%host(ii), 3) ! node indices
       X0C = XP(ii) - XC(host); Y0C = YP(ii) - YC(host) ! distance from element center
@@ -603,10 +586,8 @@ module MOD_LAG
 
     end do particle_loop
   end subroutine INTERP_ELH
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
   subroutine INTERP_FIELDS(self, XP, YP, ZP, SAL, TEMP, RHO, FHE) ! OK
     ! Linearly interpolates salinity, temperature and density
     use ALL_VARS, only : AW0, AWX, AWY, NV, XC, YC
@@ -624,7 +605,7 @@ module MOD_LAG
     logical :: ALL_FOUND
 
     ZTMP(:) = ZP(:)
-    find_host: if (FHE .eq. 1) then
+    find_host: if (FHE == 1) then
       INWATER(:) = 1
       self%FOUND(:) = 0
       call self%FHE_QUICK(XP, YP, ALL_FOUND) ! Determine element containing point (XP,YP)
@@ -633,7 +614,7 @@ module MOD_LAG
 
     particle_loop: do ii = 1, self%ndrft
 
-      if (self%INDOMAIN(ii) .eq. 0) cycle ! skip particle outside domain
+      if (self%INDOMAIN(ii) == 0) cycle ! skip particle outside domain
       host = self%host(ii) ! element containing particle
       N1 = NV(host, 1); N2 = NV(host, 2); N3 = NV(host, 3) ! node indices
       X0C = XP(ii) - XC(host); Y0C = YP(ii) - YC(host) ! distance from element center
@@ -656,10 +637,8 @@ module MOD_LAG
     end do particle_loop
 
   end subroutine INTERP_FIELDS
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
   subroutine INTERP_KH(self, ZKH, DZKH, KHOUT, DKHOUT)
   ! Obtain a spline interpolation on the vertical with the provided eddy diffusivity (ZKH) and its derivative (DZKH) at grid point points
   ! then linear interpolation on the horizontal
@@ -668,7 +647,7 @@ module MOD_LAG
     use ALL_VARS
     class(LAG_OBJ), intent(inout) :: self
     real(SP), intent(out), dimension(self%ndrft) :: DKHOUT, KHOUT
-    real(SP), intent(in) ,dimension(0:M, KB) :: DZKH, ZKH
+    real(SP), intent(in), dimension(0:M, KB) :: DZKH, ZKH
 
     real(SP) :: X0C, Y0C, COF1, COF2, COF3
     integer :: N1, N2, N3, ii
@@ -689,8 +668,8 @@ module MOD_LAG
     end do
     NZRINDX(KB+1) = KB
 
-    particle_loop: do ii = 1, self%ndrft
-      if (self%INDOMAIN(ii) .eq. 0) cycle ! skip particles outisde domain
+    do ii = 1, self%ndrft
+      if (.not. self%indomain(ii)) cycle
       host = self%host(ii) ! element containing particle
       N1 = NV(host, 1); N2 = NV(host, 2); N3 = NV(host, 3) ! get node indices of host element
       X0C = self%XP(ii) - XC(host); Y0C = self%YP(ii) - YC(host) ! distance from element center
@@ -731,8 +710,8 @@ module MOD_LAG
       ! find vertical location
       !call HUNT(Z, KB, DZP, NZR)
       NZR = floor( float(KBM1)*abs(DZP ) ) ! guess value for hunt
-      KHI=NZRINDX(NZR)
-      KLO=NZRINDX(NZR+1)
+      KHI = NZRINDX(NZR)
+      KLO = NZRINDX(NZR+1)
 
       HK = Z(KHI) - Z(KLO)
       HK2 = HK**2
@@ -745,15 +724,12 @@ module MOD_LAG
       KHR2 = AK*(ZKH(N2,KLO)) + BK*(ZKH(N2,KHI)) + ((AK3-AK)*(DZKH(N2,KLO))+(BK3-BK)*(DZKH(N2,KHI)))*HK2/6
       KHR3 = AK*(ZKH(N3,KLO)) + BK*(ZKH(N3,KHI)) + ((AK3-AK)*(DZKH(N3,KLO))+(BK3-BK)*(DZKH(N3,KHI)))*HK2/6
 
-      COF1=AW0(self%HOST(ii),1)*KHR1 + AW0(self%HOST(ii),2)*KHR2+AW0(self%HOST(ii),3)*KHR3
-      COF2=AWX(self%HOST(ii),1)*KHR1 + AWX(self%HOST(ii),2)*KHR2+AWX(self%HOST(ii),3)*KHR3
-      COF3=AWY(self%HOST(ii),1)*KHR1 + AWY(self%HOST(ii),2)*KHR2+AWY(self%HOST(ii),3)*KHR3
+      COF1 = AW0(self%HOST(ii),1)*KHR1 + AW0(self%HOST(ii),2)*KHR2+AW0(self%HOST(ii),3)*KHR3
+      COF2 = AWX(self%HOST(ii),1)*KHR1 + AWX(self%HOST(ii),2)*KHR2+AWX(self%HOST(ii),3)*KHR3
+      COF3 = AWY(self%HOST(ii),1)*KHR1 + AWY(self%HOST(ii),2)*KHR2+AWY(self%HOST(ii),3)*KHR3
 
       KHOUT(ii) = COF1 + COF2*X0C + COF3*Y0C
 
-    end do particle_loop
-    
-  end subroutine INTERP_KH
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  
-end module MOD_LAG
+    end do
+  end subroutine
+end module

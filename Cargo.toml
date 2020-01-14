@@ -1,0 +1,9 @@
+[package]
+name = "ichthyotox"
+version = "2.0.0"
+authors = ["Oceanicsdotio <aquaculture@oceanics.io>"]
+edition = "2018"
+description = "Fast cross-platform system dynamics for marine ecology"
+
+[lib]
+crate-type = ["cdylib"]

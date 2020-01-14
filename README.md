@@ -1,7 +1,7 @@
 January, 2011
 Another thing I plan to do is about boundary bouncing, which is related to the
 treatment of INDOMAIN,INWATER,IFOUND,SBOUND,etc. which is totally treated in
-offlag.f90 (except for the last part I added in triangle_grid_edge.f90)
+`offlag.f90` and `triangle_grid_edge.f90`
 
 1) In mod_var.f90, add variable LAG%np_stop (total number of particles going out of domain from both
 OB & SB), while LAG%np_out represents total number of particles going out of domain from OB.
@@ -84,14 +84,7 @@ look for "!---fish change 1" etc.
 2.5) add subroutine "CALL KINESIS"
 
 
-
-
-
-
-
-
-
-Huang comments (October 2009):
+Haosheng Huang, October 2009:
 
 I did several changes to Martin's code (search "!--Huang change"):
 
@@ -166,4 +159,4 @@ related to the above Difference
 
 12) offlag.f90
 Main changes are in this subroutine.
-Use kompare or diff or find "!-- Huang change"
+
