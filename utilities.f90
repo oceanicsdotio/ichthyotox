@@ -1,6 +1,6 @@
 subroutine hunt(sigma_nodes, KB, sigma_particle, jlo) ! Z, KB, self%ZP(ii), NZR
     ! from numerical recipies vol 2
-    use MOD_PREC
+    use parameters
 
     integer, intent(inout) :: jlo ! sigma layer below particle?
     integer, intent(in) :: KB ! number of sigma layers
@@ -56,7 +56,7 @@ end subroutine hunt
 
 subroutine spline(x, y, n2, yp1, ypn, y2)
     ! from numerical recipies vol 2, but modfied so that nmax=50
-    use MOD_PREC, only : sp
+    use parameters, only : sp
     implicit none
     integer  :: n2
     real(sp), intent(in) :: x(n2), y(n2), yp1, ypn
@@ -75,9 +75,9 @@ subroutine spline(x, y, n2, yp1, ypn, y2)
         u(1) = (3.0_SP/(x(2)-x(1)))*((y(2)-y(1))/(x(2)-x(1))-yp1)
     end if
     do i = 2, n2-1 ! tridiagonal algorithm decomp
-        sig = (x(i)-x(i-1))/(x(i+1)-x(i-1))
-        p = sig*y2(i-1)+2.0_SP
-        y2(i) = (sig-1.)/p
+        sig = (x(i) - x(i-1)) / (x(i+1) - x(i-1))
+        p = sig * y2(i-1) + 2.0_SP
+        y2(i) = (sig-1.) / p
         u(i) = (6.0*((y(i+1) - y(i)) / (x(i+1) - x(i)) - (y(i) - y(i-1))/(x(i) - x(i-1)))/(x(i+1) - x(i-1)) - (- sig*u(i-1)))/p
     end do
     if (ypn > 0.99e30) then ! force natural upper boundary

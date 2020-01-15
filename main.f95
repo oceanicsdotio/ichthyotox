@@ -1,9 +1,30 @@
-program PARTICLE_TRAJ
+program main
 
-  use ALL_VARS, only : casename, folderprefix
+  use ALL_VARS
   use MOD_SIM, only : domain
-  use LIMS, only : N, M, KB
+  use MOD_TOX, only : cyano
+  use behavior, only : fish
+  use MOD_RAND, only : random
+  use parameters, only : iocp, iocs, iophys, iofp, iofs
+
   implicit none
+
+  integer, intent(in) :: exp_type
+  character(LEN = 100) :: input_file, state_format
+  integer , allocatable, dimension(:) :: INWATER
+  integer :: HOUR
+  real(sp), dimension(0:N, KB) :: UNC, VNC, WNC ! velocity fields, as read from NetCDF
+  real(sp), dimension(0:M, KB) :: KHNC, SALNC, TEMPNC, RHONC ! KH field, as read from NetCDF
+  real(sp), dimension(0:M) :: ELNC ! Free surface height field, as read from NetCDF
+
+  real(sp), dimension(0:N, KB) :: UNC1, UNC2, VNC1, VNC2, WNC1, WNC2 ! velocity fields start and end of hour
+  real(sp), dimension(0:M, KB) :: KHNC1, KHNC2, SALNC1, SALNC2, TEMPNC1, TEMPNC2, RHONC1, RHONC2 ! diffusion and physical fields start and end of hour
+  real(sp), dimension(0:M) :: ELNC1, ELNC2 ! free surface height field start and end of hour
+  real(sp) :: TMP1, TMP2, LAG_TIME
+  integer :: NH, I1, I2, IT, HOUR, IINT
+  character(len = 100) :: input_file
+
+  integer :: ii, index, ionode=100, ioelem=101
   character(len = 100) :: input, filename, meshfile, foldername, exp_letter
   logical :: fexist
   integer :: exp_type
@@ -54,7 +75,44 @@ program PARTICLE_TRAJ
   end if
 
   allocate(domain)
-  call read_mesh(domain) ! set up grid metrics, allocate mesh variables, and read in mesh data
+
+
+  write(*, "(A)", advance='no') "Opening mesh files... "
+  open(ioelem, file = "./"//trim(folderprefix)//"/mesh_elem.dat")
+  open(ionode, file = "./"//trim(folderprefix)//"/mesh_node.dat")
+  write(*, *) "Finished"
+
+
+  write(*, "(A)", advance='no') "Reading headers... "
+  read(ioelem, *) N, KB ! get number of nodes, elements, and sigma layers
+  read(ionode, *) M
+  write(*, *) "Finished"
+
+
+  domain%nnodes = M; domain%nelements = N; domain%nlayers = KB
+  KBM1 = KB - 1
+  KBM2 = KB - 2
+
+  write(*, "(A)", advance='no') "Allocating mesh based variables... "
+  call ALLOC_VARS
+  write(*, *) "Finished"
+
+  write(*, "(A)", advance='no') "Getting element data... "
+  element_loop: do ii = 1, N
+    read(ioelem, *) index, NV(ii, 1), NV(ii, 3), NV(ii, 2) ! get node indices
+  end do element_loop
+  NV(:, 4) = NV(:, 1) ! duplicate node for computation
+  write(*, *) "Finished"
+
+  write(*, "(A)", advance='no') "Getting node data... "
+  node_loop: do ii = 1, M
+    read(ionode, *) index, VX(ii), VY(ii), H(ii) ! get node position and depth
+  end do node_loop
+  write(*, *) "Finished"
+
+  close(ioelem)
+  close(ionode)
+
   write(*, *)
   write(*, *) '    Nodes        :', M
   write(*, *) '    Elements     :', N
@@ -65,32 +123,8 @@ program PARTICLE_TRAJ
   write(*, "(A)", advance='no') "Computing mesh topology... "
   call TRIANGLE_GRID_EDGE
   write(*, *) "Finished"
-  call SET_LAG(exp_type) ! set up lagrangian particles
-  write(*, *) "Starting simulation loop... "
-  call LAG_UPDATE ! time step evolution
 
-end program PARTICLE_TRAJ
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine SET_LAG(exp_type)
-  ! Read in lagrangian control parameters and initial lagrangian positions
-  use ALL_VARS
-  use MOD_TOX, only : cyano
-  use MOD_FISH, only : fish
-  use MOD_SIM, only : domain
-  use MOD_RAND, only : random
-  use parameters, only : iocp, iocs, iophys, iofp, iofs
-  implicit none
 
-  integer, intent(in) :: exp_type
-  character(LEN = 100) :: input_file, state_format
-  integer , allocatable, dimension(:) :: INWATER
-  integer :: HOUR
-  real(sp), dimension(0:N, KB) :: UNC, VNC, WNC ! velocity fields, as read from NetCDF
-  real(sp), dimension(0:M, KB) :: KHNC, SALNC, TEMPNC, RHONC ! KH field, as read from NetCDF
-  real(sp), dimension(0:M) :: ELNC ! Free surface height field, as read from NetCDF
 
   state_format="(1F12.6, 9000(I6,3F12.6))"
 
@@ -156,7 +190,7 @@ subroutine SET_LAG(exp_type)
 
   write(*, "(A)", advance='no') "Finding host elements... "
   call fish%FHE_ROBUST(fish%XP, fish%YP, INWATER) ! Determine element containing each particle
-  where (.not. fish%FOUND) fish%INDOMAIN(:) = 0 ! if not found, particle is not in domain and will not be tracked
+  where (fish%FOUND == 0) fish%INDOMAIN(:) = 0 ! if not found, particle is not in domain and will not be tracked
   write(*, *) "Finished"
 
   write(*, "(A)", advance='no') "Interpolating physical fields... "
@@ -186,29 +220,7 @@ subroutine SET_LAG(exp_type)
   call cyano%stats
   call fish%stats
 
-end subroutine SET_LAG
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine LAG_UPDATE
-  ! Update particle positions, calculate scalar fields and particle velocities
-  use ALL_VARS
-  use MOD_TOX, only : cyano
-  use MOD_FISH, only : fish
-  use MOD_SIM, only : domain
-  use MOD_RAND, only : random
-  use parameters
-
-  implicit none
-
-  real(sp), dimension(0:N, KB) :: UNC1, UNC2, VNC1, VNC2, WNC1, WNC2 ! velocity fields start and end of hour
-  real(sp), dimension(0:M, KB) :: KHNC1, KHNC2, SALNC1, SALNC2, TEMPNC1, TEMPNC2, RHONC1, RHONC2 ! diffusion and physical fields start and end of hour
-  real(sp), dimension(0:M) :: ELNC1, ELNC2 ! free surface height field start and end of hour
-  real(sp) :: TMP1, TMP2, LAG_TIME
-  integer :: NH, I1, I2, IT, HOUR, IINT
-  character(len = 100) :: input_file
-
+  write(*, *) "Starting simulation loop... "
 
   HOUR = HOURLAG ! First reading of velocity fields from netcdf file
   input_file = "./" //trim(folderprefix)//"/"// trim(casename) // "_phys.dat" ! NetCDF file for simulation
@@ -227,14 +239,14 @@ subroutine LAG_UPDATE
   RT1(:,:) = RHONC1(:,:) ! copy density field to working array
 
   IINT = 0
-  simulation_loop: do NH = ISLAG, IELAG ! timestep units are hours, but not necessarily whole numbers
+  do NH = ISLAG, IELAG ! timestep units are hours, but not necessarily whole numbers
     write(*,*); write(*, "(I4,A,I4,A)", advance='no') NH-ISLAG+1, ' / ', IELAG-ISLAG+1, ' steps: '
     call domain%load(UNC2, VNC2, WNC2, KHNC2, ELNC2, SALNC2, TEMPNC2, RHONC2) ! use steady state
 
     HOUR = HOUR + 1
     I1 = 1
     I2 = int(INSTP/DTI) ! length (float) of flow field interpolation divided by length (float) of inner time step
-    interpolation_loop: do IT = I1, I2
+    do IT = I1, I2
 
       write(*,"(A)",advance='no') "|"
       IINT = IINT + 1 ! increment total step count
@@ -272,10 +284,10 @@ subroutine LAG_UPDATE
         end if
       end if
 
-    end do interpolation_loop
-  end do simulation_loop
+    end do
+  end do
 
   write(*,*); write(*,*); write(*,*) "Simulation finished."; write(*,*)
   call random%stats()
 
-end subroutine LAG_UPDATE
+end program

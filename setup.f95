@@ -1,6 +1,6 @@
 program setup
   ! program writes initial position and state variables to simulation file for reading by offlag
-  use MOD_PREC, only : sp
+  use parameters, only : sp
   use ALL_VARS, only : zero, folderprefix
   use MOD_TOX, only : colonyBaseRadius, densityMin, densitymax, cellFrac, vesicleFrac, vesicleDensity, cellDensityCoefficient
   use parameters, only : iorun, iophys
@@ -20,9 +20,7 @@ program setup
   real(sp) :: dt = 1.0, day, clock_time, biomass, carbon, carbohydrate, protein, microcystin, ratio, radius, reqCellDensity, initial_position
   real(sp) :: bottom_depth=-5.0_SP, ini_depth
   real(sp) :: salinity=3.0_SP
-  
-  
-  
+
   !real(sp) :: control_temp=20.0_SP, temp_slope=0.0_SP  ! Experiment A
   real(sp) :: control_temp=20.0_SP, temp_slope=0.00694_SP  ! Experiment B
   !real(sp) :: control_temp=25.0_SP, temp_slope=0.00694_SP  ! Experiment C
@@ -35,11 +33,11 @@ program setup
      print *, 'Please provide simulation ID on command line (###)'; print *, 'Stopping...'; stop
   end if
   folderprefix = adjustl(foldername)
-  
-  
-  allocate(random); call random%init()
 
-  mesh_construction: if (makeGrid) then
+  allocate(random);
+  call random%init()
+
+  if (makeGrid) then
     write(*, *); write(*, *) "For the simulation we are going to build a simple triangular mesh representing a rectangular reservoir... "
     !write(*, *); write(*, '(A)', advance='no') "    What is the desired X range (meters)? "; read(*, *) x_range
     x_range = 500.0_SP
@@ -117,9 +115,9 @@ program setup
     write(*, *)
     write(*, *) "    Nodes:          ", nnodes
     write(*, *) "    Elements:       ", nelements
-  end if mesh_construction
+  end if
 
-  physical_fields: if (writeFields) then
+  if (writeFields) then
   
     allocate(diffusivity(nlayers))
     allocate(temperature(nlayers))
@@ -151,7 +149,7 @@ program setup
     end do write_loop
     close(iophys)
     write(*, "(A)") "Finished"
-  end if physical_fields
+  end if
 
   ! write ichthyotox_run.dat
   open(unit=iorun, file="../"//trim(folderprefix)//"/ichthyotox_run.dat", status='replace')

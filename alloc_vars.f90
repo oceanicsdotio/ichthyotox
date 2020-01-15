@@ -1,63 +1,62 @@
-SUBROUTINE ALLOC_VARS
-  ! Allocate and Initialize Most Arrays
-  USE ALL_VARS
-  IMPLICIT NONE
+subroutine ALLOC_VARS
+  ! allocate and Initialize Most Arrays
+  use ALL_VARS
+  implicit none
   INTEGER :: NCT
 
   NCT = N*3
 
-  !  ALLOCATE
   ! Grid Metrics
-  ALLOCATE(XC(0:N))            ;XC   = ZERO   !!X-COORD AT FACE CENTER 
-  ALLOCATE(YC(0:N))            ;YC   = ZERO   !!Y-COORD AT FACE CENTER
-  ALLOCATE(VX(0:M))            ;VX   = ZERO   !!X-COORD AT GRID POINT
-  ALLOCATE(VY(0:M))            ;VY   = ZERO   !!Y-COORD AT GRID POINT
+  allocate(XC(0:N))            ;XC   = zero   !!X-COORD AT FACE CENTER 
+  allocate(YC(0:N))            ;YC   = zero   !!Y-COORD AT FACE CENTER
+  allocate(VX(0:M))            ;VX   = zero   !!X-COORD AT GRID POINT
+  allocate(VY(0:M))            ;VY   = zero   !!Y-COORD AT GRID POINT
 
   ! Node, Boundary Condition, and Control Volume
-  ALLOCATE(NV(0:N,4))           ;NV       = 0  !!NODE NUMBERING FOR ELEMENTS
-  ALLOCATE(NBE(0:N,3))          ;NBE      = 0  !!INDICES OF ELEMENT NEIGHBORS
-  ALLOCATE(NTVE(0:M))           ;NTVE     = 0 
-  ALLOCATE(ISONB(0:M))          ;ISONB    = 0  !!NODE MARKER = 0,1,2
-  ALLOCATE(ISBCE(0:N))          ;ISBCE    = 0 
+  allocate(NV(0:N,4))           ;NV       = 0  !!NODE NUMBERING FOR ELEMENTS
+  allocate(NBE(0:N,3))          ;NBE      = 0  !!INDICES OF ELEMENT NEIGHBORS
+  allocate(NTVE(0:M))           ;NTVE     = 0 
+  allocate(ISONB(0:M))          ;ISONB    = 0  !!NODE MARKER = 0,1,2
+  allocate(ISBCE(0:N))          ;ISBCE    = 0 
 
   ! 1-d arrays for the sigma coordinate
-  ALLOCATE(Z(KB))               ; Z      = ZERO    !!SIGMA COORDINATE VALUE 
-  ALLOCATE(ZZ(KB))              ; ZZ     = ZERO    !!INTRA LEVEL SIGMA VALUE
-  ALLOCATE(DZ(KB))              ; DZ     = ZERO    !!DELTA-SIGMA VALUE
-  ALLOCATE(DZZ(KB))             ; DZZ    = ZERO    !!DELTA OF INTRA LEVEL SIGMA 
+  allocate(Z(KB))               ; Z      = zero    !!SIGMA COORDINATE VALUE 
+  allocate(ZZ(KB))              ; ZZ     = zero    !!INTRA LEVEL SIGMA VALUE
+  allocate(DZ(KB))              ; DZ     = zero    !!DELTA-SIGMA VALUE
+  allocate(DZZ(KB))             ; DZZ    = zero    !!DELTA OF INTRA LEVEL SIGMA 
 
   ! 2-d flow variable arrays at nodes
-  ALLOCATE(H(0:M))       ;H    = ZERO       !!BATHYMETRIC DEPTH   
-  ALLOCATE(D(0:M))       ;D    = ZERO       !!DEPTH   
-  ALLOCATE(EL(0:M))      ;EL   = ZERO       !!SURFACE ELEVATION
-  ALLOCATE(ET(0:M))      ;ET  = ZERO       !!SURFACE ELEVATION PREVIOUS TIMESTEP
+  allocate(H(0:M))       ;H    = zero       !!BATHYMETRIC DEPTH   
+  allocate(D(0:M))       ;D    = zero       !!DEPTH   
+  allocate(EL(0:M))      ;EL   = zero       !!SURFACE ELEVATION
+  allocate(ET(0:M))      ;ET  = zero       !!SURFACE ELEVATION PREVIOUS TIMESTEP
 
   ! internal mode arrays-(element based)
-  ALLOCATE(U(0:N,KB))       ;U     = ZERO   !!X-VELOCITY
-  ALLOCATE(V(0:N,KB))       ;V     = ZERO   !!Y-VELOCITY
-  ALLOCATE(W(0:N,KB))       ;W     = ZERO   !!VERTICAL VELOCITY IN SIGMA SYSTEM
-  ALLOCATE(WW(0:N,KB))      ;WW    = ZERO   !!Z-VELOCITY
-  ALLOCATE(UT(0:N,KB))      ;UT    = ZERO   !!X-VELOCITY FROM PREVIOUS TIMESTEP
-  ALLOCATE(VT(0:N,KB))      ;VT    = ZERO   !!Y-VELOCITY FROM PREVIOUS TIMESTEP
-  ALLOCATE(WT(0:N,KB))      ;WT    = ZERO   !!VERTICAL VELOCITY FROM PREVIOUS TIMESTEP
-  ALLOCATE(WWT(0:N,KB))     ;WWT   = ZERO   !!Z-VELOCITY FROM PREVIOUS TIMESTEP
-  ALLOCATE(KH(0:N,KB))     ;KH    = ZERO   !!TURBULENT QUANTITY
+  allocate(U(0:N, KB))       ;U     = zero   !!X-VELOCITY
+  allocate(V(0:N, KB))       ;V     = zero   !!Y-VELOCITY
+  allocate(W(0:N, KB))       ;W     = zero   !!VERTICAL VELOCITY IN SIGMA SYSTEM
+  allocate(WW(0:N, KB))      ;WW    = zero   !!Z-VELOCITY
+  allocate(UT(0:N, KB))      ;UT    = zero   !!X-VELOCITY FROM PREVIOUS TIMESTEP
+  allocate(VT(0:N, KB))      ;VT    = zero   !!Y-VELOCITY FROM PREVIOUS TIMESTEP
+  allocate(WT(0:N, KB))      ;WT    = zero   !!VERTICAL VELOCITY FROM PREVIOUS TIMESTEP
+  allocate(WWT(0:N, KB))     ;WWT   = zero   !!Z-VELOCITY FROM PREVIOUS TIMESTEP
+  allocate(KH(0:N, KB))     ;KH    = zero   !!TURBULENT QUANTITY
 
   ! 3d variable arrays-(node based)
-  ALLOCATE(T1(0:M,KB))       ;T1     = ZERO  !!TEMPERATURE AT NODES
-  ALLOCATE(S1(0:M,KB))       ;S1     = ZERO  !!SALINITY AT NODES               
-  ALLOCATE(R1(0:M,KB))       ;R1   = ZERO  !!DENSITY AT NODES
-  ALLOCATE(TT1(0:M,KB))      ;TT1    = ZERO  !!TEMPERATURE FROM PREVIOUS TIME
-  ALLOCATE(ST1(0:M,KB))      ;ST1    = ZERO  !!SALINITY FROM PREVIOUS TIME 
-  ALLOCATE(RT1(0:M,KB))      ;RT1 = ZERO
-  ALLOCATE(WTS(0:M,KB))      ;WTS    = ZERO  !!VERTICAL VELOCITY IN SIGMA SYSTEM
+  allocate(T1(0:M, KB))       ;T1     = zero  !!TEMPERATURE AT NODES
+  allocate(S1(0:M, KB))       ;S1     = zero  !!SALINITY AT NODES
+  allocate(R1(0:M, KB))       ;R1   = zero  !!DENSITY AT NODES
+  allocate(TT1(0:M, KB))      ;TT1    = zero  !!TEMPERATURE FROM PREVIOUS TIME
+  allocate(ST1(0:M, KB))      ;ST1    = zero  !!SALINITY FROM PREVIOUS TIME
+  allocate(RT1(0:M, KB))      ;RT1 = zero
+  allocate(WTS(0:M, KB))      ;WTS    = zero  !!VERTICAL VELOCITY IN SIGMA SYSTEM
 
   ! Shape coefficient arrays and control volume metrics
-  ALLOCATE(A1U(0:N,4))         ;A1U   = ZERO
-  ALLOCATE(A2U(0:N,4))         ;A2U   = ZERO 
-  ALLOCATE(AWX(0:N,3))         ;AWX   = ZERO 
-  ALLOCATE(AWY(0:N,3))         ;AWY   = ZERO 
-  ALLOCATE(AW0(0:N,3))         ;AW0   = ZERO 
+  allocate(A1U(0:N, 4))         ;A1U   = zero
+  allocate(A2U(0:N, 4))         ;A2U   = zero
+  allocate(AWX(0:N, 3))         ;AWX   = zero
+  allocate(AWY(0:N, 3))         ;AWY   = zero
+  allocate(AW0(0:N, 3))         ;AW0   = zero
 
-  RETURN
-END SUBROUTINE ALLOC_VARS
+  return
+end subroutine

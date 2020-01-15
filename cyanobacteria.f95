@@ -1,5 +1,5 @@
 module MOD_TOX
-  use MOD_PREC, only : sp ! real precision
+  use parameters, only : sp ! real precision
   use MOD_LAG, only : LAG_OBJ ! module extends the lagrangian particle type
   use ALL_VARS, only : zero
   implicit none
@@ -71,28 +71,27 @@ module MOD_TOX
     procedure, private :: release => colony_microcystinExcretion ! constant excretion
 
   end type LAG_TOX; type(LAG_TOX), allocatable :: CYANO
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 contains
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
   subroutine colony_initialize(self, exp_type) ! OK
     ! read position and state, and allocate internal variables
     use ALL_VARS, only : zero
-    use MOD_PREC, only : sp
+    use parameters, only : sp
     class(LAG_TOX), intent(inout) :: self
     integer :: exp_type
 
     self%species = 'cyanobacteria' ! file name prefix
-    if (exp_type .eq. 1) then
+    if (exp_type == 1) then
       self%mclrProductionRate = zero
       self%mclrExcretionRate = zero
-    else if (exp_type .eq. 2) then
+    else if (exp_type == 2) then
       self%mclrProductionRate = 0.0001_sp
       self%mclrExcretionRate = zero
-    else if (exp_type .eq. 3) then
+    else if (exp_type == 3) then
       self%mclrProductionRate = 0.0001_sp
       self%mclrExcretionRate = 0.0001_sp
-    else if (exp_type .eq. 4) then
+    else if (exp_type == 4) then
       self%mclrProductionRate = zero
       self%mclrExcretionRate = 0.0001_sp
     else
@@ -110,8 +109,8 @@ contains
     call self%readState() ! read initial values from file
 
   end subroutine colony_initialize
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
   subroutine colony_readState(self) ! OK
     use parameters, only : iovar
     use ALL_VARS, only : folderprefix
@@ -130,18 +129,18 @@ contains
 
     open(unit=iovar, file=filename, form='formatted')
     read(iovar, "(I6)") indexMatch
-    if (indexMatch .ne. self%ndrft) then
+    if (indexMatch /= self%ndrft) then
       write(*, *) 'Dimensions of position and state variable files are not equal, halting...'
       stop
     end if
 
-    cyanobacteria: do ii = 1, self%ndrft
+    do ii = 1, self%ndrft
       read(iovar, "(4F20.6)") self%radius(ii), self%carbohydrate(ii), self%protein(ii), self%microcystin(ii)
-    end do cyanobacteria
+    end do
     close(iovar)
   end subroutine colony_readState
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
   subroutine colony_writeState(self, fid)
     use MOD_SIM, only : domain ! domain structure for elapsed time
     class(LAG_TOX), intent(in) :: self ! cyanobacteria extended type
@@ -151,28 +150,28 @@ contains
     write(fid, "(1F10.2,9000(I6,3F20.3))") domain%time, (self%itag(ii), self%carbohydrate(ii), self%protein(ii), self%microcystin(ii), ii=1,self%ndrft)
 
   end subroutine colony_writeState
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
   recursive subroutine colony_QsortC(absdepth, order) ! OK
     ! Recursive Fortran 95 quicksort routine sorts real numbers into ascending numerical order
     ! Author: Juli Rew, SCD Consulting (juliana@ucar.edu), 9/03
     ! Based on algorithm from Cormen et al., Introduction to Algorithms, 1997 printing
     ! Made F conformant by Walt Brainerd http://www.fortran.com/qsort_c.f95
-    use MOD_PREC, only : sp
+    use parameters, only : sp
     real(sp), intent(inout), dimension(:) :: absdepth
     integer, intent(inout), dimension(:) :: order
     integer :: iq
 
-    if (size(absdepth) .gt. 1) then
+    if (size(absdepth) > 1) then
       call colony_Partition(absdepth, order, iq)
       call colony_QsortC(absdepth(:iq-1), order(:iq-1))
       call colony_QsortC(absdepth(iq:), order(iq:))
     end if
   end subroutine colony_QsortC
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
   subroutine colony_Partition(A, B, marker) ! OK
-    use MOD_PREC, only : sp
+    use parameters, only : sp
 
     real(sp), intent(inout), dimension(:) :: A
     integer, intent(inout), dimension(:) :: B
@@ -212,11 +211,11 @@ contains
       endif
     end do
   end subroutine colony_Partition
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
   function colony_carbonFixation(self) ! OK
     ! Updates carbohydrate ballast state variable due to fixation (alias is "fixation")
-    use MOD_PREC, only : SP ! for single or double precision
+    use parameters, only : SP ! for single or double precision
     use MOD_SIM, only : domain
 
     class(LAG_TOX), intent(inout) :: self
@@ -244,70 +243,70 @@ contains
     colony_carbonFixation(:) = fixationMax*fixationCoef(:)*self%protein(:)*(1.0_SP - vesicleFrac)*(carbonRatioMax - self%carbohydrate(:)/self%protein(:))/carbonRatioMax ! actual mass transfer
 
   end function colony_carbonFixation
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
   function colony_carbonSynthesis(self) ! OK
     ! updates carbohydrate and protein state variables due to synthesis transport (alias is "synthesis")
     ! calls tempLimit()
-    use MOD_PREC, only : sp ! real precision
+    use parameters, only : sp ! real precision
     class(LAG_TOX), intent(inout) :: self
     real(sp), dimension(self%ndrft) :: colony_carbonSynthesis
 
     colony_carbonSynthesis(:) =  self%carbohydrate(:) * synthesisMax * self%tempLimit()
 
   end function colony_carbonSynthesis
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
   function colony_carbonExcretion(self) ! OK
     ! update protein and dissolved pools due to excretion transport (alias is "excretion")
     ! temperature is tracked for all particles, so function uses algae array subset
-    use MOD_PREC, only : sp ! for single or double precision
+    use parameters, only : sp ! for single or double precision
     class(LAG_TOX), intent(inout) :: self
     real(sp), dimension(self%ndrft) :: colony_carbonExcretion
 
     colony_carbonExcretion(:) = excretionFrac * self%tempFunction() * (respirationBasic*self%carbohydrate(:) + synthesisMax*self%protein(:))
 
   end function colony_carbonExcretion
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  function colony_carbonRespiration(self) ! OK
+
+
+  function colony_carbonRespiration(self)
     ! update carbohydrate and dissolved pools due to respiration transport (alias is "respiration")
     ! temperature is tracked for all particles, so function calls use algae array subset
-    use MOD_PREC, only : sp ! for single or double precision
+    use parameters, only : sp ! for single or double precision
     class(LAG_TOX), intent(inout) :: self
     real(sp), dimension(self%ndrft) :: colony_carbonRespiration
 
     colony_carbonRespiration(:) = respirationBasic*self%tempFunction()*self%protein(:) + respirationActive*synthesisMax*self%tempLimit()*self%carbohydrate(:)
 
-  end function colony_carbonRespiration
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  function colony_temperatureLimit(self) ! OKAY
+  end function
+
+
+  function colony_temperatureLimit(self)
     ! Returns array of temperature limitation coefficents (0,1) for C synthesis
-    use MOD_PREC, only : sp ! for single or double precision
+    use parameters, only : sp ! for single or double precision
     class(LAG_TOX), intent(in) :: self
     real(sp), dimension(self%ndrft) :: colony_temperatureLimit ! array of output coefficients for each particle
 
     colony_temperatureLimit(:) = (self%TEMP(:) / tempOpt * (  ((self%TEMP(:) - tempLethal)/(tempOpt - tempLethal))**( (tempRef - tempOpt) / tempOpt )  ))**(4.0_SP)
 
-  end function colony_temperatureLimit
+  end function
 
 
-  function colony_temperatureFunction(self) ! OK
+  function colony_temperatureFunction(self)
     ! returns array of scaling coefficents for biometric fcns
-    use MOD_PREC, only : sp! for single and double precision
+    use parameters, only : sp! for single and double precision
 
     class(LAG_TOX), intent(in) :: self
     real(sp), dimension(self%ndrft) :: colony_temperatureFunction ! array of output coefficients for each particles
 
     colony_temperatureFunction(:) = tempFcnAlpha * exp(tempFcnBeta * (self%temp(:) - tempOpt + tempRef))
 
-  end function colony_temperatureFunction
+  end function
 
 
   function colony_microcystinProduction(self)
     ! calculates toxin production per time step
-    use MOD_PREC, only : sp ! for precision
+    use parameters, only : sp ! for precision
 
     class(LAG_TOX), intent(inout) :: self
     real(sp), dimension(self%ndrft) :: colony_microcystinProduction ! array of microcystin production for colony particles
@@ -318,7 +317,7 @@ contains
 
   function colony_microcystinExcretion(self)
     ! calculates temperature dependent toxin loss and moves mass to host element
-    use MOD_PREC, only : sp
+    use parameters, only : sp
 
     class(LAG_TOX), intent(inout) :: self
     real(sp), dimension(self%ndrft) :: colony_microcystinExcretion
@@ -327,10 +326,10 @@ contains
   end function colony_microcystinExcretion
 
 
-  subroutine colony_verticalMovement(self) ! OK
+  subroutine colony_verticalMovement(self)
     ! update position due to buoyant movement: calls velocity(), zinterp(), zlocate(), sigma()
-    use MOD_PREC, only : sp ! single precision
-    use LIMS, only : KB, KBM1
+    use parameters, only : sp ! single precision
+    use ALL_VARS, only : KB, KBM1
     use MOD_SIM, only : domain
     use ALL_VARS, only : dti, zero ! integration step
     use parameters, only : A_RK, B_RK, MSTAGE, strict_integration ! runge-kutta integration parameters
@@ -351,7 +350,7 @@ contains
     ini_sigma(:) = self%zp(:)
     ini_position(:) = self%zpt(:)
 
-    runge_kutta_integration: do ii = 1, MSTAGE
+    do ii = 1, MSTAGE
       ! get new stage values
       self%zpt(:)           = ini_position(:)     + A_RK(ii)*dti*chi_position(:, ii-1)      ! new stage position
       self%carbohydrate(:)  = ini_carbohydrate(:) + A_RK(ii)*dti*chi_carbohydrate(:, ii-1)  ! new carb stage value
@@ -387,23 +386,23 @@ contains
       mc_excretion(:) = self%release()
       mc_production(:) = self%production()
 
-      if (ii .lt. MSTAGE) then
+      if (ii < MSTAGE) then
         mcoef = A_RK(ii+1)
       else
         mcoef = 1.0_SP
       end if
 
       calc_array(:) = synthesis(:)/respiration(:)
-      where ( ((synthesis(:)+respiration(:))*dti*mcoef) .gt. (self%carbohydrate(:) + fixation(:)*dti*mcoef) )
+      where ( ((synthesis(:)+respiration(:))*dti*mcoef) > (self%carbohydrate(:) + fixation(:)*dti*mcoef) )
         synthesis(:) = (self%carbohydrate(:)/dti/mcoef + fixation(:))/(1.0_SP + 1.0_SP/calc_array(:))
         respiration(:) = (self%carbohydrate(:)/dti/mcoef + fixation(:))/(1.0_SP + calc_array(:))
       end where
 
-      where ( excretion(:)*dti*mcoef .gt. (self%protein(:) + synthesis(:)*dti*mcoef) )
+      where ( excretion(:)*dti*mcoef > (self%protein(:) + synthesis(:)*dti*mcoef) )
         excretion(:) = self%protein(:)/dti + synthesis(:)
       end where
 
-      where ( mc_excretion(:)*dti*mcoef .gt. (self%microcystin(:) + mc_production(:)*dti*mcoef) )
+      where ( mc_excretion(:)*dti*mcoef > (self%microcystin(:) + mc_production(:)*dti*mcoef) )
         mc_excretion(:) = self%microcystin(:)/dti/mcoef + mc_production(:)
       end where
 
@@ -413,7 +412,7 @@ contains
       chi_microcystin(:,ii) = mc_production(:) - mc_excretion(:)
       chi_dissolved(:,ii) = mc_excretion(:)
 
-    end do runge_kutta_integration
+    end do
 
 
     ! restore initial values
@@ -423,8 +422,7 @@ contains
     self%zp(:) = ini_sigma(:)
     self%zpt(:) = ini_position(:)
 
-    stage_summation: do ii = 1, MSTAGE ! add weighted stages to initial values
-
+    do ii = 1, MSTAGE ! add weighted stages to initial values
 
       where (chi_dissolved(:, ii)*dti*B_RK(ii) > self%microcystin(:)) chi_dissolved(:,ii) = self%microcystin(:)/dti/B_RK(ii)
       where (-chi_carbohydrate(:, ii)*dti*B_RK(ii) > self%carbohydrate(:)) chi_carbohydrate(:,ii) = self%carbohydrate(:)/dti/B_RK(ii)
@@ -463,8 +461,7 @@ contains
         domain%verticaltox(self%layer(:)+1) = domain%verticaltox(self%layer(:)+1) + B_RK(ii)*dti*chi_dissolved(:,ii)*idz(:)/domain%layerDepth ! add to sigma below
       end where
 
-    end do stage_summation
-
+    end do
 
     self%carbohydrate(:) = max(self%carbohydrate(:), zero)
     self%protein(:) = max(self%protein(:), zero)
@@ -476,13 +473,12 @@ contains
     self%rho(:) = self%zinterp(domain%verticalrho(:)) ! vertical interp of density at final position
     self%temp(:) = self%zinterp(domain%verticaltemp(:)) ! vertical interp of density at final position
 
-  end subroutine colony_verticalMovement
+  end subroutine
 
 
   subroutine colony_random_walk(self)
     ! vertical and horizontal random walk
-    use ALL_VARS, only : dti, dtrw, z
-    use LIMS, only : KB, KBM1, KBM2
+    use ALL_VARS, only : dti, dtrw, z, KB, KBM1, KBM2
     use MOD_RAND, only : random
     use MOD_SIM, only : domain
     class(LAG_TOX), intent(inout) :: self
@@ -523,13 +519,13 @@ contains
       self%zp(:) = self%sigma(self%zpt(:))
       self%layer(:) = self%zlocate(self%zp(:))
     end do
-  end subroutine colony_random_walk
+  end subroutine
 
 
   function colony_stokesVelocity(self)
     ! returns stokes velocity of particle in m/hr, if lighter than water result is positive
     ! calls density() and viscosity()
-    use MOD_PREC, only : sp ! precision
+    use parameters, only : sp ! precision
     use ALL_VARS, only : grav ! grav is positive, m/s2
     class(LAG_TOX), intent(inout) :: self
     real(sp), dimension(self%ndrft) :: colony_stokesVelocity ! output array of particle vertical velocities
@@ -541,7 +537,7 @@ contains
 
   function colony_algaeDensity(self) ! OK
     ! returns actual colony density including contibutions of mucus and gas vacuoles
-    use MOD_PREC, only : sp
+    use parameters, only : sp
     !use parameters, only : densityMin, densitymax, cellFrac, vesicleFrac, vesicleDensity, cellDensityCoefficient
     class(LAG_TOX), intent(in) :: self
     real(sp), dimension(self%ndrft) :: colony_algaeDensity ! output array of overall colony density
@@ -553,12 +549,12 @@ contains
   end function
 
 
-  function colony_dynamicViscosity(self) ! OK
+  function colony_dynamicViscosity(self)
     ! returns array of dynamic viscosity values at particle locations
-    use MOD_PREC, only : sp ! for precision
+    use parameters, only : sp ! for precision
     class(LAG_TOX), intent(in) :: self
     real(sp), dimension(self%ndrft) :: colony_dynamicViscosity ! output array of viscosity values
-    !real(sp), dimension(self%ndrft) :: A, B, visc_pure
+    ! real(sp), dimension(self%ndrft) :: A, B, visc_pure
     ! Sharqway et al 2010
     !    A = 1.541_SP + 19.998_SP*10.0_SP**(-2.0_SP)*self%temp - 9.52_SP*10.0_SP**(-5.0_SP)*self%temp**(2.0_SP)
     !    B = 7.974_SP - 7.561_SP*10.0_SP**(-2.0_SP) + 4.724_SP*10.0_SP**(-4.0_SP)*self%temp**(2.0_SP)

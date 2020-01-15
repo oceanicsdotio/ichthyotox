@@ -16,4 +16,4 @@ program gaussian
 
   call random%stats()
 
-end program gaussian
+end program

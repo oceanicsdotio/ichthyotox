@@ -1,60 +1,50 @@
 FC = gfortran
 CFLAGS = -c -std=f2003 -Wextra -Wall -pedantic -ffree-line-length-none -fbounds-check
 
-setup: ichthyotox_setup.o ichthyotox offlag.o mod_var.o mod_lag.o mod_fish_watkins.o
-		$(FC) -o setup mod_prec.o parameters.o mod_var.o mod_sim.o ichthyotox_setup.o
+setup: setup.o ichthyotox main.o mod_var.o mod_lag.o behavior.o
+		$(FC) -o setup parameters.o mod_var.o simulation.o setup.o
 
-ichthyotox_setup.o: mod_prec.o parameters.o mod_var.o mod_lag.o mod_fish_watkins.o mod_sim.o offlag.o ichthyotox ichthyotox_setup.f95
-		$(FC) $(CFLAGS) ichthyotox_setup.f95
+setup.o: parameters.o mod_var.o mod_lag.o behavior.o simulation.o main.o ichthyotox setup.f95
+		$(FC) $(CFLAGS) setup.f95
 
-ichthyotox: offlag.o ncdio.o mod_prec.o mod_var.o parameters.o mod_inp.o util.o mod_sim.o mod_lag.o mod_fish_watkins.o mod_tox.o triangle_grid_edge.o alloc_vars.o data_run.o
-		$(FC) -o ichthyotox mod_prec.o ncdio.o parameters.o mod_var.o data_run.o mod_inp.o util.o mod_sim.o mod_lag.o mod_fish_watkins.o mod_tox.o triangle_grid_edge.o alloc_vars.o offlag.o
+ichthyotox: main.o mod_var.o parameters.o mod_inp.o utilities.o simulation.o mod_lag.o behavior.o cyanobacteria.o triangle_grid_edge.o alloc_vars.o
+		$(FC) -o ichthyotox parameters.o mod_var.o mod_inp.o utilities.o simulation.o mod_lag.o behavior.o cyanobacteria.o triangle_grid_edge.o alloc_vars.o main.o
 
-offlag.o: mod_prec.o mod_var.o data_run.o mod_sim.o mod_lag.o mod_fish_watkins.o mod_tox.o triangle_grid_edge.o alloc_vars.o offlag.f95
-		$(FC) $(CFLAGS) offlag.f95 
+main.o: parameters.o mod_var.o mod_inp.o simulation.o mod_lag.o behavior.o cyanobacteria.o triangle_grid_edge.o alloc_vars.o main.f95
+		$(FC) $(CFLAGS) main.f95
 
 # multiple dependencies
 
-mod_fish_watkins.o: mod_fish_watkins.f95 mod_var.o mod_tox.o mod_prec.o parameters.o mod_sim.o mod_lag.o
-		$(FC) $(CFLAGS) mod_fish_watkins.f95
+behavior.o: behavior.f95 mod_var.o cyanobacteria.o parameters.o simulation.o mod_lag.o
+		$(FC) $(CFLAGS) behavior.f95
 
-mod_tox.o: mod_tox.f95 mod_var.o mod_prec.o parameters.o mod_sim.o mod_lag.o
-		$(FC) $(CFLAGS) mod_tox.f95
+cyanobacteria.o: cyanobacteria.f95 mod_var.o parameters.o simulation.o mod_lag.o
+		$(FC) $(CFLAGS) cyanobacteria.f95
  
 triangle_grid_edge.o: triangle_grid_edge.f90 mod_var.o
 		$(FC) $(CFLAGS) triangle_grid_edge.f90
 
-ncdio.o: ncdio.f90 mod_var.o alloc_vars.o
-		$(FC) $(CFLAGS) ncdio.f90
-
 alloc_vars.o: alloc_vars.f90 mod_var.o
 		$(FC) $(CFLAGS) alloc_vars.f90
 
-mod_lag.o: mod_lag.f95 util.f90 mod_prec.o mod_sim.o util.o mod_var.o
+mod_lag.o: mod_lag.f95 utilities.f90 parameters.o simulation.o utilities.o mod_var.o
 		$(FC) $(CFLAGS) mod_lag.f95
 
-mod_sim.o: mod_sim.f95 mod_prec.o parameters.o
-		$(FC) $(CFLAGS) mod_sim.f95
+simulation.o: simulation.f95 parameters.o
+		$(FC) $(CFLAGS) simulation.f95
 
-data_run.o: data_run.f90 mod_inp.o mod_var.o
-		$(FC) $(CFLAGS) data_run.f90
-
-mod_var.o: mod_var.f95 util.f90 mod_prec.o util.o
-		$(FC) $(CFLAGS) mod_var.f95
-
-# depends only on precision
-parameters.o: parameters.f95 mod_prec.o
-		$(FC) $(CFLAGS) parameters.f95
-
-mod_inp.o: mod_inp.f90 mod_prec.o
+mod_inp.o: mod_inp.f90 parameters.o mod_var.o
 		$(FC) $(CFLAGS) mod_inp.f90
 
-util.o: util.f90 mod_prec.o
-		$(FC) $(CFLAGS) util.f90
+mod_var.o: mod_var.f95 utilities.f90 parameters.o utilities.o
+		$(FC) $(CFLAGS) mod_var.f95
 
-# no dependencies
-mod_prec.o: mod_prec.f90
-		$(FC) $(CFLAGS) mod_prec.f90
-		
+# depends only on parameters
+utilities.o: utilities.f90 parameters.o
+		$(FC) $(CFLAGS) utilities.f90
+
+parameters.o: parameters.f95
+		$(FC) $(CFLAGS) parameters.f95
+
 clean: 
 	$(RM) *.o *~ *.mod

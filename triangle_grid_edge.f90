@@ -1,4 +1,4 @@
-SUBROUTINE TRIANGLE_GRID_EDGE
+subroutine TRIANGLE_GRID_EDGE
 
     !  This program is used to define the non-overlapped, unstructured             !
     !  triangular meshes used for flux computations. The mesh could be             !
@@ -39,10 +39,9 @@ SUBROUTINE TRIANGLE_GRID_EDGE
     implicit none
 
     integer, allocatable, dimension(:, :) :: NB_TMP, CELLS, NBET
-    integer, allocatable, dimension(:)   :: CELLCNT
+    integer, allocatable, dimension(:) :: CELLCNT
     integer :: ii, jj, kk, ll, NTMP, NCNT, NFLAG, JJB, N1, N2, N3, J1, J2, J3
     real(sp) :: X1, X2, X3, Y1, Y2, Y3, DELT, AI1, AI2, AI3, BI1, BI2, BI3, CI1, CI2, CI3, DELTX, DELTY, B1, B2, ART(N)
-
 
     ! SET UP MESH (HORIZONTAL COORDINATES)
     ! CALCULATE GLOBAL MINIMUMS AND MAXIMUMS
@@ -59,9 +58,9 @@ SUBROUTINE TRIANGLE_GRID_EDGE
         YC(ii) = (VY(NV(ii, 1)) + VY(NV(ii, 2)) + VY(NV(ii, 3)))/3.0_SP
     end do
 
-    XC(0) = 0.0_SP ; YC(0) = 0.0_SP
-
-    ART  = 0.0_SP
+    XC(0) = zero
+    YC(0) = zero
+    ART(:)  = zero
     do ii = 1, N
         ART(ii) = (VX(NV(ii, 2)) - VX(NV(ii, 1))) * (VY(NV(ii, 3)) - VY(NV(ii, 1))) - (VX(NV(ii, 3)) - VX(NV(ii, 1))) * (VY(NV(ii, 2)) - VY(NV(ii, 1)))
     end do

@@ -1,6 +1,9 @@
 module parameters
-  use MOD_PREC
+
   implicit none
+
+  !integer, parameter :: SP = SELECTED_REAL_KIND(6,30) ! single precision
+  integer, parameter :: sp = SELECTED_REAL_KIND(12,300) ! double precision
 
   ! used in main
   logical, parameter :: includeAlgae = .true.
@@ -26,6 +29,4 @@ module parameters
   real(sp), parameter, dimension(4) :: B_RK = (/ 1.0_SP/6.0_SP, 1.0_SP/3.0_SP, 1.0_SP/3.0_SP, 1.0_SP/6.0_SP /) ! ERK coefficients (B)
   real(sp), parameter, dimension(4) :: C_RK = (/ 0.0_SP, 0.5_SP, 0.5_SP, 1.0_SP /)  ! ERK coefficients (C)
 
-
-
-end module parameters
+end module

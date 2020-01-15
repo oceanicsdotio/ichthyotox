@@ -1,6 +1,6 @@
 module MOD_SIM
 
-  use MOD_PREC, only : sp
+  use parameters, only : sp
   use ALL_VARS, only : ZERO
   implicit none
   save ! State is saved in the compiled object
@@ -23,15 +23,13 @@ module MOD_SIM
     procedure, public :: vdiff => simulation_diffusion
 
   end type LAG_SIM; class(LAG_SIM), allocatable :: domain ! domain structure imported from this module
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
 contains
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
   subroutine simulation_initialize(self, exp_type)
     ! initialize variables for current simulation taking id number as input
-    use MOD_PREC, only : sp
+    use parameters, only : sp
     use ALL_VARS, only : zero
     class(LAG_SIM), intent(inout) :: self
     integer, intent(in) :: exp_type
@@ -55,8 +53,8 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine simulation_geometry(self, vertx, verty, node_indices, bathymetry)
     ! called once during simulation setup, calculates area of any triangular mesh or subregion, 
-    use MOD_PREC, only : sp
-    use LIMS, only : KBM1
+    use parameters, only : sp
+    use ALL_VARS, only : KBM1
     class(LAG_SIM), intent(inout) :: self
     real(sp), dimension(0:self%nnodes), intent(in) :: vertx, verty
     integer, dimension(0:self%nelements, 4), intent(in) :: node_indices
@@ -83,9 +81,9 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine simulation_read(self, u_vel, v_vel, w_vel, diffusivity, elevation, salinity, temperature, density)
 
-    use MOD_PREC, only : sp
+    use parameters, only : sp
     use ALL_VARS, only : ZERO
-    use LIMS, only : KB, M, N
+    use ALL_VARS, only : KB, M, N
     use parameters, only : iophys
 
     class(LAG_SIM), intent(inout) :: self
@@ -117,9 +115,8 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine simulation_diffusion(self) ! NK 2/11/16
     ! one dimensional vertical diffusion
-    use MOD_PREC, only : sp ! for real precision
-    use LIMS, only : KB, KBM1
-    use ALL_VARS, only : dti, ZERO ! time interpolation step
+    use parameters, only : sp ! for real precision
+    use ALL_VARS, only : KB, KBM1, dti, ZERO ! time interpolation step
 
     class(LAG_SIM), intent(inout) :: self ! domain structure
     integer :: ii, jj, nsteps ! iteration parameters
@@ -148,8 +145,8 @@ end module MOD_SIM
 
 module MOD_RAND
 
-  ! random number class, used for economically creating gaussian distributions, etc.
-  use MOD_PREC, only : sp ! for real precision
+  ! creating gaussian distributions, etc.
+  use parameters, only : sp ! for real precision
   implicit none
   save
   private
@@ -213,7 +210,7 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine random_normal(self) ! OK
     ! generate two random normal numbers using Box-Muller method
-    use MOD_PREC, only : sp
+    use parameters, only : sp
     class(LAG_RAND), intent(inout) :: self
     real(sp) :: V1, V2, S, meanDiff
 
@@ -244,7 +241,7 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   function random_array(self, nn)
 
-    use MOD_PREC, only : sp
+    use parameters, only : sp
     class(LAG_RAND), intent(inout) :: self
     integer, intent(in) :: nn
 
@@ -259,11 +256,11 @@ contains
     random_array(:) = temp_array(:)
 
   end function random_array
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
   real(sp) function random_uniform(self) result(rand)
 
-    use MOD_PREC, only : sp
+    use parameters, only : sp
     class(LAG_RAND), intent(inout) :: self
 
     call random_number(self%ru1)
@@ -271,11 +268,11 @@ contains
     rand = 2.0_SP*self%ru1 - 1.0_SP ! returns uniform pseudorandom in -1 to 1 range
 
   end function random_uniform
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
   real(sp) function random_get(self) result(rand)! OK
     ! returns one of stored gaussian random numbers and generates new ones when used
-    use MOD_PREC, only : sp
+    use parameters, only : sp
     class(LAG_RAND), intent(inout) :: self
 
     if (self%current) then ! if stored randoms haven't been used,
@@ -292,7 +289,7 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   real(sp) function random_clipped_normal(self) result(rand)! OK
     ! returns one of stored gaussian random numbers and generates new ones when used
-    use MOD_PREC, only : sp
+    use parameters, only : sp
     class(LAG_RAND), intent(inout) :: self
     real(sp) :: deviate
 
@@ -307,7 +304,7 @@ contains
 
   subroutine random_displayStatistics(self) ! OK
     ! calculate and display distribution statistics for the random number system
-    use MOD_PREC ! for real precision
+    use parameters ! for real precision
     implicit none
 
     class(LAG_RAND), intent(in) :: self
@@ -320,9 +317,9 @@ contains
   end subroutine random_displayStatistics
 
 
-  subroutine random_test(self) ! OK
+  subroutine random_test(self)
     ! iteratively generate random gaussian numbers and calculate statistics
-    use MOD_PREC, only : sp ! for real precision
+    use parameters, only : sp
 
     class(LAG_RAND), intent(inout) :: self
     integer :: ii, nSample = 1000

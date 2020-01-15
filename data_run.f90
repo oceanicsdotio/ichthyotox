@@ -117,13 +117,12 @@ subroutine DATA_RUN
         stop
     end if
 
-    !  RANDOM WALK CHOICE (IRW)
+    ! RANDOM WALK CHOICE
     ISCAN = SCAN_FILE(trim(filename), "IRW", ISCAL = IRW)
     if (ISCAN /= 0) then
         write(IPT, *) 'ERROR READING IRW: ', ISCAN
         stop
     end if
-
 
     ! Horizontal diffusion coefficient (DHOR)
     ISCAN = SCAN_FILE(trim(filename), "DHOR", FSCAL = DHOR)
@@ -139,33 +138,35 @@ subroutine DATA_RUN
         stop
     end if
 
-
     ! "GEOAREA" DIRECTORY FOR INPUT FILES
     ISCAN = SCAN_FILE(filename,"GEOAREA",CVAL = GEOAREA)
     if (ISCAN /= 0) then
         write(IPT, *) 'ERROR READING GEOAREA: ', ISCAN
         stop
     end if
+
     ii = len_trim(GEOAREA)
     if(GEOAREA(ii:ii) == "/") GEOAREA(ii:ii) = " "
 
 
-    ! "INPDIR" DIRECTORY FOR INPUT FILES
+    ! DIRECTORY FOR INPUT FILES
     ISCAN = SCAN_FILE(filename, "INPDIR", CVAL = INPDIR)
     if (ISCAN /= 0) then
         write(IPT, *)'ERROR READING INPDIR: ', ISCAN
         stop
     end if
+
     ii = len_trim(INPDIR)
     if(INPDIR(ii:ii) == "/") INPDIR(ii:ii) = " "
 
 
-    !     "LAGINI"   !!DIRECTORY FOR INPUT FILES
+    ! INPUT FILES
     ISCAN = SCAN_FILE(filename, "LAGINI", CVAL = LAGINI)
     if (ISCAN /= 0) then
         write(IPT, *) 'ERROR READING LAGINI: ', ISCAN
         stop
     end if
+
     ii = len_trim(LAGINI)
     if (LAGINI(ii:ii) == "/") LAGINI(ii:ii) = " "
 
@@ -176,13 +177,12 @@ subroutine DATA_RUN
         write(IPT, *) 'ERROR READING OUTDIR: ', ISCAN
         stop
     end if
+
     ii = len_trim(OUTDIR)
     if (OUTDIR(ii:ii) == "/") OUTDIR(ii:ii) = " "
-
 
     ! Set unit values for input output files
     IOPAR=11
     INLAG=13
 
-    return
-end subroutine DATA_RUN
+end subroutine

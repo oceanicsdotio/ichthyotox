@@ -1,24 +1,6 @@
-MODULE LIMS
-  ! Global limits and array sizing parameters
-  use MOD_PREC
-  implicit none
-  save
-
-  integer :: N ! Number of elements
-  integer :: M ! Number of nodes
-  integer :: KB ! Number of sigma levels
-  integer :: KBM1 ! Number of sigma levels-1
-  integer :: KBM2 ! Number of sigma levels-2
-  integer :: NE ! Number of unique edges
-  integer :: MX_NBR_ELEM ! Max number of elements surrounding a node
-
-end module
-
-
 module ALL_VARS
   ! Variables
-  use MOD_PREC
-  use LIMS
+  use parameters
   implicit none
   save
 
@@ -29,6 +11,13 @@ module ALL_VARS
   integer :: YEARLAG, MONTHLAG, DAYLAG, HOURLAG ! Starting date of the tracking
   integer :: IELAG, ISLAG, TDRIFT, ITOUT, IRW
 
+  integer :: N ! Number of elements
+  integer :: M ! Number of nodes
+  integer :: KB ! Number of sigma levels
+  integer :: KBM1 ! Number of sigma levels-1
+  integer :: KBM2 ! Number of sigma levels-2
+  integer :: NE ! Number of unique edges
+  integer :: MX_NBR_ELEM ! Max number of elements surrounding a node
 
   ! Constants
   real(SP), parameter :: GRAV = 9.81_SP ! note that this is positive
