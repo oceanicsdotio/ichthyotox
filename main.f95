@@ -160,7 +160,7 @@ program main
   cyano%YP(:) = cyano%YPT(:) - VYMIN ! Shift y to model coordinate system
 
   write(*, "(A)", advance='no') "Finding host elements... "
-  call cyano%FHE_ROBUST(cyano%XP, cyano%YP, INWATER) ! Determine element containing each particle
+  call cyano%find_host_element(cyano%XP, cyano%YP, INWATER) ! Determine element containing each particle
   where (cyano%FOUND == 0) cyano%INDOMAIN(:) = 0 ! if not found, particle is not in domain and will not be tracked
   write(*, *) "Finished"
 
@@ -189,7 +189,7 @@ program main
   fish%YP(:) = fish%YPT(:) - VYMIN ! Shift y to model coordinate system
 
   write(*, "(A)", advance='no') "Finding host elements... "
-  call fish%FHE_ROBUST(fish%XP, fish%YP, INWATER) ! Determine element containing each particle
+  call fish%find_host_element(fish%XP, fish%YP, INWATER) ! Determine element containing each particle
   where (fish%FOUND == 0) fish%INDOMAIN(:) = 0 ! if not found, particle is not in domain and will not be tracked
   write(*, *) "Finished"
 

@@ -5,6 +5,7 @@ program setup
   use MOD_TOX, only : colonyBaseRadius, densityMin, densitymax, cellFrac, vesicleFrac, vesicleDensity, cellDensityCoefficient
   use parameters, only : iorun, iophys
   use MOD_RAND, only : random
+
   implicit none
   
   logical :: makeGrid = .true.

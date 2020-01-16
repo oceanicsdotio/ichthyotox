@@ -28,7 +28,7 @@ module ALL_VARS
   !real(SP), parameter :: traveld = 0.023148148148_SP  ! m/s = 2000 m/day
   !real(SP), parameter :: traveld = 0.23148148148_SP  ! m/s = 20 km/day
   real(SP), parameter :: traveld = 0.5787_SP  ! m/s = 50 km/day
-  real(SP), parameter :: epsx = SQRT((traveld**2.0)*0.5_SP)
+  real(SP), parameter :: epsx = sqrt((traveld**2.0)*0.5_SP)
   real(SP), parameter :: epsx_sigma= 0.5_SP*traveld
   !real(SP), parameter :: sal_opt = 2.0_SP
   real(SP), parameter :: sal_opt = 30.0_SP

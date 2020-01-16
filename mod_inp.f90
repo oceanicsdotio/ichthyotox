@@ -174,7 +174,7 @@ contains
 
 
         ! "OUTDIR"
-        ISCAN = scan(filename,"OUTDIR",CVAL = OUTDIR)
+        ISCAN = scan(filename, "OUTDIR", CVAL = OUTDIR)
         if (ISCAN /= 0) then
             write(IPT, *) 'ERROR READING OUTDIR: ', ISCAN
             stop

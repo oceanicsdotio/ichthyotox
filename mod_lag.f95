@@ -47,7 +47,7 @@ module MOD_LAG
       procedure, public :: zlocate => lag_getlayers ! update the sigma layer that particles are currently below
       procedure, public :: zinterp => lag_zinterp
       ! Procedures moved from offlag
-      procedure, public :: fhe_robust => FHE_ROBUST
+      procedure, public :: find_host_element => find_host_element
       procedure, public :: fhe_quick => fhe_quick
       procedure, public :: kinesis => KINESIS
       procedure, public :: traject => TRAJECT
@@ -61,89 +61,70 @@ module MOD_LAG
   contains
 
 
-  subroutine FHE_ROBUST(lag, XP, YP, INWATER) ! OK
+  subroutine find_host_element(lag, x, y, inwater) ! OK
   !  Find host elements of particles by searching progressively further elements
     use ALL_VARS
     implicit none
 
+    integer :: ii, jj, kk, ind, minimum, nearest
+
     class(LAG_OBJ), intent(inout) :: lag
-    real(sp), dimension(lag%ndrft), intent(in) :: XP, YP
+    real(sp), dimension(lag%ndrft), intent(in) :: x, y
     integer, dimension(lag%ndrft), intent(out) ::  INWATER
 
-    integer :: ii, jj, MIN_LOC
-    real(sp), dimension(1:N, 1) :: RADLIST
-    real(sp) :: RADLAST
-    integer  :: LOCIJ(2)
+    real(sp), dimension(1:N, 1) :: distance
+    real(sp) :: previous
 
     do ii = 1, lag%ndrft
-      if ( (lag%FOUND(ii) == 1) .or. (lag%INDOMAIN(ii) == 0) ) cycle ! skip if particle was already found by FHE_QUICK, or is known to be outside domain
-      RADLIST(1:N, 1) = sqrt((XC(1:N) - XP(ii))**2 + (YC(1:N) - YP(ii))**2)
-      RADLAST = 0.0_SP
-      search: do jj = 1, 16
-        LOCIJ = minloc(RADLIST, RADLIST > RADLAST)
-        MIN_LOC = LOCIJ(1)
-        if (MIN_LOC == 0) exit search
-        RADLAST = RADLIST(MIN_LOC, 1)
-        if (ISINTRIANGLE(VX(NV(MIN_LOC, 1:3)), VY(NV(MIN_LOC, 1:3)) , XP(ii), YP(ii))) then
-          lag%FOUND(ii) = 1
-          lag%HOST(ii) = MIN_LOC
-          nodes: if ((ISONB(NV(lag%HOST(ii),1)) == 1) .or. (ISONB(NV(lag%HOST(ii),2)) == 1) .or. (ISONB(NV(lag%HOST(ii),3)) == 1)) then
-            lag%SBOUND(ii) = 1
-          else
-            lag%SBOUND(ii) = 0
-          end if nodes
-          exit search
-        end if
-        RADLAST = RADLIST(MIN_LOC, 1)
-      end do search
-    end do
 
-    where ((lag%FOUND(:) == 0) .and. (lag%SBOUND(:) == 0)) lag%INDOMAIN(:) = 0 ! if not found and not on solid boundary, then must have moved outside domain
-    where ((lag%FOUND(:) == 0) .and. (lag%SBOUND(:) == 1)) INWATER(:) = 0 ! if not found and on solid boundary, then no longer in water
-
-    return
-  end subroutine FHE_ROBUST
-
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  subroutine FHE_QUICK(lag, XP, YP, found)
-    ! Determine host elements of particles by searching neighboring elements
-    use ALL_VARS
-    implicit none
-
-    class(LAG_OBJ), intent(inout) :: lag
-    real(sp), dimension(lag%ndrft), intent(in) :: XP, YP ! array of x and y positions
-    logical, intent(out) :: found
-
-    integer :: ii, jj, kk, INEY
-    real(sp), dimension(3) :: XNEY, YNEY
-
-    do ii = 1, lag%ndrft
-      if (lag%INDOMAIN(ii) == 0) cycle
-      if (ISINTRIANGLE(VX(NV(lag%HOST(ii), 1:3)), VY(NV(lag%HOST(ii), 1:3)), XP(ii), YP(ii))) then ! particle remains in element
+      if (lag%indomain(ii) == 0) cycle
+      if (isintriangle(VX(NV(lag%HOST(ii), 1:3)), VY(NV(lag%HOST(ii), 1:3)), x(ii), y(ii))) then
         lag%FOUND(ii) = 1
         cycle
       end if
 
       do jj = 1, 3
         do kk = 1, NTVE(NV(lag%HOST(ii), jj))
-          INEY = NBVE(NV(lag%HOST(ii), jj), kk)
-          if (ISINTRIANGLE(VX(NV(INEY, 1:3)), VY(NV(INEY, 1:3)), XP(ii), YP(ii))) then
+          ind = NBVE(NV(lag%HOST(ii), jj), kk)
+          if (isintriangle(VX(NV(ind, 1:3)), VY(NV(ind, 1:3)), x(ii), y(ii))) then
             lag%FOUND(ii) = 1
-            lag%HOST(ii) = INEY
+            lag%HOST(ii) = ind
             lag%SBOUND(ii) = merge(1, 0, &
-                    & (ISONB(NV(INEY,1)) == 1) .or. (ISONB(NV(INEY,2)) == 1) .or. (ISONB(NV(INEY,3)) == 1))
+                    & (ISONB(NV(ind, 1)) == 1) .or. (ISONB(NV(ind, 2)) == 1) .or. (ISONB(NV(ind, 3)) == 1))
             exit
           end if
-
         end do
+      end do
+
+      if (lag%found(ii) == 1) cycle
+
+      distance(1:n, 1) = sqrt((xc(1:n) - x(ii))**2 + (yc(1:n) - y(ii))**2)
+      previous = zero
+
+      search: do jj = 1, 16
+        nearest = minloc(distance, distance > previous)(1)
+        if (nearest == 0) exit search
+        previous = distance(nearest, 1)
+        if (ISINTRIANGLE(VX(NV(nearest, 1:3)), VY(NV(nearest, 1:3)) , x(ii), y(ii))) then
+          lag%found(ii) = 1
+          lag%host(ii) = nearest
+          lag%sbound(ii) = merge(1, 0, &
+                  &(ISONB(NV(lag%host(ii), 1)) == 1) .or. &
+                  &(ISONB(NV(lag%host(ii), 2)) == 1) .or. &
+                  &(ISONB(NV(lag%host(ii), 3)) == 1))
+          exit search
+        end if
       end do
     end do
 
-    found = sum(lag%FOUND) == sum(lag%INDOMAIN)
+    where ((lag%found(:) == 0) .and. (lag%SBOUND(:) == 0)) lag%INDOMAIN(:) = 0 ! moved outside domain
+    where ((lag%found(:) == 0) .and. (lag%SBOUND(:) == 1)) INWATER(:) = 0 ! no longer in water
+
+    return
   end subroutine
 
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  logical function ISINTRIANGLE(XT, YT, X0, Y0)
+
+  logical function isintriangle(XT, YT, X0, Y0)
     ! Determine if point is in triangle defined by nodes (XT(3),YT(3))
     use parameters
     implicit none
@@ -156,7 +137,7 @@ module MOD_LAG
     F2 = (Y0-YT(3))*(XT(1)-XT(3)) - (X0-XT(3))*(YT(1)-YT(3))
     F3 = (Y0-YT(2))*(XT(3)-XT(2)) - (X0-XT(2))*(YT(3)-YT(2))
 
-    ISINTRIANGLE = ((F1*F3 >= 0.0_SP) .and. (F3*F2 >= 0.0_SP))
+    isintriangle = ((F1*F3 >= 0.0_SP) .and. (F3*F2 >= 0.0_SP))
 
   end function
 
@@ -213,7 +194,7 @@ module MOD_LAG
   end subroutine lag_printStatistics
 
 
-  subroutine lag_readPosition(self) ! OK
+  subroutine lag_readPosition(self)
   
     use parameters, only : sp
     use ALL_VARS, only : folderprefix
@@ -256,31 +237,27 @@ module MOD_LAG
 
     write(fid, "(1F10.2,9000(I6,3F20.3))") domain%time, (self%ITAG(ii),  self%XPT(ii), self%YPT(ii), self%ZPT(ii), ii=1,self%ndrft)
   
-  end subroutine lag_writePosition
+  end subroutine
 
 
-  function lag_cart2sig(self, cartesian) ! OK
+  function lag_cart2sig(self, cartesian)
     ! Calculate sigma vertical position from cartesian
     use parameters, only : sp
     class(LAG_OBJ), intent(in) :: self
     real(sp), dimension(self%ndrft), intent(in) :: cartesian
     real(sp), dimension(self%ndrft) :: lag_cart2sig
-    
     lag_cart2sig(:) = -1.0_SP * abs(cartesian(:)-self%EP(:)) / abs(self%EP(:)-self%HP(:))
-  
-  end function lag_cart2sig
+  end function
 
 
-  function lag_sig2cart(self, sigma) ! OK
+  function lag_sig2cart(self, sigma)
     ! calculate cartesian vertical from sigma coordinate
     use parameters, only : sp
     class(LAG_OBJ), intent(in) :: self
     real(sp), dimension(self%ndrft), intent(in) :: sigma
     real(sp), dimension(self%ndrft) :: lag_sig2cart
-  
     lag_sig2cart(:) = sigma(:)*(self%EP(:) - self%HP(:)) + self%EP(:)
-  
-  end function lag_sig2cart
+  end function
 
 
   function lag_getlayers(self, sigma) ! OK
@@ -333,7 +310,6 @@ module MOD_LAG
     real(SP), dimension(self%ndrft, 0:MSTAGE) :: CHIX, CHIY, CHIZ ! ERK stage function evaluation for velocities
 
     real(SP), parameter :: EPS  = 10.0 ** (-5.0) ! depth of dry element
-    logical :: ALL_FOUND
 
     CHIX = 0.0_SP ! Initialize Stage Functional Evaluations
     CHIY = 0.0_SP  
@@ -375,8 +351,7 @@ module MOD_LAG
     self%FOUND = 0
     INWATER = 1
     
-    call self%FHE_QUICK(PDXT, PDYT, ALL_FOUND) ! Evaluate temporary location
-    if (.not. ALL_FOUND) call self%FHE_ROBUST(PDXT, PDYT, INWATER) ! Perform robust progressive-topology search
+    call self%find_host_element(PDXT, PDYT, INWATER) ! Perform robust progressive-topology search
 
     self%xp(:) = self%xp(:) * (1.0_SP - float(INWATER(:))) + PDXT(:) * float(INWATER(:)) ! Update only particles still in water
     self%yp(:) = self%yp(:) * (1.0_SP - float(INWATER(:))) + PDYT(:) * float(INWATER(:))
@@ -395,7 +370,7 @@ module MOD_LAG
   end subroutine TRAJECT
 
 
-  subroutine KINESIS(self, random, deltat, salinity, temperature, density, HIN, EIN) !---Keeney change
+  subroutine kinesis(self, random, deltat, salinity, temperature, density, HIN, EIN) !---Keeney change
 
     use ALL_VARS
     use MOD_RAND, only : LAG_RAND
@@ -406,39 +381,30 @@ module MOD_LAG
     real(sp), intent(in) :: deltat ! time step, usually DTI
     real(sp), dimension(0:M, KB), intent(in) :: salinity, temperature, density ! grid based field for kinesis (usually salinity)
     real(sp), dimension(0:M), intent(in) :: HIN, EIN ! grid based field for kinesis (usually salinity)
+
+
     real(sp), dimension(self%ndrft) :: PDXT, PDYT
     integer, dimension(self%ndrft) :: INWATER
-    logical ALL_FOUND
     integer :: ii
-    real(sp) :: epsx1, epsy1, pp1, p1
-    real(sp) :: f_velx, f_vely, g_epsx, g_epsy
+    real(sp) :: pp1, p1
 
-    particles: do ii = 1, self%ndrft
+    do ii = 1, self%ndrft
 
-      epsx1 = random%gaussian()*epsx_sigma + epsx
-      epsy1 = random%gaussian()*epsx_sigma + epsx
-
-      ! salinity only
       pp1 = (self%sal(ii) - sal_opt) / sal_sigma
       p1 = exp(-0.5_SP * (pp1 * pp1))
 
-      f_velx = self%UP(ii) * h1h1 * p1
-      f_vely = self%VP(ii) * h1h1 * p1
-      g_epsx = epsx1 * (1.0_SP - h2h2 * p1)
-      g_epsy = epsy1 * (1.0_SP - h2h2 * p1)
+      self%up(ii) = self%UP(ii) * h1h1 * p1 + (random%gaussian()*epsx_sigma + epsx) * (1.0_SP - h2h2 * p1) ! Update U and V velocities
+      self%up(ii) = self%VP(ii) * h1h1 * p1 + (random%gaussian()*epsx_sigma + epsx) * (1.0_SP - h2h2 * p1)
+      pdxt(ii) = self%xp(ii) + self%up(ii) * deltat * float(self%indomain(ii)) ! Update position
+      pdyt(ii) = self%yp(ii) + self%vp(ii) * deltat * float(self%indomain(ii))
 
-      self%UP(ii) = f_velx + g_epsx ! Update U and V velocities
-      self%VP(ii) = f_vely + g_epsy
-      PDXT(ii) = self%xp(ii) + self%up(ii) * deltat * float(self%indomain(ii)) ! Update position
-      PDYT(ii) = self%yp(ii) + self%vp(ii) * deltat * float(self%indomain(ii))
-
-    end do particles
+    end do
 
     ! Evaluate Temporary Location
-    self%FOUND(:) = 0
-    INWATER = 1
-    call FHE_QUICK(self, PDXT, PDYT, ALL_FOUND)
-    if (.not. ALL_FOUND) call self%FHE_ROBUST(PDXT, PDYT, INWATER)
+    self%found(:) = 0
+    inwater(:) = 1
+
+    call self%find_host_element(pdxt, pdyt, INWATER)
 
     ! Update only particles still in water
     self%xp(:) = self%xp(:) * (1.0_SP - float(INWATER(:))) + PDXT(:) * float(INWATER(:))
@@ -447,8 +413,7 @@ module MOD_LAG
     call self%INTERP_ELH(self%xp, self%yp, HIN, EIN, 1) ! interpolate bathymetry and elevation
     call self%INTERP_FIELDS(self%xp, self%yp, self%zp, salinity, temperature, density, 0) ! interpolate temperature and salinity at new position
 
-    return
-  end subroutine KINESIS
+  end subroutine
 
 
   subroutine INTERP_V(lag, XP, YP, ZP, UIN, VIN, WIN) ! OK
@@ -464,12 +429,10 @@ module MOD_LAG
     integer :: ii, host, E1, E2, E3, K1, K2, K
     real(SP) :: DUDX, DUDY, DVDX, DVDY, DWDX, DWDY, UE01, UE02, VE01, VE02, WE01, WE02
     real(SP) :: ZF1, ZF2, X0C, Y0C
-    logical :: ALL_FOUND
 
     INWATER(:) = 1
     lag%FOUND(:) = 0
-    call lag%FHE_QUICK(XP, YP, ALL_FOUND) ! determine host element
-    if (.not. ALL_FOUND) call lag%FHE_ROBUST(XP, YP, INWATER)
+    call lag%find_host_element(XP, YP, INWATER)
 
     particle_loop: do ii = 1, lag%ndrft
       if ( (lag%INDOMAIN(ii) == 0) .or. (INWATER(ii)) == 0) cycle ! skip particles outside domain
@@ -533,7 +496,6 @@ module MOD_LAG
   end subroutine INTERP_V
 
 
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine INTERP_ELH(self, XP, YP, HIN, EIN, FHE) ! OK
     ! Linearly interpolate elevation and bathymetry at a set of particle positions
     use parameters, only : sp
@@ -548,16 +510,14 @@ module MOD_LAG
     integer :: ii, host, N1, N2, N3
     integer, dimension(self%ndrft) :: INWATER
     real(sp) :: H0, HX, HY, E0, EX, EY, X0C, Y0C
-    logical :: ALL_FOUND
 
     find_host: if (FHE == 1) then
       INWATER(:) = 1
       self%FOUND(:) = 0
-      call self%FHE_QUICK(XP, YP, ALL_FOUND) ! Determine element containing point (XP,YP)
-      if (.not. ALL_FOUND) call self%FHE_ROBUST(XP, YP, INWATER)
+      call self%find_host_element(XP, YP, INWATER)
     end if find_host
 
-    particle_loop: do ii = 1, self%ndrft
+    do ii = 1, self%ndrft
       if (self%INDOMAIN(ii) == 0) cycle ! skip particle outside domain
       host = self%host(ii) ! element containing particle
       N1 = NV(self%host(ii), 1); N2 = NV(self%host(ii), 2); N3 = NV(self%host(ii), 3) ! node indices
@@ -573,8 +533,8 @@ module MOD_LAG
       EY = AWY(host, 1)*EIN(N1) + AWY(host, 2)*EIN(N2) + AWY(host, 3)*EIN(N3)
       self%EP(ii) = -1.0*(E0 + EX*X0C + EY*Y0C) ! Linear interpolation of free surface height, forced to be positive
 
-    end do particle_loop
-  end subroutine INTERP_ELH
+    end do
+  end subroutine
 
 
   subroutine INTERP_FIELDS(self, XP, YP, ZP, SAL, TEMP, RHO, FHE) ! OK
@@ -591,14 +551,12 @@ module MOD_LAG
     integer, dimension(self%ndrft) :: INWATER
     integer :: ii, host, N1, N2, N3
     real(sp) :: S0, SX, SY, T0, TX, TY, D0, DX, DY, X0C, Y0C, ZTMP(self%ndrft)
-    logical :: ALL_FOUND
 
     ZTMP(:) = ZP(:)
     find_host: if (FHE == 1) then
       INWATER(:) = 1
       self%FOUND(:) = 0
-      call self%FHE_QUICK(XP, YP, ALL_FOUND) ! Determine element containing point (XP,YP)
-      if (.not. ALL_FOUND) call self%FHE_ROBUST(XP, YP, INWATER) ! initiate progressive topology search
+      call self%find_host_element(XP, YP, INWATER) ! initiate progressive topology search
     end if find_host
 
     particle_loop: do ii = 1, self%ndrft
