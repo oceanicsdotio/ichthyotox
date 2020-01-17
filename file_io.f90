@@ -12,12 +12,11 @@ contains
         character(len = 120) :: filename
         integer :: ii
 
-
         ! Read in variables and set values
         filename = "./"//trim(folderprefix)//"/"//trim(CASENAME)//"_run.dat"
 
         ! Info file
-        ISCAN = scan(filename, "INFOFILE", CVAL = INFOFILE)
+        ISCAN = find_key(filename, "INFOFILE", CVAL = INFOFILE)
         if (ISCAN /= 0) then
             write(IPT, *) 'ERROR READING INFOFILE: ', ISCAN
             stop
@@ -32,28 +31,28 @@ contains
         end if
 
         ! External time step (DTI)
-        ISCAN = scan(trim(filename), "DTI", FSCAL = DTI)
+        ISCAN = find_key(trim(filename), "DTI", FSCAL = DTI)
         if (ISCAN /= 0) then
             write (IPT, *) 'ERROR READING DTI: ', ISCAN
             stop
         end if
 
         ! Input time step of flow fields (instp)
-        ISCAN = scan(trim(filename),"INSTP", FSCAL = INSTP)
+        ISCAN = find_key(trim(filename),"INSTP", FSCAL = INSTP)
         if (ISCAN /= 0) then
             write(IPT, *) 'ERROR READING INSTP: ', ISCAN
             stop
         end if
 
         ! External time step (DTOUT)
-        ISCAN = scan(trim(filename), "DTOUT", FSCAL = DTOUT)
+        ISCAN = find_key(trim(filename), "DTOUT", FSCAL = DTOUT)
         if (ISCAN /= 0) then
             write (IPT, *) 'ERROR READING DTOUT: ', ISCAN
             stop
         end if
 
         ! Total time to move drifters (TDRIFT)
-        ISCAN = scan(trim(filename), "TDRIFT", ISCAL = TDRIFT)
+        ISCAN = find_key(trim(filename), "TDRIFT", ISCAL = TDRIFT)
         if (ISCAN /= 0)then
             write(IPT, *) 'ERROR READING TDRIFT: ', ISCAN
             stop
@@ -61,35 +60,35 @@ contains
 
 
         ! Input year of run (YEARLAG)
-        ISCAN = scan(trim( filename),"YEARLAG",ISCAL = YEARLAG)
+        ISCAN = find_key(trim( filename),"YEARLAG",ISCAL = YEARLAG)
         if (ISCAN /= 0) then
             write(IPT, *)'ERROR READING YEARLAG: ', ISCAN
             stop
         end if
 
         ! Input month of run (MONTHLAG)
-        ISCAN = scan(trim(filename), "MONTHLAG", ISCAL = MONTHLAG)
+        ISCAN = find_key(trim(filename), "MONTHLAG", ISCAL = MONTHLAG)
         if (ISCAN /= 0) then
             write(IPT, *) 'ERROR READING YEARLAG: ', ISCAN
             stop
         end if
 
         ! Input day of run (DAYLAG)
-        ISCAN = scan(trim(filename), "DAYLAG", ISCAL = DAYLAG)
+        ISCAN = find_key(trim(filename), "DAYLAG", ISCAL = DAYLAG)
         if (ISCAN /= 0) then
             write(IPT, *) 'ERROR READING DAYLAG: ', ISCAN
             stop
         end if
 
         ! Input hour of run (HOURLAG)
-        ISCAN = scan(trim(filename), "HOURLAG", ISCAL = HOURLAG)
+        ISCAN = find_key(trim(filename), "HOURLAG", ISCAL = HOURLAG)
         if (ISCAN /= 0) then
             write(IPT, *) 'ERROR READING HOURLAG: ', ISCAN
             stop
         end if
 
         ! "P_SIGMA" turns on vertical location of particles in sigma
-        ISCAN = scan(trim(filename), "P_SIGMA", LVAL = P_SIGMA)
+        ISCAN = find_key(trim(filename), "P_SIGMA", LVAL = P_SIGMA)
         if (ISCAN /= 0) then
             write(IPT, *) 'ERROR READING P_SIGMA: ', ISCAN
             if (ISCAN == -2) then
@@ -99,7 +98,7 @@ contains
         end if
 
         ! "OUT_SIGMA" TURNS ON VERTICAL LOCATION OF PARTICLES IN SIGMA
-        ISCAN = scan(trim(filename), "OUT_SIGMA", LVAL = OUT_SIGMA)
+        ISCAN = find_key(trim(filename), "OUT_SIGMA", LVAL = OUT_SIGMA)
         if (ISCAN /= 0) then
             write(IPT, *) 'ERROR READING OUT_SIGMA: ', ISCAN
             if (ISCAN == -2) then
@@ -110,7 +109,7 @@ contains
 
 
         ! "F_DEPTH" KEEP SAME Z DEPTH ALONG THE TRACKING
-        ISCAN = scan(trim(filename), "F_DEPTH", LVAL = F_DEPTH)
+        ISCAN = find_key(trim(filename), "F_DEPTH", LVAL = F_DEPTH)
         if (ISCAN /= 0) then
             write(IPT, *) 'ERROR READING F_DEPTH: ', ISCAN
             if (ISCAN == -2) then
@@ -120,28 +119,28 @@ contains
         end if
 
         ! RANDOM WALK CHOICE
-        ISCAN = scan(trim(filename), "IRW", ISCAL = IRW)
+        ISCAN = find_key(trim(filename), "IRW", ISCAL = IRW)
         if (ISCAN /= 0) then
             write(IPT, *) 'ERROR READING IRW: ', ISCAN
             stop
         end if
 
         ! Horizontal diffusion coefficient (DHOR)
-        ISCAN = scan(trim(filename), "DHOR", FSCAL = DHOR)
+        ISCAN = find_key(trim(filename), "DHOR", FSCAL = DHOR)
         if (ISCAN /= 0) then
             write(IPT, *) 'ERROR READING DHOR: ', ISCAN
             stop
         end if
 
         !  RANDOM WALK TIME STEP (DTRW)
-        ISCAN = scan(trim(filename), "DTRW", FSCAL = DTRW)
+        ISCAN = find_key(trim(filename), "DTRW", FSCAL = DTRW)
         if (ISCAN /= 0) then
             write(IPT, *) 'ERROR READING DTRW: ', ISCAN
             stop
         end if
 
         ! "GEOAREA" DIRECTORY FOR INPUT FILES
-        ISCAN = scan(filename,"GEOAREA",CVAL = GEOAREA)
+        ISCAN = find_key(filename,"GEOAREA",CVAL = GEOAREA)
         if (ISCAN /= 0) then
             write(IPT, *) 'ERROR READING GEOAREA: ', ISCAN
             stop
@@ -152,7 +151,7 @@ contains
 
 
         ! DIRECTORY FOR INPUT FILES
-        ISCAN = scan(filename, "INPDIR", CVAL = INPDIR)
+        ISCAN = find_key(filename, "INPDIR", CVAL = INPDIR)
         if (ISCAN /= 0) then
             write(IPT, *)'ERROR READING INPDIR: ', ISCAN
             stop
@@ -163,7 +162,7 @@ contains
 
 
         ! INPUT FILES
-        ISCAN = scan(filename, "LAGINI", CVAL = LAGINI)
+        ISCAN = find_key(filename, "LAGINI", CVAL = LAGINI)
         if (ISCAN /= 0) then
             write(IPT, *) 'ERROR READING LAGINI: ', ISCAN
             stop
@@ -174,7 +173,7 @@ contains
 
 
         ! "OUTDIR"
-        ISCAN = scan(filename, "OUTDIR", CVAL = OUTDIR)
+        ISCAN = find_key(filename, "OUTDIR", CVAL = OUTDIR)
         if (ISCAN /= 0) then
             write(IPT, *) 'ERROR READING OUTDIR: ', ISCAN
             stop
@@ -189,125 +188,8 @@ contains
 
     end subroutine
 
-    subroutine parse_line(LNUM, NUMCHAR, key, type_of, LOGVAL, STRINGVAL, REALVAL, INTVAL, NVAL)
-        ! Decompose input line into variable name and value
-        use parameters
-        implicit none
 
-        intrinsic adjustl
-
-        integer, intent(in) :: LNUM, NUMCHAR
-        character(len = NUMCHAR) :: text
-        character(len = 20), intent(out) :: key
-        character(len = 7), intent(out) :: type_of
-
-        logical, intent(out) :: LOGVAL
-        character(LEN = 80), intent(out), dimension(150) :: STRINGVAL
-        real(SP), intent(inout), dimension(150) :: REALVAL
-        integer, intent(inout), dimension(150) :: INTVAL
-        integer, intent(out) :: NVAL
-
-        character(len = NUMCHAR) :: value, TEMP, fragments(200)
-        character(len = 80) :: TSTRING
-        character(len = 6) :: ERRSTRING
-        character(len = 16) :: NUMCHARS
-        integer :: EQLOC, length, ii, LOCEX, NP
-        logical :: flag
-
-        fragments = " "
-        NUMCHARS = "0123456789+-Ee. "
-        type_of = "error"
-        LOGVAL = .false.
-        
-        write(ERRSTRING, "(I6)") LNUM
-        
-        LOCEX = index(text, "!")
-        if (LOCEX /= 0) text = text(1:LOCEX-1)
-        length = len_trim(text)
-        
-        if (length == 0) then
-            type_of = "none"
-            key = "none"
-            return
-        end if
-
-        ! Commas to spaces
-        where (text(:) == ",")
-            text(:) = " "
-        end where
-        
-        ! Find assignment "="
-        EQLOC = INDEX(text,"=")
-        IF (EQLOC == 0) CALL raise(6,'DATA LINE '//ERRSTRING//' MUST CONTAIN "=" ')
-
-        ! split name and value substrings
-        key = text(1:EQLOC-1)
-        value  = adjustl(text(EQLOC+1:LENGTH))
-        length = len_trim(value)
-        
-        IF (length == 0) CALL raise(6,'IN DATA PARAMETER FILE', 'VARIABLE LINE'//ERRSTRING//' HAS NO ASSOCIATED VALUE')
-
-        ! DETERMINE TYPE OF value
-        ! CHECK FOR LOGICAL
-        IF (((value(1:1) == "T") .or. (value(1:1) == "F")) .and. (length == 1)) then
-            type_of = "logical"
-            if (value(1:1) == "T") LOGVAL = .true.
-            return
-        end if
-
-        ! CHECK IF IT IS A STRING  (CONTAINS characterS OTHER THAN 0-9,+,-,e,E,.)
-        do ii = 1, length
-            if (INDEX(NUMCHARS, value(ii:ii)) == 0) type_of = "string"
-        end do
-
-        ! PROCESS STRING (MAY BE MULTIPLE)
-        if (type_of == "string") then
-            TSTRING = value
-            stringval(1) = TSTRING
-            NVAL = 1
-            flag = .true.
-            do ii = 1, length
-                if (value(ii:ii) /= " ") then 
-                    fragments(NVAL) = trim(fragments(NVAL)) // value(ii:ii)
-                    flag = .true.
-                else
-                    if (flag) NVAL = NVAL + 1
-                    flag = .false.
-                end if
-            end do
-            
-            do ii = 1, NVAL
-                stringval(ii + 1) = trim(fragments(ii))
-            end do
-            return
-            
-        end if
-
-        type_of = merge("float", "integer", index(value, ".") /= 0)
-        
-        ! Split lines
-        NP = 1
-        flag = .true.
-        do ii = 1, length
-            if (value(ii:ii) /= " ") then
-                fragments(NP) = trim(fragments(NP)) // value(ii:ii)
-                flag = .true.
-            else
-                if (flag) NP = NP + 1
-                flag = .false.
-            end if
-        end do
-
-        ! numerical
-        NVAL = NP
-        do ii = 1, NP
-            read(trim(fragments(ii)), *) merge(realval(ii), intval(ii), type_of == "float")
-        end do
-
-    end subroutine
-    
-
-    integer function scan(FNAME, VNAME, ISCAL, FSCAL, IVEC, FVEC, CVEC, NSZE, CVAL, LVAL)
+    integer function find_key(FNAME, VNAME, ISCAL, FSCAL, IVEC, FVEC, CVEC, NSZE, CVAL, LVAL)
         !   Scan an Input File for a Variable
         !   RETURN VALUE:
         !        0 = FILE FOUND, VARIABLE VALUE FOUND
@@ -331,7 +213,7 @@ contains
         !        CVEC = STRING VECTOR **
         !      **NSZE = ARRAY SIZE (MUST BE PROVIDED WITH IVEC/FVEC)
 
-        use parameters
+        use ALL_VARS
         implicit none
         character(LEN = *) :: FNAME, VNAME
         integer, intent(inout), optional :: ISCAL, IVEC(*)
@@ -342,23 +224,29 @@ contains
 
         REAL(SP) REALVAL(150)
         integer  INTVAL(150)
-        character(LEN=20 ) :: name
+        character(LEN=20 ) :: key
         character(LEN=80 ) :: STRINGVAL(150),TITLE
         character(LEN=80 ) :: line
-        character(LEN=400) :: copy
+        character(LEN=400) :: buffer
         character(LEN=7  ) :: type_of
         character(LEN=20 ), DIMENSION(200) :: SET
         integer :: last, NVAL, lines, NREP
         logical :: SETYES, ALLSET, CHECK, LOGVAL
         character(len=*), parameter :: continue_line = "////"
+        character(len = len_trim(copy)) :: text
+        character(len = len_trim(copy)) :: value, TEMP, fragments(200)
+        character(len = 80) :: TSTRING
+        character(len = 6) :: ERRSTRING
+        character(len = 16) :: NUMCHARS = "0123456789+-Ee. "
+        integer :: EQLOC, length, ii, LOCEX, NP
+        logical :: flag
 
-
-        scan = 0
+        find_key = 0
 
         ! OPEN THE INPUT FILE
         inquire(file=TRIM(FNAME), exist=CHECK)
         if (.not. CHECK) then
-            scan = -1
+            find_key = -1
         end if
 
         open(10, file=trim(FNAME))
@@ -367,11 +255,11 @@ contains
         lines = 0
         do while (.true.)
 
-            copy(1:len(copy)) = ' '
+            buffer(1:len(buffer)) = ' '
             NREP  = 0
             lines = lines + 1
             read(10,'(a)', end=20) line
-            copy(1:80) = line(1:80)
+            buffer(1:80) = line(1:80)
 
             ! PROCESS LINE CONTINUATIONS
             110 CONTINUE
@@ -382,21 +270,110 @@ contains
                     NREP = NREP + 1
                     read(10, '(a)', end=20) line
                     lines = lines + 1
-                    copy( NREP*80 + 1 : NREP*80 +80) = line(1:80)
+                    buffer( NREP*80 + 1 : NREP*80 +80) = line(1:80)
                     GOTO 110
                 end if
             end if
 
             ! REMOVE LINE CONTINUATION character \\
             if (NREP > 0) then
-                do last = 2, LEN_TRIM(copy)
-                    if ( copy(last-1:last) == '\\\\') copy(last-1:last) = '  '
+                do last = 2, LEN_TRIM(buffer)
+                    if ( buffer(last-1:last) == '\\\\') buffer(last-1:last) = '  '
                 end do
             end if
 
-            call parse_line(lines, len_trim(copy), adjustl(copy), name, type_of, LOGVAL, STRINGVAL, REALVAL, INTVAL, NVAL)
+            fragments = " "
+            type_of = "error"
+            LOGVAL = .false.
 
-            ! IF name MATCHES, PROCESS VARIABLE AND ERROR-CHECK
+            write(ERRSTRING, "(I6)") lines
+
+            LOCEX = index(text, "!")
+            if (LOCEX /= 0) text = text(1:LOCEX-1)
+            length = len_trim(text)
+
+            if (length == 0) then
+                type_of = "none"
+                key = "none"
+                return
+            end if
+
+            ! Commas to spaces
+            where (text(:) == ",")
+                text(:) = " "
+            end where
+
+            ! Find assignment "="
+            EQLOC = index(text, "=")
+            if (EQLOC == 0) call raise(6,'DATA LINE '//ERRSTRING//' MUST CONTAIN "=" ')
+
+            ! split name and value substrings
+            key = text(1:EQLOC-1)
+            value  = adjustl(text(EQLOC+1:LENGTH))
+            length = len_trim(value)
+
+            if (length == 0) call raise(6,'IN DATA PARAMETER FILE', 'VARIABLE LINE'//ERRSTRING//' HAS NO ASSOCIATED VALUE')
+
+            ! check for logical
+            if ((value(1:1) == "T" .or. value(1:1) == "F") .and. length == 1) then
+                type_of = "logical"
+                if (value(1:1) == "T") LOGVAL = .true.
+                return
+            end if
+
+            ! is string if contains non-numeric characters
+            do ii = 1, length
+                if (index(NUMCHARS, value(ii:ii)) == 0) then
+
+                    type_of = "string"
+                    TSTRING = value
+                    stringval(1) = TSTRING
+                    NVAL = 1
+                    flag = .true.
+
+                    do ii = 1, length
+                        if (value(ii:ii) /= " ") then
+                            fragments(NVAL) = trim(fragments(NVAL)) // value(ii:ii)
+                            flag = .true.
+                        else
+                            if (flag) NVAL = NVAL + 1
+                            flag = .false.
+                        end if
+                    end do
+
+                    do ii = 1, NVAL
+                        stringval(ii + 1) = trim(fragments(ii))
+                    end do
+                    return
+
+                end if
+            end do
+
+            type_of = merge("float  ", "integer", index(value, ".") /= 0)
+
+            ! Split lines
+            NP = 1
+            flag = .true.
+            do ii = 1, length
+                if (value(ii:ii) /= " ") then
+                    fragments(NP) = trim(fragments(NP)) // value(ii:ii)
+                    flag = .true.
+                else
+                    if (flag) NP = NP + 1
+                    flag = .false.
+                end if
+            end do
+
+            ! numerical
+            NVAL = NP
+            do ii = 1, NP
+                if (type_of == "float") then
+                    read(trim(fragments(ii)), *) realval(ii)
+                else
+                    read(trim(fragments(ii)), *) intval(ii)
+                end if
+            end do
+
 
             if (trim(name) == trim(VNAME)) then
 
@@ -405,28 +382,28 @@ contains
                         ISCAL = INTVAL(1)
                         return
                     else
-                        scan = -3
+                        find_key = -3
                     end if
                 elseif(present(FSCAL)) then
                     if (type_of == 'float') then
                         FSCAL = REALVAL(1)
                         return
                     else
-                        scan = -3
+                        find_key = -3
                     end if
                 elseif(present(CVAL))THEN
                     if (type_of == 'string') then
                         CVAL = STRINGVAL(1)
                         return
                     else
-                        scan = -3
+                        find_key = -3
                     end if
                 elseif (present(LVAL)) THEN
                     if (type_of == 'logical') then
                         LVAL = LOGVAL
                         return
                     else
-                        scan = -3
+                        find_key = -3
                     end if
                 else if (present(IVEC)) then
                     if (NVAL > 1) then
@@ -435,10 +412,10 @@ contains
                             NSZE = NVAL
                             return
                         else
-                            scan = -3
+                            find_key = -3
                         end if
                     else
-                        scan = -4
+                        find_key = -4
                     end if
                 elseif (present(FVEC)) then
                     if (NVAL > 1) then
@@ -447,10 +424,10 @@ contains
                             NSZE = NVAL
                             return
                         else
-                            scan = -3
+                            find_key = -3
                         end if
                     else
-                        scan = -4
+                        find_key = -4
                     end if
                 elseif (present(CVEC)) then
                     if (NVAL > 0) then
@@ -459,18 +436,18 @@ contains
                             NSZE = NVAL
                             return
                         else
-                            scan = -3
+                            find_key = -3
                         end if
                     else
-                        scan = -4
+                        find_key = -4
                     end if
                 else
-                    scan = -5
+                    find_key = -5
                 end if
             end if
         end do
         20 close(10)
-        scan = -2
+        find_key = -2
     end function
 
 end module

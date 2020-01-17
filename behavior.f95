@@ -1,6 +1,6 @@
 module behavior
 
-  use parameters
+  use ALL_VARS
   use MOD_LAG, only : LAG_OBJ
   use ALL_VARS, only : zero, pi, pi2
   implicit none
@@ -32,19 +32,21 @@ module behavior
     logical, allocatable, dimension(:), private :: impaired
     integer, allocatable, dimension(:), private :: last_rule
 
-    real(sp), allocatable, dimension(:), private :: reverse
-    real(sp), allocatable, dimension(:), private :: suitability ! spatial varying growth rate
-    real(sp), allocatable, dimension(:), private :: length
-    real(sp), allocatable, dimension(:), private :: effective_length ! impairment scalar
-    real(sp), allocatable, dimension(:), private :: mass
-    real(sp), allocatable, dimension(:), private :: microcystin ! body toxin
-    real(sp), allocatable, dimension(:), private :: dissolved ! in situ toxin concentration
-    real(sp), allocatable, dimension(:), private :: angle
-    real(sp), allocatable, dimension(:), private :: pathway
+    real(sp), allocatable, dimension(:), private :: &
+            & reverse, &
+            & suitability, & ! spatial varying growth rate
+            & length, &
+            & effective_length, & ! impairment scalar
+            & mass, &
+            & microcystin, & ! body toxin
+            & dissolved, & ! in situ toxin concentration
+            & angle, &
+            & pathway
 
-    real(sp), allocatable, dimension(:, :), private :: event ! fish x agents
-    real(sp), allocatable, dimension(:, :), private :: probability ! fish x (agents x timescales)
-    real(sp), allocatable, dimension(:, :), private :: utility ! fish x (agents x timescales)
+    real(sp), allocatable, dimension(:, :), private :: &
+            & event, &        ! fish x agents
+            & probability, &  ! fish x (agents x timescales)
+            & utility         ! fish x (agents x timescales)
 
   contains
     ! Call in the order: dynamics, toxicity, movement
@@ -58,30 +60,46 @@ contains
 
   subroutine fish_initialize(self)
 
-    use parameters, only : sp
     use MOD_RAND, only : random
-    use ALL_VARS, only : pi2, zero
+    use ALL_VARS, only : pi2, zero, sp
     class(LAG_FISH), intent(inout) :: self
 
     self%species = 'fish'
-    call self%readPosition() ! finds ndrft and allocates position variables
+    call self%readPosition() ! read particles counts and allocates position variables
 
-    allocate( self%suitability(self%ndrft) ); self%suitability(:) = zero
-    allocate( self%impaired(self%ndrft) ); self%impaired(:) = .false.
-    allocate( self%event(self%ndrft, 2) ); self%event = 0
-    allocate( self%probability(self%ndrft, 1:4) ); self%probability = zero
-    allocate( self%utility(self%ndrft, 0:4) ); self%utility = zero
-    allocate( self%length(self%ndrft) ); self%length = initBodylength
-    allocate( self%effective_length(self%ndrft) ); self%effective_length = 1.0_sp
-    allocate( self%mass(self%ndrft) ); self%mass = 2.0_SP * 10.0_SP**(-6.0_SP) * (1000.0*self%length(:))**(3.38_SP)
-    allocate( self%microcystin(self%ndrft) ); self%microcystin = zero
-    allocate( self%dissolved(self%ndrft) ); self%dissolved = zero
-    allocate( self%angle(self%ndrft) ); self%angle = pi2*random%uniform()
-    allocate( self%pathway(self%ndrft) ); self%pathway = zero
-    allocate( self%last_rule(self%ndrft) ); self%last_rule = 0
-    allocate( self%reverse(self%ndrft) ); self%reverse = zero
+    allocate( self%suitability(self%ndrft), &
+            & self%impaired(self%ndrft), &
+            & self%microcystin(self%ndrft), &
+            & self%dissolved(self%ndrft), &
+            & self%angle(self%ndrft), &
+            & self%pathway(self%ndrft), &
+            & self%last_rule(self%ndrft), &
+            & self%reverse(self%ndrft), &
+            & self%mass(self%ndrft), &
+            & self%length(self%ndrft), &
+            & self%utility(self%ndrft, 0:4), &
+            & self%probability(self%ndrft, 1:4), &
+            & self%event(self%ndrft, 2), &
+            & self%effective_length(self%ndrft))
 
-  end subroutine fish_initialize
+    self%impaired = .false.
+    self%event = 0
+    self%last_rule = 0
+
+    self%angle = pi2*random%uniform()
+    self%length = initBodylength
+    self%effective_length = 1.0_sp
+    self%mass = 2.0_SP * 10.0_SP**(-6.0_SP) * (1000.0*self%length(:))**(3.38_SP)
+
+    self%microcystin = zero
+    self%dissolved = zero
+    self%pathway = zero
+    self%probability = zero
+    self%utility = zero
+    self%reverse = zero
+    self%suitability = zero
+
+  end subroutine
 
   subroutine fish_writeState(self, fid)
     use MOD_SIM, only : domain ! domain structure for elapsed time
@@ -93,11 +111,12 @@ contains
     write(fid, "(1F10.2,9000(I6,3F20.6))") domain%time, &
             & (self%itag(ii), self%mass(ii), 1000.0_SP*self%microcystin(ii), zero, ii=1,self%ndrft)
 
-  end subroutine fish_writeState
+  end subroutine
+
 
   subroutine fish_movement(self)
 
-    use parameters, only : sp
+    use ALL_VARS, only : sp
     use MOD_RAND, only : random
     use MOD_SIM, only : domain
     use MOD_TOX, only : cyano
@@ -105,9 +124,11 @@ contains
 
     class(LAG_FISH), intent(inout) :: self
     integer :: ii, jj, rule_index
-    real(sp) :: maxutil = zero, speed = zero
+    real(sp) :: maxutil, speed
     real(sp), dimension(self%ndrft) :: absorption, depuration, ingestion, mass
 
+    maxutil = zero
+    speed = zero
     self%suitability(:) = 0.5_SP*(1.0_sp + sin(pi2*(self%xp(:) - vxmin - (vxmax/4.0_SP))/(vxmax - vxmin)))
 
     where (self%microcystin(:) / self%mass(:) > toxfrac) ! induce impairment if toxin level above some threshold

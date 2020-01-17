@@ -1,55 +1,46 @@
 program main
 
   use ALL_VARS
-  use MOD_SIM, only : domain
+  use MOD_SIM, only : domain, TRIANGLE_GRID_EDGE
   use MOD_TOX, only : cyano
   use behavior, only : fish
   use MOD_RAND, only : random
-  use parameters, only : iocp, iocs, iophys, iofp, iofs
 
   implicit none
 
-  integer, intent(in) :: exp_type
-  character(LEN = 100) :: input_file, state_format
-  integer , allocatable, dimension(:) :: INWATER
-  integer :: HOUR
-  real(sp), dimension(0:N, KB) :: UNC, VNC, WNC ! velocity fields, as read from NetCDF
-  real(sp), dimension(0:M, KB) :: KHNC, SALNC, TEMPNC, RHONC ! KH field, as read from NetCDF
-  real(sp), dimension(0:M) :: ELNC ! Free surface height field, as read from NetCDF
-
-  real(sp), dimension(0:N, KB) :: UNC1, UNC2, VNC1, VNC2, WNC1, WNC2 ! velocity fields start and end of hour
-  real(sp), dimension(0:M, KB) :: KHNC1, KHNC2, SALNC1, SALNC2, TEMPNC1, TEMPNC2, RHONC1, RHONC2 ! diffusion and physical fields start and end of hour
-  real(sp), dimension(0:M) :: ELNC1, ELNC2 ! free surface height field start and end of hour
+  real(sp), dimension(0:N, KB) :: UNC, UNC1, UNC2, VNC, VNC1, VNC2, WNC, WNC1, WNC2 ! velocity fields start and end of hour
+  real(sp), dimension(0:M, KB) :: KHNC, KHNC1, KHNC2, SALNC, SALNC1, SALNC2, TEMPNC, TEMPNC1, TEMPNC2, RHONC, RHONC1, RHONC2 ! diffusion and physical fields start and end of hour
+  real(sp), dimension(0:M) :: ELNC, ELNC1, ELNC2 ! free surface height field read, start and end of hour
   real(sp) :: TMP1, TMP2, LAG_TIME
-  integer :: NH, I1, I2, IT, HOUR, IINT
-  character(len = 100) :: input_file
 
-  integer :: ii, index, ionode=100, ioelem=101
-  character(len = 100) :: input, filename, meshfile, foldername, exp_letter
-  logical :: fexist
-  integer :: exp_type
+  integer , allocatable, dimension(:) :: INWATER
+  integer :: NH, I1, I2, IT, HOUR, IINT, ii, index, ionode=100, ioelem=101, exp_type, NCT
+  character(len = 100) :: input_file, input, filename, meshfile, foldername, exp_letter, state_format
+  logical :: fileExists
 
   call get_command_argument(1, input) ! Import casename from command line
   if (len_trim(input) == 0) then
-    print *, 'Please provide casename on command line'; print *, 'Stopping...'; stop
+    print *, 'Provide casename as argument 1.'; stop
   end if
 
   call get_command_argument(2, foldername) ! Import casename from command line
   if (len_trim(foldername) == 0) then
-    print *, 'Please provide simulation ID on command line (###)'; print *, 'Stopping...'; stop
+    print *, 'Provide simulation ID (###) as argument 2'; stop
   end if
+
   folderprefix = adjustl(foldername)
   casename = adjustl(input)
-  inquire(file="./"//trim(folderprefix)//"/"//trim(casename)//"_run.dat", exist = fexist)
-  if (.not. fexist) then
-    write(*, *) 'Run file ', filename, ' does not exist'; write(*, *) 'Stopping...'; stop
+
+  inquire(file="./"//trim(folderprefix)//"/"//trim(casename)//"_run.dat", exist=fileExists)
+  if (.not. fileExists) then
+    write(*, *) 'Run file ', filename, ' does not exist'; stop
   end if
 
   call get_command_argument(3, exp_letter) ! Import casename from command line
   if (len_trim(exp_letter) == 0) then
-    print *, 'Please provide experiment type on command line'; print *, 'Stopping...'; stop
+    print *, 'Provide experiment type on command line'; stop
   else if (len_trim(exp_letter) > 1) then
-    print *, 'Unrecognized experiment type'; print *, 'Stopping...'; stop
+    print *, 'Unrecognized experiment type'; stop
   end if
   if (exp_letter == 'A') then
     exp_type = 1
@@ -68,25 +59,20 @@ program main
   write(*, *) 'Finished'
 
   ! Determine number of elements and nodes in the model
+  write(*, "(A)", advance='no') "Reading mesh files... "
   meshfile = "./"//trim(folderprefix)//"/"//"mesh_elem.dat"
-  inquire(file=trim(meshfile), exist=fexist)
-  if (.not. fexist) then
-    write(*, *) 'Mesh file ', meshfile, ' does not exist'; write(*, *) 'Stopping...'; stop
+  inquire(file=trim(meshfile), exist=fileExists)
+  if (.not. fileExists) then
+    write(*, *) 'Mesh file ', meshfile, ' does not exist'; stop
   end if
 
   allocate(domain)
 
-
-  write(*, "(A)", advance='no') "Opening mesh files... "
   open(ioelem, file = "./"//trim(folderprefix)//"/mesh_elem.dat")
   open(ionode, file = "./"//trim(folderprefix)//"/mesh_node.dat")
-  write(*, *) "Finished"
 
-
-  write(*, "(A)", advance='no') "Reading headers... "
   read(ioelem, *) N, KB ! get number of nodes, elements, and sigma layers
   read(ionode, *) M
-  write(*, *) "Finished"
 
 
   domain%nnodes = M; domain%nelements = N; domain%nlayers = KB
@@ -94,7 +80,61 @@ program main
   KBM2 = KB - 2
 
   write(*, "(A)", advance='no') "Allocating mesh based variables... "
-  call ALLOC_VARS
+
+  NCT = N*3
+
+  ! Grid Metrics
+  allocate(XC(0:N))            ;XC   = zero   ! X-COORD AT FACE CENTER
+  allocate(YC(0:N))            ;YC   = zero   ! Y-COORD AT FACE CENTER
+  allocate(VX(0:M))            ;VX   = zero   ! X-COORD AT GRID POINT
+  allocate(VY(0:M))            ;VY   = zero   ! Y-COORD AT GRID POINT
+
+  ! Node, Boundary Condition, and Control Volume
+  allocate(NV(0:N,4))           ;NV       = 0  ! NODE NUMBERING FOR ELEMENTS
+  allocate(NBE(0:N,3))          ;NBE      = 0  ! INDICES OF ELEMENT NEIGHBORS
+  allocate(NTVE(0:M))           ;NTVE     = 0
+  allocate(ISONB(0:M))          ;ISONB    = 0  ! NODE MARKER = 0,1,2
+  allocate(ISBCE(0:N))          ;ISBCE    = 0
+
+  ! 1-d arrays for the sigma coordinate
+  allocate(Z(KB))               ; Z      = zero    ! SIGMA COORDINATE VALUE
+  allocate(ZZ(KB))              ; ZZ     = zero    ! INTRA LEVEL SIGMA VALUE
+  allocate(DZ(KB))              ; DZ     = zero    ! DELTA-SIGMA VALUE
+  allocate(DZZ(KB))             ; DZZ    = zero    ! DELTA OF INTRA LEVEL SIGMA
+
+  ! 2-d flow variable arrays at nodes
+  allocate(H(0:M))       ;H    = zero       ! BATHYMETRIC DEPTH
+  allocate(D(0:M))       ;D    = zero       ! DEPTH
+  allocate(EL(0:M))      ;EL   = zero       ! SURFACE ELEVATION
+  allocate(ET(0:M))      ;ET  = zero       ! SURFACE ELEVATION PREVIOUS TIMESTEP
+
+  ! internal mode arrays-(element based)
+  allocate(U(0:N, KB))       ;U     = zero   ! X-VELOCITY
+  allocate(V(0:N, KB))       ;V     = zero   ! Y-VELOCITY
+  allocate(W(0:N, KB))       ;W     = zero   ! VERTICAL VELOCITY IN SIGMA SYSTEM
+  allocate(WW(0:N, KB))      ;WW    = zero   ! Z-VELOCITY
+  allocate(UT(0:N, KB))      ;UT    = zero   ! X-VELOCITY FROM PREVIOUS TIMESTEP
+  allocate(VT(0:N, KB))      ;VT    = zero   ! Y-VELOCITY FROM PREVIOUS TIMESTEP
+  allocate(WT(0:N, KB))      ;WT    = zero   ! VERTICAL VELOCITY FROM PREVIOUS TIMESTEP
+  allocate(WWT(0:N, KB))     ;WWT   = zero   ! Z-VELOCITY FROM PREVIOUS TIMESTEP
+  allocate(KH(0:N, KB))     ;KH    = zero   ! TURBULENT QUANTITY
+
+  ! 3d variable arrays-(node based)
+  allocate(T1(0:M, KB))       ;T1     = zero  ! TEMPERATURE AT NODES
+  allocate(S1(0:M, KB))       ;S1     = zero  ! SALINITY AT NODES
+  allocate(R1(0:M, KB))       ;R1   = zero  ! DENSITY AT NODES
+  allocate(TT1(0:M, KB))      ;TT1    = zero  ! TEMPERATURE FROM PREVIOUS TIME
+  allocate(ST1(0:M, KB))      ;ST1    = zero  ! SALINITY FROM PREVIOUS TIME
+  allocate(RT1(0:M, KB))      ;RT1 = zero
+  allocate(WTS(0:M, KB))      ;WTS    = zero  ! VERTICAL VELOCITY IN SIGMA SYSTEM
+
+  ! Shape coefficient arrays and control volume metrics
+  allocate(A1U(0:N, 4))         ;A1U   = zero
+  allocate(A2U(0:N, 4))         ;A2U   = zero
+  allocate(AWX(0:N, 3))         ;AWX   = zero
+  allocate(AWY(0:N, 3))         ;AWY   = zero
+  allocate(AW0(0:N, 3))         ;AW0   = zero
+
   write(*, *) "Finished"
 
   write(*, "(A)", advance='no') "Getting element data... "
@@ -124,8 +164,6 @@ program main
   call TRIANGLE_GRID_EDGE
   write(*, *) "Finished"
 
-
-
   state_format="(1F12.6, 9000(I6,3F12.6))"
 
   write(*, "(A)", advance='no') "Allocating cyanobacteria and fish structures... "
@@ -137,7 +175,7 @@ program main
   write(*, "(A)", advance='no') "Loading physical field data... "
   input_file = "./" //trim(folderprefix)//"/"// trim(casename) // "_phys.dat" ! NetCDF file for simulation
   open(unit=iophys, file=input_file, status='old', position='rewind')
-  call domain%load(UNC, VNC, WNC, KHNC, ELNC, SALNC, TEMPNC, RHONC) ! use steady state
+  call domain%load(UNC, VNC, WNC, KHNC, ELNC, SALNC, TEMPNC, RHONC)
   write(*, *) "Finished"
 
   HOUR = HOURLAG ! start time (int) is 0
@@ -151,7 +189,6 @@ program main
   write(*, "(A)", advance='no') "Allocating common variables... "
   call cyano%lag_alloc() ! allocate common variables other than position and itag
   call fish%lag_alloc()
-
 
   allocate( INWATER(cyano%ndrft) ); INWATER(:) = 1 ! allocate inwater flag for only single species
   write(*, *) "Finished"
@@ -241,7 +278,7 @@ program main
   IINT = 0
   do NH = ISLAG, IELAG ! timestep units are hours, but not necessarily whole numbers
     write(*,*); write(*, "(I4,A,I4,A)", advance='no') NH-ISLAG+1, ' / ', IELAG-ISLAG+1, ' steps: '
-    call domain%load(UNC2, VNC2, WNC2, KHNC2, ELNC2, SALNC2, TEMPNC2, RHONC2) ! use steady state
+    call domain%load(UNC2, VNC2, WNC2, KHNC2, ELNC2, SALNC2, TEMPNC2, RHONC2)
 
     HOUR = HOUR + 1
     I1 = 1
