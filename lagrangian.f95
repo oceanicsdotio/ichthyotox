@@ -1,6 +1,6 @@
 module MOD_LAG
   ! type and variables for lagrangian particle system
-  use ALL_VARS, only : sp
+  use variables, only : sp
   implicit none
   save
 
@@ -56,7 +56,7 @@ contains
 
   subroutine find_host_element(lag, x, y, inwater)
     !  Find host elements of particles by searching progressively further elements
-    use ALL_VARS
+    use variables
     implicit none
 
     integer :: ii, jj, kk, ind, minimum
@@ -120,7 +120,7 @@ contains
 
   logical function isintriangle(XT, YT, X0, Y0)
     ! Determine if point is in triangle defined by nodes (XT(3),YT(3))
-    use ALL_VARS, only : sp
+    use variables, only : sp
     implicit none
 
     real(sp), intent(in) :: X0, Y0
@@ -138,31 +138,48 @@ contains
 
   subroutine lag_alloc(self)
 
-    use ALL_VARS, only: SP
+    use variables, only: SP
     implicit none
     class(LAG_OBJ), intent(inout) :: self
 
-    allocate( self%XP( self%ndrft ) ); self%XP(:) = zero
-    allocate( self%YP( self%ndrft ) ); self%YP(:) = zero
-    allocate( self%ZP( self%ndrft ) ); self%ZP(:) = zero
-    allocate( self%HP( self%ndrft ) ); self%HP(:) = zero
-    allocate( self%EP( self%ndrft ) ); self%EP(:) = zero
-    allocate( self%FOUND( self%ndrft ) ); self%FOUND(:) = 0
-    allocate( self%HOST( self%ndrft ) ); self%HOST(:) = 1
-    allocate( self%LAYER( self%ndrft ) ); self%LAYER(:) = 1
-    allocate( self%SBOUND( self%ndrft ) ); self%SBOUND(:) = 0
-    allocate( self%INDOMAIN( self%ndrft ) ); self%INDOMAIN(:) = 1
-    allocate( self%TEMP( self%ndrft ) ); self%TEMP(:) = zero
-    allocate( self%SAL( self%ndrft ) ); self%SAL(:) = zero
-    allocate( self%RHO( self%ndrft ) ); self%RHO(:) = zero
-    allocate( self%UP( self%ndrft ) ); self%UP(:) = zero
-    allocate( self%VP( self%ndrft ) ); self%VP(:) = zero
-    allocate( self%WP( self%ndrft ) ); self%WP(:) = zero
+    allocate( self%XP( self%ndrft ), &
+            & self%YP( self%ndrft ), &
+            & self%ZP( self%ndrft ), &
+            & self%HP( self%ndrft ), &
+            & self%EP( self%ndrft ), &
+            & self%FOUND( self%ndrft ), &
+            & self%HOST( self%ndrft ), &
+            & self%LAYER( self%ndrft ), &
+            & self%SBOUND( self%ndrft ), &
+            & self%INDOMAIN( self%ndrft ), &
+            & self%TEMP( self%ndrft ), &
+            & self%SAL( self%ndrft ), &
+            & self%RHO( self%ndrft ), &
+            & self%UP( self%ndrft ), &
+            & self%VP( self%ndrft ), &
+            & self%WP( self%ndrft ))
+
+    self%XP(:) = zero
+    self%YP(:) = zero
+    self%ZP(:) = zero
+    self%HP(:) = zero
+    self%EP(:) = zero
+    self%FOUND(:) = 0
+    self%HOST(:) = 1
+    self%LAYER(:) = 1
+    self%SBOUND(:) = 0
+    self%INDOMAIN(:) = 1
+    self%TEMP(:) = zero
+    self%SAL(:) = zero
+    self%RHO(:) = zero
+    self%UP(:) = zero
+    self%VP(:) = zero
+    self%WP(:) = zero
 
   end subroutine
 
 
-  subroutine lag_printStatistics(self) ! OK
+  subroutine lag_printStatistics(self)
 
     implicit none
     class(LAG_OBJ), intent(inout) :: self
@@ -184,8 +201,8 @@ contains
 
   subroutine lag_readPosition(self)
 
-    use ALL_VARS, only : sp
-    use ALL_VARS, only : folderprefix
+    use variables, only : sp
+    use variables, only : folderprefix
 
     class(LAG_OBJ), intent(inout) :: self
 
@@ -218,7 +235,7 @@ contains
 
   subroutine lag_writePosition(self, fid) ! OK
     ! write time and particle id/position to already open file
-    use MOD_SIM, only : domain ! domain structure for current time only
+    use simulation, only : domain ! domain structure for current time only
     class(LAG_OBJ), intent(inout) :: self ! lagrangian particle structure
     integer, intent(in) :: fid ! unit number of open output file
     integer :: ii
@@ -230,7 +247,7 @@ contains
 
   function lag_cart2sig(self, cartesian)
     ! Calculate sigma vertical position from cartesian
-    use ALL_VARS, only : sp
+    use variables, only : sp
     class(LAG_OBJ), intent(in) :: self
     real(sp), dimension(self%ndrft), intent(in) :: cartesian
     real(sp), dimension(self%ndrft) :: lag_cart2sig
@@ -240,7 +257,7 @@ contains
 
   function lag_sig2cart(self, sigma)
     ! calculate cartesian vertical from sigma coordinate
-    use ALL_VARS, only : sp
+    use variables, only : sp
     class(LAG_OBJ), intent(in) :: self
     real(sp), dimension(self%ndrft), intent(in) :: sigma
     real(sp), dimension(self%ndrft) :: lag_sig2cart
@@ -250,8 +267,8 @@ contains
 
   function lag_getlayers(self, sigma) ! OK
     ! update current sigma layer of particles between moves
-    use ALL_VARS, only : KBM1
-    use ALL_VARS, only : sp
+    use variables, only : KBM1
+    use variables, only : sp
     class(LAG_OBJ), intent(in) :: self
     real(sp), dimension(self%ndrft), intent(in) :: sigma
     integer, dimension(self%ndrft) :: lag_getlayers, layers
@@ -265,9 +282,9 @@ contains
 
   function lag_zinterp(self, verticalvar)
 
-    use ALL_VARS, only : sp ! real precision
-    use ALL_VARS, only : KB ! sigma layers
-    use MOD_SIM, only : domain ! domain structure
+    use variables, only : sp ! real precision
+    use variables, only : KB ! sigma layers
+    use simulation, only : domain ! domain structure
     class(LAG_OBJ), intent(inout) :: self ! lagrangian particle swarm object
     real(sp), dimension(0:KB+1), intent(in) :: verticalvar
     real(sp), dimension(self%ndrft) :: idz, lag_zinterp
@@ -281,7 +298,7 @@ contains
   subroutine TRAJECT(self, DELTAT, U1, U2, V1, V2, W1, W2, HL, EL1, EL2, salinity, temperature, density)
 
     ! integrate particle position from x0 to xn using velocity fields at time t0 and time tn
-    use ALL_VARS, only : N, M, KB, MSTAGE, A_RK, B_RK, C_RK ! runge-kutta parameters
+    use variables, only : N, M, KB, MSTAGE, A_RK, B_RK, C_RK ! runge-kutta parameters
 
     class(LAG_OBJ), intent(inout) :: self ! lagrangian particle object
     real(SP), intent(in) :: DELTAT ! time step, usually DTI
@@ -290,7 +307,7 @@ contains
     real(SP), dimension(0:M, KB), intent(in) :: temperature, salinity, density
 
     real(SP), dimension(self%ndrft) :: PDXT, PDYT, PDZT, PDX, PDY, PDZ ! RK stage positions
-    integer, dimension(self%ndrft) :: INWATER
+    integer, dimension(self%ndrft) :: inwater
     integer :: NS
     real(SP), dimension(0:N, KB) :: UL, VL, WL ! ERK stage velocities
     real(SP), dimension(0:M) :: ELL ! ERK stage freesurface height
@@ -336,13 +353,13 @@ contains
     end do sum_stages
 
     self%FOUND = 0
-    INWATER = 1
+    inwater = 1
 
-    call self%find_host_element(PDXT, PDYT, INWATER) ! Perform robust progressive-topology search
+    call self%find_host_element(PDXT, PDYT, inwater) ! Perform robust progressive-topology search
 
-    self%xp(:) = self%xp(:) * (1.0_SP - float(INWATER(:))) + PDXT(:) * float(INWATER(:)) ! Update only particles still in water
-    self%yp(:) = self%yp(:) * (1.0_SP - float(INWATER(:))) + PDYT(:) * float(INWATER(:))
-    self%zp(:) = self%zp(:) * (1.0_SP - float(INWATER(:))) + PDZT(:) * float(INWATER(:))
+    self%xp(:) = self%xp(:) * (1.0_SP - float(inwater(:))) + PDXT(:) * float(inwater(:)) ! Update only particles still in water
+    self%yp(:) = self%yp(:) * (1.0_SP - float(inwater(:))) + PDYT(:) * float(inwater(:))
+    self%zp(:) = self%zp(:) * (1.0_SP - float(inwater(:))) + PDZT(:) * float(inwater(:))
 
     call self%INTERP_ELH(self%xp, self%yp, HL, ELL, 1) ! interpolate bathymetry and elevation
 
@@ -357,10 +374,10 @@ contains
   end subroutine
 
 
-  subroutine kinesis(self, random, deltat, salinity, temperature, density, HIN, EIN) !---Keeney change
+  subroutine kinesis(self, random, deltat, salinity, temperature, density, HIN, EIN)
 
-    use ALL_VARS
-    use MOD_RAND, only : LAG_RAND
+    use variables
+    use simulation, only : LAG_RAND
     implicit none
 
     class(LAG_OBJ), intent(inout) :: self
@@ -369,9 +386,8 @@ contains
     real(sp), dimension(0:M, KB), intent(in) :: salinity, temperature, density ! grid based field for kinesis (usually salinity)
     real(sp), dimension(0:M), intent(in) :: HIN, EIN ! grid based field for kinesis (usually salinity)
 
-
     real(sp), dimension(self%ndrft) :: PDXT, PDYT
-    integer, dimension(self%ndrft) :: INWATER
+    integer, dimension(self%ndrft) :: inwater
     integer :: ii
     real(sp) :: pp1, p1
 
@@ -391,11 +407,11 @@ contains
     self%found(:) = 0
     inwater(:) = 1
 
-    call self%find_host_element(pdxt, pdyt, INWATER)
+    call self%find_host_element(pdxt, pdyt, inwater)
 
     ! Update only particles still in water
-    self%xp(:) = self%xp(:) * (1.0_SP - float(INWATER(:))) + PDXT(:) * float(INWATER(:))
-    self%yp(:) = self%yp(:) * (1.0_SP - float(INWATER(:))) + PDYT(:) * float(INWATER(:))
+    self%xp(:) = self%xp(:) * (1.0_SP - float(inwater(:))) + PDXT(:) * float(inwater(:))
+    self%yp(:) = self%yp(:) * (1.0_SP - float(inwater(:))) + PDYT(:) * float(inwater(:))
 
     call self%INTERP_ELH(self%xp, self%yp, HIN, EIN, 1) ! interpolate bathymetry and elevation
     call self%INTERP_FIELDS(self%xp, self%yp, self%zp, salinity, temperature, density, 0) ! interpolate temperature and salinity at new position
@@ -405,24 +421,24 @@ contains
 
   subroutine INTERP_V(lag, XP, YP, ZP, UIN, VIN, WIN) ! OK
     ! linear interpolation of velocity field at particle positions
-    use ALL_VARS, only : A1U, A2U, NBE, YC, XC, DZ, ZZ
-    use ALL_VARS, only : KBM1, N, KB
+    use variables, only : A1U, A2U, NBE, YC, XC, DZ, ZZ
+    use variables, only : KBM1, N, KB
 
     class(LAG_OBJ), intent(inout) :: lag
     real(sp), intent(in), dimension(lag%ndrft) :: XP, YP, ZP ! ZP is sigma depth
     real(sp), intent(in), dimension(0:N, 1:KB) :: UIN, VIN, WIN
 
-    integer, dimension(lag%ndrft) ::  INWATER
+    integer, dimension(lag%ndrft) ::  inwater
     integer :: ii, host, E1, E2, E3, K1, K2, K
     real(SP) :: DUDX, DUDY, DVDX, DVDY, DWDX, DWDY, UE01, UE02, VE01, VE02, WE01, WE02
     real(SP) :: ZF1, ZF2, X0C, Y0C
 
-    INWATER(:) = 1
+    inwater(:) = 1
     lag%FOUND(:) = 0
-    call lag%find_host_element(XP, YP, INWATER)
+    call lag%find_host_element(XP, YP, inwater)
 
     particle_loop: do ii = 1, lag%ndrft
-      if ( (lag%INDOMAIN(ii) == 0) .or. (INWATER(ii)) == 0) cycle ! skip particles outside domain
+      if ( (lag%INDOMAIN(ii) == 0) .or. (inwater(ii)) == 0) cycle ! skip particles outside domain
       host = lag%HOST(ii)
       E1  = NBE(host,1)
       E2  = NBE(host,2)
@@ -485,9 +501,9 @@ contains
 
   subroutine INTERP_ELH(self, XP, YP, HIN, EIN, FHE) ! OK
     ! Linearly interpolate elevation and bathymetry at a set of particle positions
-    use ALL_VARS, only : sp
-    use ALL_VARS, only : AW0, AWX, AWY, NV, XC, YC
-    use ALL_VARS, only : M
+    use variables, only : sp
+    use variables, only : AW0, AWX, AWY, NV, XC, YC
+    use variables, only : M
 
     class(LAG_OBJ), intent(inout) :: self
     real(sp), intent(in), dimension(self%ndrft) :: XP, YP ! position arrays, needed because subroutine is used between updates of LAG structure
@@ -495,13 +511,13 @@ contains
     integer, intent(in) :: FHE ! Find host elements: 0 if host has correct elements; 1 if host should be updated
 
     integer :: ii, host, N1, N2, N3
-    integer, dimension(self%ndrft) :: INWATER
+    integer, dimension(self%ndrft) :: inwater
     real(sp) :: H0, HX, HY, E0, EX, EY, X0C, Y0C
 
     find_host: if (FHE == 1) then
-      INWATER(:) = 1
+      inwater(:) = 1
       self%FOUND(:) = 0
-      call self%find_host_element(XP, YP, INWATER)
+      call self%find_host_element(XP, YP, inwater)
     end if find_host
 
     do ii = 1, self%ndrft
@@ -526,22 +542,22 @@ contains
 
   subroutine INTERP_FIELDS(self, XP, YP, ZP, SAL, TEMP, RHO, FHE) ! OK
     ! Linearly interpolates salinity, temperature and density
-    use ALL_VARS, only : AW0, AWX, AWY, NV, XC, YC, sp, KB, M
+    use variables, only : AW0, AWX, AWY, NV, XC, YC, sp, KB, M
 
     class(LAG_OBJ), intent(inout) :: self
     real(sp), intent(in), dimension(self%ndrft) :: XP, YP, ZP
     real(sp), intent(in), dimension(0:M, KB) :: SAL, TEMP, RHO
     integer, intent(in) :: FHE ! Find host elements: 0 if host has correct elements; 1 if host should be updated
 
-    integer, dimension(self%ndrft) :: INWATER
+    integer, dimension(self%ndrft) :: inwater
     integer :: ii, host, N1, N2, N3
     real(sp) :: S0, SX, SY, T0, TX, TY, D0, DX, DY, X0C, Y0C, ZTMP(self%ndrft)
 
     ZTMP(:) = ZP(:)
     find_host: if (FHE == 1) then
-      INWATER(:) = 1
+      inwater(:) = 1
       self%FOUND(:) = 0
-      call self%find_host_element(XP, YP, INWATER) ! initiate progressive topology search
+      call self%find_host_element(XP, YP, inwater) ! initiate progressive topology search
     end if find_host
 
     particle_loop: do ii = 1, self%ndrft
@@ -576,7 +592,7 @@ contains
     ! then linear interpolation on the horizontal
     !  RETURNS:   Both dkh/dz (DKHOUT) and kh (KHOUT)
 
-    use ALL_VARS
+    use variables
     class(LAG_OBJ), intent(inout) :: self
     real(SP), intent(out), dimension(self%ndrft) :: DKHOUT, KHOUT
     real(SP), intent(in), dimension(0:M, KB) :: DZKH, ZKH
@@ -609,7 +625,7 @@ contains
       ! DERIVATIVE OF THE DIFFUSION
       ! find vertical location
       NZR = floor( float(KBM1)*abs(self%zp(ii)) ) ! guess value for hunt
-      !call HUNT(Z, KB, self%ZP(ii), NZR) ! Z is sigma coordinate value from ALL_VARS, only necessary if sigma layers are different thicknesses
+      !call HUNT(Z, KB, self%ZP(ii), NZR) ! Z is sigma coordinate value from variables, only necessary if sigma layers are different thicknesses
 
       KHI = NZRINDX(NZR)
       KLO = NZRINDX(NZR + 1)

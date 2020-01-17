@@ -1,4 +1,4 @@
-module ALL_VARS
+module variables
   
   implicit none
   save

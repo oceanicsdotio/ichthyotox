@@ -1,10 +1,9 @@
 program main
 
-  use ALL_VARS
-  use MOD_SIM, only : domain, TRIANGLE_GRID_EDGE
-  use MOD_TOX, only : cyano
+  use variables
+  use simulation, only : domain, TRIANGLE_GRID_EDGE, random, getInteger, getString, find_key
+  use cyanobacteria, only : cyano
   use behavior, only : fish
-  use MOD_RAND, only : random
 
   implicit none
 
@@ -14,9 +13,11 @@ program main
   real(sp) :: TMP1, TMP2, LAG_TIME
 
   integer , allocatable, dimension(:) :: INWATER
-  integer :: NH, I1, I2, IT, HOUR, IINT, ii, index, ionode=100, ioelem=101, exp_type, NCT
-  character(len = 100) :: input_file, input, filename, meshfile, foldername, exp_letter, state_format
+  integer :: NH, I1, I2, IT, HOUR, IINT, ii, index, ionode=100, ioelem=101, exp_type, NCT, ISCAN
+  character(len = 100) :: input_file, input, meshfile, foldername, exp_letter, state_format
   logical :: fileExists
+
+  character(len = 120) :: filename
 
   call get_command_argument(1, input) ! Import casename from command line
   if (len_trim(input) == 0) then
@@ -51,12 +52,109 @@ program main
   else if (exp_letter == 'D') then
     exp_type = 4
   else
-    print *, 'Unrecognized experiment type'; print *, 'Stopping...'; stop
+    print *, 'Unrecognized experiment type'; stop
   end if
 
-  write(*, *); write(*, "(A)", advance='no') 'Importing simulation parameters... '
-  call DATA_RUN ! Read parameters controlling model run
-  write(*, *) 'Finished'
+  write(*, *);
+  write(*, "(A)", advance='no') 'Importing simulation parameters... '
+
+
+  ! Read in variables and set values
+  filename = "./"//trim(folderprefix)//"/"//trim(CASENAME)//"_run.dat"
+
+  ! Info file
+  ISCAN = find_key(filename, "INFOFILE", CVAL = INFOFILE)
+  if (ISCAN /= 0) then
+    write(IPT, *) 'ERROR READING INFOFILE: ', ISCAN
+    stop
+  end if
+
+  ! Open runtime info file
+  IPT = 71
+  if (trim(INFOFILE) /= "screen") then
+    open(IPT, FILE = trim(INFOFILE))
+  else
+    IPT = 6
+  end if
+
+
+  call getInteger(filename, "YEARLAG", YEARLAG) ! year
+  call getInteger(filename, "MONTHLAG", MONTHLAG) ! month
+  call getInteger(filename, "DAYLAG", DAYLAG) ! day
+  call getInteger(filename, "HOURLAG", HOURLAG) ! day
+  call getInteger(filename, "IRW", IRW) ! RANDOM WALK CHOICE
+  call getInteger(filename, "TDRIFT", TDRIFT) ! Total time to move drifters (TDRIFT)
+
+  call getString(filename, "GEOAREA", GEOAREA, ipt) ! Name of geographic region
+  call getString(filename, "INPDIR", INPDIR, ipt) ! File directory
+  call getString(filename, "LAGINI", LAGINI, ipt)  ! INPUT FILES
+  call getString(filename, "OUTDIR", OUTDIR, ipt)
+
+  ! External time step (DTI)
+  ISCAN = find_key(trim(filename), "DTI", FSCAL = DTI)
+  if (ISCAN /= 0) then
+    write (IPT, *) 'ERROR READING DTI: ', ISCAN
+    stop
+  end if
+
+  ! Input time step of flow fields (instp)
+  ISCAN = find_key(trim(filename),"INSTP", FSCAL = INSTP)
+  if (ISCAN /= 0) then
+    write(IPT, *) 'ERROR READING INSTP: ', ISCAN
+    stop
+  end if
+
+  ! External time step (DTOUT)
+  ISCAN = find_key(trim(filename), "DTOUT", FSCAL = DTOUT)
+  if (ISCAN /= 0) then
+    write (IPT, *) 'ERROR READING DTOUT: ', ISCAN
+    stop
+  end if
+
+
+  ! Horizontal diffusion coefficient (DHOR)
+  ISCAN = find_key(trim(filename), "DHOR", FSCAL = DHOR)
+  if (ISCAN /= 0) then
+    write(IPT, *) 'ERROR READING DHOR: ', ISCAN
+    stop
+  end if
+
+  ! Random walk time step
+  ISCAN = find_key(trim(filename), "DTRW", FSCAL = DTRW)
+  if (ISCAN /= 0) then
+    write(IPT, *) 'ERROR READING DTRW: ', ISCAN
+    stop
+  end if
+
+
+  ! "P_SIGMA" turns on vertical location of particles in sigma
+  ISCAN = find_key(trim(filename), "P_SIGMA", LVAL = P_SIGMA)
+  if (ISCAN /= 0) then
+    write(IPT, *) 'ERROR READING P_SIGMA: ', ISCAN
+    stop
+  end if
+
+  ! "OUT_SIGMA" TURNS ON VERTICAL LOCATION OF PARTICLES IN SIGMA
+  ISCAN = find_key(trim(filename), "OUT_SIGMA", LVAL = OUT_SIGMA)
+  if (ISCAN /= 0) then
+    write(IPT, *) 'ERROR READING OUT_SIGMA: ', ISCAN
+    stop
+  end if
+
+
+  ! "F_DEPTH" KEEP SAME Z DEPTH ALONG THE TRACKING
+  ISCAN = find_key(trim(filename), "F_DEPTH", LVAL = F_DEPTH)
+  if (ISCAN /= 0) then
+    write(IPT, *) 'ERROR READING F_DEPTH: ', ISCAN
+    stop
+  end if
+
+
+  ! Set unit values for input output files
+  IOPAR=11
+  INLAG=13
+
+
 
   ! Determine number of elements and nodes in the model
   write(*, "(A)", advance='no') "Reading mesh files... "

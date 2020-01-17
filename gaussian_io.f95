@@ -1,6 +1,6 @@
 program gaussian
 
-    use MOD_RAND, only : LAG_RAND, random
+    use simulation, only : LAG_RAND, random
     implicit none
 
     integer :: ii

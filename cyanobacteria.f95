@@ -1,7 +1,7 @@
-module MOD_TOX
-  use ALL_VARS, only : sp ! real precision
+module cyanobacteria
+
   use MOD_LAG, only : LAG_OBJ ! module extends the lagrangian particle type
-  use ALL_VARS, only : zero
+  use variables, only : zero, sp
   implicit none
   save
 
@@ -30,20 +30,22 @@ module MOD_TOX
           & lightAttenuationWater = 0.15_SP, & ! light extinction coefficient due to coastal waters
           & shading_upscale = 1.0_SP
 
-  public LAG_TOX, CYANO ! type and instance exported
+  type, public, extends(LAG_OBJ) :: LAG_TOX
+    ! algal state inherited from lagrangian particle class
+    real(sp) :: &
+            & mclrProductionRate = zero, &
+            & mclrExcretionRate = zero
 
-  type, extends(LAG_OBJ) :: LAG_TOX
-    ! algal data derived from lagrangian particle class
-    real(sp) :: mclrProductionRate = zero
-    real(sp) :: mclrExcretionRate = zero
+    real(sp), allocatable, dimension(:), private :: &
+            & radius,       & ! radius for vertical movement of spherical colonies, meters
+            & irradiance,   & ! irradiance at particle position, watts per sq meter
+            & biomass,      & ! overlying biomass used for light attenuation calculations, gram
+            & delta_rho       ! difference in density between water and colony
 
-    real(sp), allocatable, dimension(:), private :: radius ! radius for vertical movement of spherical colonies, meters
-    real(sp), allocatable, dimension(:), private :: irradiance ! irradiance at particle position, watts per sq meter
-    real(sp), allocatable, dimension(:), private :: biomass ! overlying biomass used for light attenuation calculations, gram
-    real(sp), allocatable, dimension(:), public :: carbohydrate ! mass of carbohydration ballast, grams
-    real(sp), allocatable, dimension(:), public :: protein ! mass of buoyant cellular material, grams
-    real(sp), allocatable, dimension(:), public :: microcystin ! mass of cellular toxins, grams
-    real(sp), allocatable, dimension(:), private :: delta_rho ! difference in density between water and colony
+    real(sp), allocatable, dimension(:), public :: &
+            & carbohydrate, & ! mass of carbohydration ballast, grams
+            & protein,      & ! mass of buoyant cellular material, grams
+            & microcystin     ! mass of cellular toxins, grams
 
   contains
     ! user interface subroutines
@@ -53,7 +55,6 @@ module MOD_TOX
     procedure, public :: random => colony_random_walk ! vertical random walk for cyanobacteria
 
     ! private utility procedures
-    procedure, private :: readState => colony_readState ! read state variables from initial value file
     procedure, private :: tempLimit => colony_temperatureLimit ! function that returns array scaling coefficients
     procedure, private :: tempFunction => colony_temperatureFunction ! function that returns array scaling coefficients
 
@@ -72,16 +73,18 @@ module MOD_TOX
 
   end type LAG_TOX;
 
-  type(LAG_TOX), allocatable :: CYANO
+  type(LAG_TOX), allocatable, public :: CYANO
 
 contains
 
   subroutine colony_initialize(self, experimentType)
     ! read position and state, and allocate internal variables
-    use ALL_VARS, only : zero
-    use ALL_VARS, only : sp
+    use variables, only : zero, sp, iovar, folderprefix
     class(LAG_TOX), intent(inout) :: self
-    integer :: experimentType
+    integer :: experimentType, ii, indexMatch
+    character(len = 50) :: filename
+    logical :: fexist
+
 
     self%species = 'cyanobacteria' ! file name prefix
     if (experimentType == 1) then
@@ -101,38 +104,35 @@ contains
     end if
 
     call self%readPosition() ! finds ndrft and allocates position arrays
-    allocate( self%radius(self%ndrft) ); self%radius = zero ! read from file
-    allocate( self%irradiance(self%ndrft) ); self%irradiance = zero ! calculated at runtime
-    allocate( self%biomass(self%ndrft) ); self%biomass = zero ! calculated at runtime
-    allocate( self%carbohydrate(self%ndrft) ); self%carbohydrate = zero ! read from file
-    allocate( self%protein(self%ndrft) ); self%protein = zero ! read from file
-    allocate( self%microcystin(self%ndrft) ); self%microcystin = zero ! read from file
-    allocate (self%delta_rho(self%ndrft) ); self%delta_rho = zero ! calculated at runtime
-    call self%readState() ! read initial values from file
 
-  end subroutine colony_initialize
+    allocate( self%radius(self%ndrft), &
+            & self%irradiance(self%ndrft), &
+            & self%biomass(self%ndrft), &
+            & self%carbohydrate(self%ndrft), &
+            & self%protein(self%ndrft), &
+            & self%microcystin(self%ndrft), &
+            & self%delta_rho(self%ndrft));
 
-
-  subroutine colony_readState(self) ! OK
-    use ALL_VARS, only : iovar
-    use ALL_VARS, only : folderprefix
-    class(LAG_TOX), intent(inout) :: self
-    integer :: ii, indexMatch
-    character(len = 50) :: filename
-    logical :: fexist
+    self%radius = zero ! read from file
+    self%irradiance = zero ! calculated at runtime
+    self%biomass = zero ! calculated at runtime
+    self%carbohydrate = zero ! read from file
+    self%protein = zero ! read from file
+    self%microcystin = zero ! read from file
+    self%delta_rho = zero ! calculated at runtime
 
     ! Check for state variable file, allocate storage and read values
     write(filename, "(A)") "./"//trim(folderprefix)//"/"//trim(self%species)//'_var.dat' ! variables read from "cyanobacteria_var.dat"
     inquire(file=trim(filename), exist=fexist) ! check for file
     if (.not. fexist) then
-      write(*, *) 'State variable file: ', filename,' does not exist, halting...'
+      write(*, *) 'State variable file: ', filename,' does not exist.'
       stop
     end if
 
     open(unit=iovar, file=filename, form='formatted')
     read(iovar, "(I6)") indexMatch
     if (indexMatch /= self%ndrft) then
-      write(*, *) 'Dimensions of position and state variable files are not equal, halting...'
+      write(*, *) 'Dimensions of position and state variable files are not equal.'
       stop
     end if
 
@@ -140,18 +140,19 @@ contains
       read(iovar, "(4F20.6)") self%radius(ii), self%carbohydrate(ii), self%protein(ii), self%microcystin(ii)
     end do
     close(iovar)
-  end subroutine colony_readState
+
+  end subroutine
 
 
   subroutine colony_writeState(self, fid)
-    use MOD_SIM, only : domain ! domain structure for elapsed time
+    use simulation, only : domain ! domain structure for elapsed time
     class(LAG_TOX), intent(in) :: self ! cyanobacteria extended type
     integer, intent(in) :: fid ! persistent file unit number
     integer :: ii
 
     write(fid, "(1F10.2,9000(I6,3F20.3))") domain%time, (self%itag(ii), self%carbohydrate(ii), self%protein(ii), self%microcystin(ii), ii=1,self%ndrft)
 
-  end subroutine colony_writeState
+  end subroutine
 
 
   recursive subroutine colony_QsortC(absdepth, order) ! OK
@@ -159,7 +160,7 @@ contains
     ! Author: Juli Rew, SCD Consulting (juliana@ucar.edu), 9/03
     ! Based on algorithm from Cormen et al., Introduction to Algorithms, 1997 printing
     ! Made F conformant by Walt Brainerd http://www.fortran.com/qsort_c.f95
-    use ALL_VARS, only : sp
+    use variables, only : sp
     real(sp), intent(inout), dimension(:) :: absdepth
     integer, intent(inout), dimension(:) :: order
     integer :: iq
@@ -169,11 +170,11 @@ contains
       call colony_QsortC(absdepth(:iq-1), order(:iq-1))
       call colony_QsortC(absdepth(iq:), order(iq:))
     end if
-  end subroutine colony_QsortC
+  end subroutine
 
 
   subroutine colony_Partition(A, B, marker) ! OK
-    use ALL_VARS, only : sp
+    use variables, only : sp
 
     real(sp), intent(inout), dimension(:) :: A
     integer, intent(inout), dimension(:) :: B
@@ -212,13 +213,13 @@ contains
         return
       endif
     end do
-  end subroutine colony_Partition
+  end subroutine
 
 
-  function colony_carbonFixation(self) ! OK
+  function colony_carbonFixation(self)
     ! Updates carbohydrate ballast state variable due to fixation (alias is "fixation")
-    use ALL_VARS, only : SP ! for single or double precision
-    use MOD_SIM, only : domain
+    use variables, only : SP ! for single or double precision
+    use simulation, only : domain
 
     class(LAG_TOX), intent(inout) :: self
     real(sp), dimension(self%ndrft) :: colony_carbonFixation ! result array
@@ -244,37 +245,37 @@ contains
     fixationCoef(:) = (2.0_SP + fixationBeta) * irradRatio(:) / (irradRatio(:)**2.0_SP + fixationBeta*irradRatio(:) + 1.0_SP) ! scaling coefficient for transfer
     colony_carbonFixation(:) = fixationMax*fixationCoef(:)*self%protein(:)*(1.0_SP - vesicleFrac)*(carbonRatioMax - self%carbohydrate(:)/self%protein(:))/carbonRatioMax ! actual mass transfer
 
-  end function colony_carbonFixation
+  end function
 
 
-  function colony_carbonSynthesis(self) ! OK
+  function colony_carbonSynthesis(self)
     ! updates carbohydrate and protein state variables due to synthesis transport (alias is "synthesis")
     ! calls tempLimit()
-    use ALL_VARS, only : sp ! real precision
+    use variables, only : sp ! real precision
     class(LAG_TOX), intent(inout) :: self
     real(sp), dimension(self%ndrft) :: colony_carbonSynthesis
 
     colony_carbonSynthesis(:) =  self%carbohydrate(:) * synthesisMax * self%tempLimit()
 
-  end function colony_carbonSynthesis
+  end function
 
 
-  function colony_carbonExcretion(self) ! OK
+  function colony_carbonExcretion(self)
     ! update protein and dissolved pools due to excretion transport (alias is "excretion")
     ! temperature is tracked for all particles, so function uses algae array subset
-    use ALL_VARS, only : sp ! for single or double precision
+    use variables, only : sp ! for single or double precision
     class(LAG_TOX), intent(inout) :: self
     real(sp), dimension(self%ndrft) :: colony_carbonExcretion
 
     colony_carbonExcretion(:) = excretionFrac * self%tempFunction() * (respirationBasic*self%carbohydrate(:) + synthesisMax*self%protein(:))
 
-  end function colony_carbonExcretion
+  end function
 
 
   function colony_carbonRespiration(self)
     ! update carbohydrate and dissolved pools due to respiration transport (alias is "respiration")
     ! temperature is tracked for all particles, so function calls use algae array subset
-    use ALL_VARS, only : sp ! for single or double precision
+    use variables, only : sp ! for single or double precision
     class(LAG_TOX), intent(inout) :: self
     real(sp), dimension(self%ndrft) :: colony_carbonRespiration
 
@@ -285,7 +286,7 @@ contains
 
   function colony_temperatureLimit(self)
     ! Returns array of temperature limitation coefficents (0,1) for C synthesis
-    use ALL_VARS, only : sp ! for single or double precision
+    use variables, only : sp ! for single or double precision
     class(LAG_TOX), intent(in) :: self
     real(sp), dimension(self%ndrft) :: colony_temperatureLimit ! array of output coefficients for each particle
 
@@ -296,7 +297,7 @@ contains
 
   function colony_temperatureFunction(self)
     ! returns array of scaling coefficents for biometric fcns
-    use ALL_VARS, only : sp! for single and double precision
+    use variables, only : sp! for single and double precision
 
     class(LAG_TOX), intent(in) :: self
     real(sp), dimension(self%ndrft) :: colony_temperatureFunction ! array of output coefficients for each particles
@@ -308,33 +309,33 @@ contains
 
   function colony_microcystinProduction(self)
     ! calculates toxin production per time step
-    use ALL_VARS, only : sp ! for precision
+    use variables, only : sp ! for precision
 
     class(LAG_TOX), intent(inout) :: self
     real(sp), dimension(self%ndrft) :: colony_microcystinProduction ! array of microcystin production for colony particles
     colony_microcystinProduction(:) = self%mclrProductionRate * self%protein(:)
 
-  end function colony_microcystinProduction
+  end function
 
 
   function colony_microcystinExcretion(self)
     ! calculates temperature dependent toxin loss and moves mass to host element
-    use ALL_VARS, only : sp
+    use variables, only : sp
 
     class(LAG_TOX), intent(inout) :: self
     real(sp), dimension(self%ndrft) :: colony_microcystinExcretion
     colony_microcystinExcretion(:) = self%mclrExcretionRate * self%protein(:)
 
-  end function colony_microcystinExcretion
+  end function
 
 
   subroutine colony_verticalMovement(self)
     ! update position due to buoyant movement: calls velocity(), zinterp(), zlocate(), sigma()
-    use ALL_VARS, only : sp ! single precision
-    use ALL_VARS, only : KB, KBM1
-    use MOD_SIM, only : domain
-    use ALL_VARS, only : dti, zero ! integration step
-    use ALL_VARS, only : A_RK, B_RK, MSTAGE, strict_integration ! runge-kutta integration parameters
+    use variables, only : sp ! single precision
+    use variables, only : KB, KBM1
+    use simulation, only : domain
+    use variables, only : dti, zero ! integration step
+    use variables, only : A_RK, B_RK, MSTAGE, strict_integration ! runge-kutta integration parameters
 
     class(LAG_TOX), intent(inout) :: self
     integer :: ii, jj
@@ -468,9 +469,8 @@ contains
 
   subroutine colony_random_walk(self)
     ! vertical and horizontal random walk
-    use ALL_VARS, only : dti, dtrw, z, KB, KBM1, KBM2
-    use MOD_RAND, only : random
-    use MOD_SIM, only : domain
+    use variables, only : dti, dtrw, z, KB, KBM1, KBM2
+    use simulation, only : domain, random
     class(LAG_TOX), intent(inout) :: self
 
     real(sp), dimension(self%ndrft) :: wdiff, kzp, dkzp ! diffusivity and first derivative at particle positions
@@ -513,8 +513,8 @@ contains
   function colony_stokesVelocity(self)
     ! returns stokes velocity of particle in m/hr, if lighter than water result is positive
     ! calls density() and viscosity()
-    use ALL_VARS, only : sp ! precision
-    use ALL_VARS, only : grav ! grav is positive, m/s2
+    use variables, only : sp ! precision
+    use variables, only : grav ! grav is positive, m/s2
     class(LAG_TOX), intent(inout) :: self
     real(sp), dimension(self%ndrft) :: colony_stokesVelocity ! output array of particle vertical velocities
 
@@ -528,7 +528,7 @@ contains
 
   function colony_algaeDensity(self)
     ! colony density including contibutions of mucus and gas vacuoles
-    use ALL_VARS
+    use variables
     class(LAG_TOX), intent(in) :: self
     real(sp), dimension(self%ndrft) :: colony_algaeDensity ! output array of overall colony density
     real(sp), dimension(self%ndrft) :: cellDensity ! array of density without mucus and vacuoles
@@ -546,7 +546,7 @@ contains
 
   function colony_dynamicViscosity(self)
     ! returns array of dynamic viscosity values at particle locations
-    use ALL_VARS, only : sp ! for precision
+    use variables, only : sp ! for precision
     class(LAG_TOX), intent(in) :: self
     logical :: simple = .true.
 
@@ -563,4 +563,4 @@ contains
 
   end function
 
-end module MOD_TOX
+end module

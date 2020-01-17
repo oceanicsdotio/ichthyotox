@@ -1,33 +1,38 @@
 module behavior
 
-  use ALL_VARS
+  use variables
   use MOD_LAG, only : LAG_OBJ
-  use ALL_VARS, only : zero, pi, pi2
+  use variables, only : zero, pi, pi2
   implicit none
   save
 
-  real(sp), dimension(0:4), parameter :: speedtable = (/0.50_SP, 1.00_SP, 0.50_SP, 0.25_SP, 0.33_SP/)
-  real(sp), dimension(0:4), parameter :: angletable = (/2.00_SP, 0.25_SP, 0.25_SP, 1.00_SP, 0.50_SP/)
-  real(sp), dimension(0:1), parameter :: memory = (/0.5_SP, 0.96_SP/) ! unitless, memory coefficients
-  real(sp), dimension(1:2), parameter :: threshold = (/0.005_SP*10.0_SP**(-6.0_SP), 0.5_SP/) ! detection thresholds
-  real(sp), dimension(1:2), parameter :: weight = (/0.7_SP, 1.0_SP/) ! sensitivity analyis @ (/0.1_SP, 1.0_SP/)
+  real(sp), dimension(0:4), parameter :: &
+          & speedtable = (/0.50_SP, 1.00_SP, 0.50_SP, 0.25_SP, 0.33_SP/), &
+          & angletable = (/2.00_SP, 0.25_SP, 0.25_SP, 1.00_SP, 0.50_SP/)
 
-  real(sp), parameter :: initBodylength = 0.1_SP ! meters
-  real(sp), parameter :: growthMax = 0.0025_SP * 12.0_SP * 0.001_SP ! conversion to meters per hour from mm per 5min
-  real(sp), parameter :: util_cutoff = 0.01 ! level at which default behavior is chosen
-  real(sp), parameter :: absorptionRate = 0.01_SP*10.0_SP*0.046748_SP ! grams of toxin / m^2 / hour / [toxin]
-  real(sp), parameter :: depurationRate = 0.01_SP ! sensitivity analysis @ 0.005
-  real(sp), parameter :: ingestionRate = 0.001_SP*0.02_SP
-  real(sp), parameter :: toxfrac = 0.015_SP*10.0_SP**(-6.0_SP)
-  real(sp), parameter :: speedimpair = 0.9_SP ! sensitivity analysis @ 0.5
+  real(sp), dimension(0:1), parameter :: &
+          & memory = (/0.5_SP, 0.96_SP/) ! unitless, memory coefficients
 
-  logical, parameter :: enforce_default = .false.
-  logical, parameter :: no_flight = .false.
-  logical, parameter :: ingestion_multiplier = .true.
+  real(sp), dimension(1:2), parameter :: &
+          & threshold = (/0.005_SP*10.0_SP**(-6.0_SP), 0.5_SP/), & ! detection thresholds
+          & weight = (/0.7_SP, 1.0_SP/) ! sensitivity analyis @ (/0.1_SP, 1.0_SP/)
 
-  public LAG_FISH, FISH
+  real(sp), parameter :: &
+          & initBodylength = 0.1_SP,                      & ! meters
+          & growthMax = 0.0025_SP * 12.0_SP * 0.001_SP,   & ! conversion to meters per hour from mm per 5min
+          & util_cutoff = 0.01,                           & ! level at which default behavior is chosen
+          & absorptionRate = 0.01_SP*10.0_SP*0.046748_SP, & ! grams of toxin / m^2 / hour / [toxin]
+          & depurationRate = 0.01_SP,                     & ! sensitivity analysis @ 0.005
+          & ingestionRate = 0.001_SP*0.02_SP,             &
+          & toxfrac = 0.015_SP*10.0_SP**(-6.0_SP),        &
+          & speedimpair = 0.9_SP                            ! sensitivity analysis @ 0.5
 
-  type, extends(LAG_OBJ) :: LAG_FISH
+  logical, parameter :: &
+          & enforce_default = .false., &
+          & no_flight = .false., &
+          & ingestion_multiplier = .true.
+
+  type, public, extends(LAG_OBJ) :: LAG_FISH
 
     logical, allocatable, dimension(:), private :: impaired
     integer, allocatable, dimension(:), private :: last_rule
@@ -54,14 +59,15 @@ module behavior
     procedure, public :: writeState => fish_writeState
     procedure, public :: movement => fish_movement ! behavior selection and movement
 
-  end type LAG_FISH; type(LAG_FISH), allocatable :: FISH
+  end type LAG_FISH;
+  type(LAG_FISH), allocatable, public :: FISH
 
 contains
 
   subroutine fish_initialize(self)
 
-    use MOD_RAND, only : random
-    use ALL_VARS, only : pi2, zero, sp
+    use simulation, only : random
+    use variables, only : pi2, zero, sp
     class(LAG_FISH), intent(inout) :: self
 
     self%species = 'fish'
@@ -102,8 +108,9 @@ contains
   end subroutine
 
   subroutine fish_writeState(self, fid)
-    use MOD_SIM, only : domain ! domain structure for elapsed time
-    use ALL_VARS, only : zero
+
+    use simulation, only : domain ! domain structure for elapsed time
+    use variables, only : zero
     class(LAG_FISH), intent(in) :: self ! cyanobacteria extended type
     integer, intent(in) :: fid ! persistent file unit number
     integer :: ii
@@ -116,11 +123,9 @@ contains
 
   subroutine fish_movement(self)
 
-    use ALL_VARS, only : sp
-    use MOD_RAND, only : random
-    use MOD_SIM, only : domain
-    use MOD_TOX, only : cyano
-    use ALL_VARS, only : pi, pi2, dti, vxmin, vxmax, vymin, vymax, zero, M, KBM1
+    use simulation, only : domain, random
+    use cyanobacteria, only : cyano
+    use variables, only : pi, pi2, dti, vxmin, vxmax, vymin, vymax, zero, M, KBM1, sp
 
     class(LAG_FISH), intent(inout) :: self
     integer :: ii, jj, rule_index
@@ -198,9 +203,11 @@ contains
       self%yp(:) = vymax - (vymin - self%yp(:))
     end where
 
-    ! add consumed biomass to gut, and a portion of that to fish mass
+
     ! length growth of individuals in meters per hour based on small pelagic fish
     self%length(:) = self%length(:) + growthMax * self%suitability(:) * dti
+
+    ! add consumed biomass to gut, and a portion of that to fish mass
     mass(:) = 2.0_SP * 10.0_SP**(-6.0_SP) * (1000.0_SP*self%length(:))**(3.38_SP)
     ingestion(:) = (self%mass(:) - mass(:)) * ingestionRate * merge(10.0_SP, 1.0_SP, ingestion_multiplier) * &
             & sum(cyano%microcystin(:)) / sum(cyano%carbohydrate(:) + cyano%protein(:))

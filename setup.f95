@@ -1,9 +1,9 @@
 program setup
   ! program writes initial position and state variables to simulation file for reading by offlag
-  use ALL_VARS, only : zero, folderprefix, sp
-  use MOD_TOX, only : colonyBaseRadius, densityMin, densitymax, cellFrac, vesicleFrac, vesicleDensity, cellDensityCoefficient
-  use ALL_VARS, only : iorun, iophys
-  use MOD_RAND, only : random
+  use variables, only : zero, folderprefix, sp
+  use cyanobacteria, only : colonyBaseRadius, densityMin, densitymax, cellFrac, vesicleFrac, vesicleDensity, cellDensityCoefficient
+  use variables, only : iorun, iophys
+  use simulation, only : random
 
   implicit none
   
