@@ -7,7 +7,7 @@ bin.setup: setup.o ichthyotox main.o variables.o lagrangian.o behavior.o
 setup.o: variables.o lagrangian.o behavior.o simulation.o main.o ichthyotox setup.f95
 		$(FC) $(CFLAGS) setup.f95
 
-bin/ichthyotox: main.o variables.o simulation.o lagrangian.o behavior.o cyanobacteria.o
+ichthyotox: main.o variables.o simulation.o lagrangian.o behavior.o cyanobacteria.o
 		$(FC) -o ichthyotox variables.o simulation.o lagrangian.o behavior.o cyanobacteria.o main.o
 
 main.o: variables.o simulation.o lagrangian.o behavior.o cyanobacteria.o main.f95

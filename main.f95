@@ -179,6 +179,7 @@ program main
 
   write(*, "(A)", advance='no') "Allocating mesh based variables... "
 
+  real(sp), dimension(0:domain%nelements) :: length1, length2, length3, ss, average_thickness
   NCT = N*3
 
   ! Grid Metrics
@@ -273,7 +274,7 @@ program main
   write(*, "(A)", advance='no') "Loading physical field data... "
   input_file = "./" //trim(folderprefix)//"/"// trim(casename) // "_phys.dat" ! NetCDF file for simulation
   open(unit=iophys, file=input_file, status='old', position='rewind')
-  call domain%load(UNC, VNC, WNC, KHNC, ELNC, SALNC, TEMPNC, RHONC)
+  call domain%read(UNC, VNC, WNC, KHNC, ELNC, SALNC, TEMPNC, RHONC)
   write(*, *) "Finished"
 
   HOUR = HOURLAG ! start time (int) is 0
@@ -291,8 +292,8 @@ program main
   allocate( INWATER(cyano%ndrft) ); INWATER(:) = 1 ! allocate inwater flag for only single species
   write(*, *) "Finished"
 
-  cyano%XP(:) = cyano%XPT(:) - VXMIN ! Shift x to model coordinate system
-  cyano%YP(:) = cyano%YPT(:) - VYMIN ! Shift y to model coordinate system
+  cyano%XP(:) = cyano%XPT(:) ! Shift x to model coordinate system
+  cyano%YP(:) = cyano%YPT(:) ! Shift y to model coordinate system
 
   write(*, "(A)", advance='no') "Finding host elements... "
   call cyano%find_host_element(cyano%XP, cyano%YP, INWATER) ! Determine element containing each particle
@@ -320,8 +321,8 @@ program main
 
   allocate( INWATER(fish%ndrft) ); INWATER(:) = 1 ! allocate inwater flag for only single species
 
-  fish%XP(:) = fish%XPT(:) - VXMIN ! Shift x to model coordinate system
-  fish%YP(:) = fish%YPT(:) - VYMIN ! Shift y to model coordinate system
+  fish%XP(:) = fish%XPT(:) ! Shift x to model coordinate system
+  fish%YP(:) = fish%YPT(:) ! Shift y to model coordinate system
 
   write(*, "(A)", advance='no') "Finding host elements... "
   call fish%find_host_element(fish%XP, fish%YP, INWATER) ! Determine element containing each particle
@@ -359,8 +360,31 @@ program main
 
   HOUR = HOURLAG ! First reading of velocity fields from netcdf file
   input_file = "./" //trim(folderprefix)//"/"// trim(casename) // "_phys.dat" ! NetCDF file for simulation
-  call domain%load(UNC1, VNC1, WNC1, KHNC1, ELNC1, SALNC1, TEMPNC1, RHONC1) ! read physical fields
+  call domain%read(UNC1, VNC1, WNC1, KHNC1, ELNC1, SALNC1, TEMPNC1, RHONC1) ! read physical fields
+
+
   call domain%geo(VX, VY, NV, H)
+
+
+  ! subroutine simulation_geometry(self, vertx, verty, node_indices, bathymetry)
+  ! calculates area of any triangular mesh or subregion,
+
+  integer :: ii
+
+  do ii = 1, domain%nelements
+    length1(ii) = sqrt(  (vx(nv(ii, 1)) - vx(nv(ii, 2)) )**(2.0_sp) + ( vy(nv(ii, 1)) - vy(nv(ii, 2)) )**(2.0_sp)  )
+    length2(ii) = sqrt(  (vx(nv(ii, 2)) - vx(nv(ii, 3)) )**(2.0_sp) + ( vy(nv(ii, 2)) - vy(nv(ii, 3)) )**(2.0_sp)  )
+    length3(ii) = sqrt(  (vx(nv(ii, 3)) - vx(nv(ii, 1)) )**(2.0_sp) + ( vy(nv(ii, 3)) - vy(nv(ii, 1)) )**(2.0_sp)  )
+    average_thickness = abs(sum( H(nv(ii,1:3)) )/3.0_sp) ! must be positive
+  end do
+
+  ss(:) = 0.5_sp*(length1(:) + length2(:)+ length3(:))
+  domain%elementArea(:) = sqrt( ss * (ss(:) - length1(:)) * (ss(:) - length1(:)) * (ss(:) - length3(:)) ) ! herons's formula for area
+  domain%meshArea = sum(domain%elementArea(:))
+  domain%elementSigmaVolume(:) = domain%elementArea(:)*average_thickness(:)
+  domain%layerDepth = average_thickness(1)
+  domain%layerSigma = float(KBM1)**(-1.0_SP)
+
   HOUR = HOUR + 1
 
   open(unit=iotox, file="./"//trim(folderprefix)//"/"//"dissolved_toxin.dat", status='replace')
@@ -376,7 +400,7 @@ program main
   IINT = 0
   do NH = ISLAG, IELAG ! timestep units are hours, but not necessarily whole numbers
     write(*,*); write(*, "(I4,A,I4,A)", advance='no') NH-ISLAG+1, ' / ', IELAG-ISLAG+1, ' steps: '
-    call domain%load(UNC2, VNC2, WNC2, KHNC2, ELNC2, SALNC2, TEMPNC2, RHONC2)
+    call domain%read(UNC2, VNC2, WNC2, KHNC2, ELNC2, SALNC2, TEMPNC2, RHONC2)
 
     HOUR = HOUR + 1
     I1 = 1
@@ -397,12 +421,12 @@ program main
       end if
 
       if (includeAlgae) then
-        call domain%vdiff() ! vertical diffusion of dissolved toxin
+        call domain%diffuse() ! vertical diffusion of dissolved toxin
         call cyano%movement() ! uses runge-kutta integration
         call cyano%random() ! random walk
         if ( mod(IINT, int(DTOUT/DTI) ) == 0) then
-          cyano%XPT(:) = cyano%XP(:) + VXMIN ! change back to initial coordinate system for output
-          cyano%YPT(:) = cyano%YP(:) + VYMIN
+          cyano%XPT(:) = cyano%XP(:) ! change back to initial coordinate system for output
+          cyano%YPT(:) = cyano%YP(:)
           call cyano%writePosition(iocp) ! output position, same for all particle types
           call cyano%writeState(iocs)
           write(iotox,"(1f20.3,51F20.6)") domain%time, domain%verticaltox(1:KB)
@@ -412,8 +436,8 @@ program main
       if (includeFish) then
         call fish%movement() ! uses runge-kutta integration
         if ( mod(IINT, int(DTOUT/DTI) ) == 0) then
-          fish%XPT(:) = fish%XP(:) + VXMIN ! change back to initial coordinate system for output
-          fish%YPT(:) = fish%YP(:) + VYMIN
+          fish%XPT(:) = fish%XP(:) ! change back to initial coordinate system for output
+          fish%YPT(:) = fish%YP(:)
           call fish%writePosition(iofp) ! output position, same for all particle types
           call fish%writeState(iofs) ! output state variables
         end if

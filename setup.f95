@@ -1,33 +1,41 @@
 program setup
   ! program writes initial position and state variables to simulation file for reading by offlag
-  use variables, only : zero, folderprefix, sp
+  use variables, only : zero, folderprefix, sp, iorun, iophys
   use cyanobacteria, only : colonyBaseRadius, densityMin, densitymax, cellFrac, vesicleFrac, vesicleDensity, cellDensityCoefficient
-  use variables, only : iorun, iophys
   use simulation, only : random
 
   implicit none
   
-  logical :: makeGrid = .true.
-  logical :: writeFields = .true. 
-  integer :: fid=666, nnodes, nelements, node_index, element_index, start_pattern, alternate_pattern, x_div, y_div, ii, jj, nlayers
-  integer :: ioelem=500, ionode=501, fishid
+  logical :: &
+          & makeGrid = .true., &
+          & writeFields = .true.
+
+  integer :: &
+          & fid=666, nnodes, nelements, node_index, element_index, start_pattern, &
+          & alternate_pattern, x_div, y_div, ii, jj, nlayers, ioelem=500, ionode=501, fishid, &
+          & ncolony, nfish, step, x_nodes, y_nodes, ndays = 30
+
+  integer, dimension(:, :), allocatable :: vertices
+
   character(len=50) :: kb_format, foldername
-  real(sp) :: div_inc, x_range, y_range, time, end_time, layerdepth
-  real(sp), dimension(:,:), allocatable :: node_pos
-  real(sp), dimension(:), allocatable :: diffusivity, temperature, rho_pure, density
-  real(sp), dimension(:), allocatable :: cyano_id, cyano_x, cyano_y, cyano_z, cyano_carb, cyano_pro, cyano_mc, cyano_radius
-  integer, dimension(:,:), allocatable :: vertices
-  real(sp) :: dt = 1.0, day, clock_time, biomass, carbon, carbohydrate, protein, microcystin, ratio, radius, reqCellDensity, initial_position
-  real(sp) :: bottom_depth=-5.0_SP, ini_depth
-  real(sp) :: salinity=3.0_SP
+
+  real(sp), dimension(:, :), allocatable :: node_pos
+
+  real(sp), dimension(:), allocatable :: &
+          & diffusivity, temperature, rho_pure, density, &
+          & cyano_id, cyano_x, cyano_y, cyano_z, cyano_carb, cyano_pro, cyano_mc, cyano_radius
+
+  real(sp) :: &
+          & dt = 1.0, day, clock_time, biomass, carbon, carbohydrate, protein, microcystin, ratio, radius, &
+          & reqCellDensity, initial_position, bottom_depth=-5.0_SP, ini_depth, salinity=3.0_SP, &
+          & div_inc, x_range, y_range, time, end_time, layerdepth
 
   !real(sp) :: control_temp=20.0_SP, temp_slope=0.0_SP  ! Experiment A
   real(sp) :: control_temp=20.0_SP, temp_slope=0.00694_SP  ! Experiment B
   !real(sp) :: control_temp=25.0_SP, temp_slope=0.00694_SP  ! Experiment C
   !real(sp) :: control_temp=30.0_SP, temp_slope=0.0_SP  ! Experiment D
   
-  integer :: ncolony, nfish, step, x_nodes, y_nodes, ndays = 30
-  
+
   call get_command_argument(1, foldername) ! Import casename from command line
   if (len_trim(foldername) == 0) then
      print *, 'Please provide simulation ID on command line (###)'; print *, 'Stopping...'; stop
@@ -38,7 +46,7 @@ program setup
   call random%init()
 
   if (makeGrid) then
-    write(*, *); write(*, *) "For the simulation we are going to build a simple triangular mesh representing a rectangular reservoir... "
+    print *, "Building a simple topology"
     !write(*, *); write(*, '(A)', advance='no') "    What is the desired X range (meters)? "; read(*, *) x_range
     x_range = 500.0_SP
     y_range = 500.0_SP
@@ -62,11 +70,10 @@ program setup
     
     allocate(node_pos(nnodes,3))
     allocate(vertices(nelements,3))
-    
-    write(*, *); write(*, "(A)", advance='no') "Building mesh and topology... "
-    inc_row: do ii = 1, y_nodes
+
+    do ii = 1, y_nodes
       alternate_pattern = start_pattern
-      inc_column: do jj = 1, x_nodes
+      do jj = 1, x_nodes
         node_pos(node_index, 1) = float(jj-1)*div_inc
         node_pos(node_index, 2) = float(ii-1)*div_inc
         node_pos(node_index, 3) = bottom_depth
@@ -91,49 +98,48 @@ program setup
         
         node_index = node_index + 1 
         
-      end do inc_column
+      end do
       start_pattern = -start_pattern ! switch triangle pattern between rows as grid is built
       
-    end do inc_row
-    write(*, "(A)") "Finished"
-    write(*, *); write(*, "(A)", advance='no') "Writing mesh data to file... "
+    end do
+
+    print *, "Writing mesh data to file... "
     
     open(unit=ioelem, file="../"//trim(folderprefix)//"/mesh_elem.dat", status='replace')
-    write(*,*) "CHECK"
+
     write(ioelem, *) nelements, nlayers
-    element_loop: do ii = 1, nelements
+    do ii = 1, nelements
        write(ioelem, *) ii, vertices(ii, 1), vertices(ii, 2), vertices(ii, 3) ! write node indices
-    end do element_loop
+    end do
 
     open(unit=ionode, file="../"//trim(folderprefix)//"/mesh_node.dat", status='replace')
     write(ionode, *) nnodes
-    node_loop: do ii = 1, nnodes
+    do ii = 1, nnodes
        write(ionode, *) ii, node_pos(ii, 1), node_pos(ii, 2), node_pos(ii, 3) ! write node position
-    end do node_loop
-    write(*, "(A)") "Finished "
-    
-    write(*, *)
-    write(*, *) "    Nodes:          ", nnodes
-    write(*, *) "    Elements:       ", nelements
+    end do
+
+    print *, "    Nodes:    ", nnodes
+    print *, "    Elements: ", nelements
+
   end if
 
   if (writeFields) then
   
-    allocate(diffusivity(nlayers))
-    allocate(temperature(nlayers))
-    allocate(rho_pure(nlayers))
-    allocate(density(nlayers))
-      
+    allocate( diffusivity(nlayers), &
+            & temperature(nlayers), &
+            & rho_pure(nlayers), &
+            & density(nlayers))
+
     write(kb_format, "(A1,I6,A7)") "(", 3*nlayers, "F20.10)"
-    write(*, *); write(*, "(A)", advance='no') "Writing physical fields to file... "
+    print *, "Writing physical fields to file."
     open(unit=iophys, file="../"//trim(folderprefix)//"/ichthyotox_phys.dat", status='replace')
-    
-    write_loop: do step = 0, 24*ndays
+
+    do step = 0, 24*ndays
       time = float(step)*dt
       day = time / 24.0_sp
       clock_time = time - floor(day)*24.0_sp
       
-      diffusivity(:) = 60.0_SP*60.0_SP*10.0_SP**(-4.0_SP)*0.1
+      diffusivity(:) = 60.0_SP*60.0_SP*10.0_SP**(-5.0_SP)
       temperature(:) = control_temp + temp_slope*time
 
       ! density of pure water from Millero and Poisson, convert to temperature
@@ -146,9 +152,9 @@ program setup
       write(iophys, kb_format, advance='no') temperature(:), density(:), diffusivity(:)
       write(iophys, *) ! new line
       
-    end do write_loop
+    end do
     close(iophys)
-    write(*, "(A)") "Finished"
+    print *, "Finished."
   end if
 
   ! write ichthyotox_run.dat
@@ -209,40 +215,35 @@ program setup
     close(fid)
     
   else
-    write(*, *); write(*, *) "No cyanobacteria in this simulation..."; write(*, *)
+    print *, new_line('A'), "No cyanobacteria in this simulation.", new_line('A')
   end if cyanobacteria
 
-  !write(*, *); write(*, *); write(*, '(A)', advance = 'no') "    How many fish particles should be used? "; read(*, *) nfish
+  ! write(*, '(A)', advance = 'no') "    How many fish particles should be used? "; read(*, *) nfish
   nfish = 200
   if (nfish > 0) then
     ! write initial position
     open(unit = fid, file = "./"//trim(folderprefix)//"/fish_ini.dat", status = 'replace')
-    write(*, *); write(*, *) '        Writing initial positions to: ', './fish_ini.dat'
+    print *, '        Writing initial positions to: ', './fish_ini.dat'
     write(fid, "(I6)") nfish ! read number of particles
     layerdepth = bottom_depth/5.0_sp
 
     do ii = 1, nfish
       if (ii <= nfish/2) then ! write surface particles
-      
         write(fid, "(I4,3F20.6)") ii, abs(random%uniform()*x_range), abs(random%uniform()*y_range), -0.1_SP
-        !write(fid, "(I4,3F20.6)") ii, 0.001_SP, abs(random%uniform()*y_range), -0.1_SP ! min growth case
-        !write(fid, "(I4,3F20.6)") ii, 250.0_SP, abs(random%uniform()*y_range), -0.1_SP ! max growth case
         
       else ! write demersal particles
-      
         write(fid, "(I4,3F20.6)") ii, abs(random%uniform()*x_range), abs(random%uniform()*y_range), -4.9_SP
-        !write(fid, "(I4,3F20.6)") ii, 0.001_SP, abs(random%uniform()*y_range), -4.9_SP ! min growth case
-        !write(fid, "(I4,3F20.6)") ii, 250.0_SP, abs(random%uniform()*y_range), -4.9_SP ! max growth case
-        
+
       end if
     end do
 
   else
-    write(*, *); write(*, *) "No fish in this simulation..."
+    print *, "No fish in this simulation."
   end if
 
-  write(*, *); write(*, *) "Setup finished..."
-  call random%stats(); write(*,*)
+  print *, "Setup finished."
+
+  call random%stats();
   deallocate(random)
 
 end program setup

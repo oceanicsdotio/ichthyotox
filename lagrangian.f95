@@ -9,17 +9,14 @@ module MOD_LAG
 
     character(len = 20) :: species ! string for identification
     logical :: F_DEPTH = .false. ! fixed particle depth option in cartesian
-    integer :: &
-            & ndrft, &    ! total particles
-            & NP_STOP, &  ! Number of particles outside domain from both ob & sb
-            & NP_OUT      ! Number of particles outside domain from ob
+    integer :: ndrft  ! total particles
 
     integer, allocatable, dimension(:) :: &
             & ITAG, &     ! Label for the particle
-            & HOST, &     ! Element containing particle
-            & LAYER, &    ! sigma layer
-            & FOUND, &    ! Host element is found
-            & INDOMAIN, & ! Particle is in the domain
+            & host, &     ! Element containing particle
+            & layer, &    ! sigma layer
+            & found, &    ! Host element is found
+            & indomain, & ! Particle is in the domain
             & SBOUND      ! Host element has a solid boundary node
 
     real(SP), allocatable, dimension(:) :: &
@@ -36,7 +33,7 @@ module MOD_LAG
 
     procedure, public :: lag_alloc => lag_alloc
     procedure, public :: stats => lag_printStatistics ! print particle information if desired
-    procedure, public :: readPosition => lag_readPosition ! read position and ndrft from file
+    procedure, public :: readPosition => readLocations ! read position and ndrft from file
     procedure, public :: writePosition => lag_writePosition ! write position to file
     procedure, public :: sigma => lag_cart2sig ! convert cartesian to sigma
     procedure, public :: cartesian => lag_sig2cart ! convert sigma to cartesian
@@ -184,22 +181,19 @@ contains
     implicit none
     class(LAG_OBJ), intent(inout) :: self
 
-    ! Count Number of Particles Outside Domain
-    self%NP_OUT = self%ndrft - sum(self%INDOMAIN)
-    self%NP_STOP = self%ndrft - sum(self%FOUND)
-
+    ! Report status of particles
     write(*, *)
     write(*, *) '    Particle Class'
     write(*, *) '        Species       : ', self%species
     write(*, *) '        Quantity      : ', self%ndrft
-    write(*, *) '        Out of bounds : ', self%NP_OUT
-    write(*, *) '        Stopped       : ', self%NP_STOP
+    write(*, *) '        Out of bounds : ', self%ndrft - sum(self%INDOMAIN)
+    write(*, *) '        Stopped       : ', self%ndrft - sum(self%FOUND)
     write(*, *)
 
   end subroutine
 
 
-  subroutine lag_readPosition(self)
+  subroutine readLocations(self)
 
     use variables, only : sp
     use variables, only : folderprefix
@@ -211,18 +205,18 @@ contains
     logical :: fexist
 
     write(filename, "(A)") "./"//trim(folderprefix)//"/"//trim(self%species)//"_ini.dat"
-    inquire(file = trim(filename), exist = fexist)
+    inquire(file=trim(filename), exist=fexist)
     if (.not. fexist) then
-      write(*, *) 'Initial position file ', filename, ' does not exist, halting...'
+      print *, 'Initial position file ', filename, ' does not exist.'
       stop
     end if
 
-    open(unit = fid, file = filename, form = 'formatted')
+    open(unit=fid, file=filename, form='formatted')
     read(fid, "(I6)") self%ndrft ! read number of particles
-    allocate( self%itag(self%ndrft) ) ! array for identifiers
-    allocate( self%xpt(self%ndrft) ) ! array for x pos
-    allocate( self%ypt(self%ndrft) ) ! array for y pos
-    allocate( self%zpt(self%ndrft) ) ! array for z pos (cartesian)
+    allocate( self%itag(self%ndrft), &
+            & self%xpt(self%ndrft), &
+            & self%ypt(self%ndrft), &
+            & self%zpt(self%ndrft))
 
     do ii = 1, self%ndrft
       read(fid, "(I6, 3F20.6)") self%itag(ii), self%XPT(ii), self%YPT(ii), self%ZPT(ii) ! read identifier and position for each particle
@@ -295,20 +289,20 @@ contains
   end function
 
 
-  subroutine TRAJECT(self, DELTAT, U1, U2, V1, V2, W1, W2, HL, EL1, EL2, salinity, temperature, density)
+  subroutine TRAJECT(self, dt, U1, U2, V1, V2, W1, W2, HL, EL1, EL2, salinity, temperature, density)
 
     ! integrate particle position from x0 to xn using velocity fields at time t0 and time tn
     use variables, only : N, M, KB, MSTAGE, A_RK, B_RK, C_RK ! runge-kutta parameters
 
     class(LAG_OBJ), intent(inout) :: self ! lagrangian particle object
-    real(SP), intent(in) :: DELTAT ! time step, usually DTI
+    real(SP), intent(in) :: dt ! time step, usually DTI
     real(SP), dimension(0:N, KB), intent(in) :: U1, U2, V1, V2, W1, W2 ! velocity fields at start and end of time step
     real(SP), dimension(0:M), intent(in) :: HL, EL1, EL2 ! bathymetry and free surface height
     real(SP), dimension(0:M, KB), intent(in) :: temperature, salinity, density
 
     real(SP), dimension(self%ndrft) :: PDXT, PDYT, PDZT, PDX, PDY, PDZ ! RK stage positions
-    integer, dimension(self%ndrft) :: inwater
-    integer :: NS
+    logical, dimension(self%ndrft) :: inwater
+    integer :: ii
     real(SP), dimension(0:N, KB) :: UL, VL, WL ! ERK stage velocities
     real(SP), dimension(0:M) :: ELL ! ERK stage freesurface height
     real(SP), dimension(self%ndrft, 0:MSTAGE) :: CHIX, CHIY, CHIZ ! ERK stage function evaluation for velocities
@@ -319,11 +313,15 @@ contains
     CHIY = zero
     CHIZ = zero
 
-    runge_kutta: do NS = 1, MSTAGE ! Loop over Runge-Kutta integration stages
+    PDXT(:) = self%xp(:) ! Assign position at previous time to current position
+    PDYT(:) = self%yp(:)
+    PDZT(:) = self%zp(:)
+
+    do ii = 1, MSTAGE ! Runge-Kutta integration stages
       ! New stage position updated from time zero position
-      PDX(:) = self%yp(:) + A_RK(NS) * DELTAT * CHIX(:, NS - 1)
-      PDY(:) = self%yp(:) + A_RK(NS) * DELTAT * CHIY(:, NS - 1)
-      PDZ(:) = self%zp(:) + A_RK(NS) * DELTAT * CHIZ(:, NS - 1)
+      PDX(:) = self%yp(:) + A_RK(NS) * dt * CHIX(:, NS - 1)
+      PDY(:) = self%yp(:) + A_RK(NS) * dt * CHIY(:, NS - 1)
+      PDZ(:) = self%zp(:) + A_RK(NS) * dt * CHIZ(:, NS - 1)
       PDZ(:) = max(PDZ(:), -(2.0 + PDZ(:))) ! reflect sigma depth off bottom
       PDZ(:) = min(PDZ(:), zero) ! keep sigma depth below free surface
 
@@ -341,25 +339,23 @@ contains
       CHIZ(:, NS) = self%WP(:) / (self%HP(:) - self%EP(:))    ! delta_sigma/deltaT = ww/D
 
       where ((self%EP(:) - self%HP(:)) < EPS) CHIZ(:, NS) = zero ! Limit vertical motion in very shallow water
-    end do runge_kutta ! Note: Keeney changed + to - in HP/EP equations
+    end do
 
-    PDXT(:) = self%xp(:) ! Assign position at previous time to current position
-    PDYT(:) = self%yp(:)
-    PDZT(:) = self%zp(:)
-    sum_stages: do NS = 1, MSTAGE
-      PDXT(:) = PDXT(:) + DELTAT * CHIX(:, NS) * B_RK(NS) * float(self%INDOMAIN(:)) ! Update current position if particle is in domain
-      PDYT(:) = PDYT(:) + DELTAT * CHIY(:, NS) * B_RK(NS) * float(self%INDOMAIN(:))
-      PDZT(:) = PDZT(:) + DELTAT * CHIZ(:, NS) * B_RK(NS) * float(self%INDOMAIN(:))
-    end do sum_stages
+    do NS = 1, MSTAGE
+      PDXT(:) = PDXT(:) + dt * CHIX(:, NS) * B_RK(NS) * float(self%INDOMAIN(:)) ! Update current position if particle is in domain
+      PDYT(:) = PDYT(:) + dt * CHIY(:, NS) * B_RK(NS) * float(self%INDOMAIN(:))
+      PDZT(:) = PDZT(:) + dt * CHIZ(:, NS) * B_RK(NS) * float(self%INDOMAIN(:))
+    end do
 
     self%FOUND = 0
-    inwater = 1
+    inwater(:) = 1
 
     call self%find_host_element(PDXT, PDYT, inwater) ! Perform robust progressive-topology search
-
-    self%xp(:) = self%xp(:) * (1.0_SP - float(inwater(:))) + PDXT(:) * float(inwater(:)) ! Update only particles still in water
-    self%yp(:) = self%yp(:) * (1.0_SP - float(inwater(:))) + PDYT(:) * float(inwater(:))
-    self%zp(:) = self%zp(:) * (1.0_SP - float(inwater(:))) + PDZT(:) * float(inwater(:))
+    where (inwater)
+      self%xp(:) = PDXT(:) ! Update only particles still in water
+      self%yp(:) = PDYT(:)
+      self%zp(:) = PDZT(:)
+    end where
 
     call self%INTERP_ELH(self%xp, self%yp, HL, ELL, 1) ! interpolate bathymetry and elevation
 

@@ -6,9 +6,7 @@ module variables
   logical, parameter :: &
           & includeAlgae =        .true., &
           & includeFish =         .true., &
-          & use_ncd =             .false., &
-          & strict_integration =  .false., & ! set mass transfer
-          & continue_sim =        .false.
+          & strict_integration =  .false. ! set mass transfer
 
   integer, parameter :: &
           & iocp = 101, iocs = 102, iotox = 103, iofp = 201, &
@@ -82,14 +80,14 @@ module variables
           & ZZ, &   ! Intra level sigma value
           & DZ, &   ! Delta-sigma value
           & DZZ, &  ! Delta of intra level sigma
-          & H, &    ! Bathymetric depth
-          & D, &    ! Current depth
-          & EL, &   ! Current surface elevation
-          & ET, &   ! Surface elevation at previous time step
-          & XC, &   ! X-coord at face center
-          & YC, &   ! Y-coord at face center
-          & VX, &   ! X-coord at grid point
-          & VY      ! Y-coord at grid point
+          & H, &    ! bathymetry
+          & D, &    ! depth
+          & EL, &   ! surface elevation
+          & ET, &   ! surface elevation, previous time step
+          & XC, &   ! cell center
+          & YC, &
+          & VX, &   ! vertices
+          & VY
 
   ! internal mode arrays (cell-based)
   real(sp), allocatable, dimension(:, :) :: &

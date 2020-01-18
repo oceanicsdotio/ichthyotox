@@ -2,23 +2,37 @@ module simulation
 
   use variables, only : ZERO, sp
   implicit none
-  save ! State is saved in the compiled object
+  save
 
   private
 
   type, public :: LAG_SIM
+
     character(len = 100), public :: simID
-    integer, public :: nnodes=0, nelements=0, nlayers=0, lines_read=0 ! simulation id, size and state
-    real(sp), public :: globalIrradiance=ZERO, meshArea=ZERO, layerDepth=ZERO, layerSigma=ZERO, time=ZERO, daytime=ZERO, clocktime=ZERO ! domain variables and clocks: elapsed, divided days, and twenty four hour periodic
+
+    integer, public :: &
+            & nnodes=0, &
+            & nelements=0, &
+            & nlayers=0, &
+            & lines_read=0
+
+    real(sp), public :: &
+            & globalIrradiance=ZERO, &
+            & meshArea=ZERO, &
+            & layerDepth=ZERO, &
+            & layerSigma=ZERO, &
+            & time=ZERO, & ! total time
+            & daytime=ZERO, & ! time in days
+            & clocktime=ZERO ! twenty four hour periodic
+
     real(sp), allocatable, dimension(:), private :: elementSigmaVolume, elementArea ! mesh stats
     real(sp), allocatable, dimension(:), public :: verticaltox, verticaldiff, verticaltemp, verticalrho ! uniform horizontal fields
 
   contains
     ! call in this order
-    procedure, public :: init => simulation_initialize
-    procedure, public :: load => simulation_read
-    procedure, public :: geo => simulation_geometry
-    procedure, public :: vdiff => simulation_diffusion
+    procedure, public :: init => initSimulation
+    procedure, public :: read => readSimulation
+    procedure, public :: diffuse => verticalDiffusion
 
   end type LAG_SIM;
   class(LAG_SIM), allocatable, public :: domain ! domain structure imported from this module
@@ -50,8 +64,8 @@ module simulation
 
 contains
 
-  subroutine simulation_initialize(self, exp_type)
-
+  subroutine initSimulation(self, exp_type)
+    ! allocate and initialize data structures
     use variables, only : zero, sp
     class(LAG_SIM), intent(inout) :: self
     integer, intent(in) :: exp_type
@@ -72,36 +86,8 @@ contains
 
   end subroutine
 
-
-  subroutine simulation_geometry(self, vertx, verty, node_indices, bathymetry)
-    ! called once during simulation setup, calculates area of any triangular mesh or subregion,
-    use variables, only : KBM1, sp
-    class(LAG_SIM), intent(inout) :: self
-    real(sp), dimension(0:self%nnodes), intent(in) :: vertx, verty
-    integer, dimension(0:self%nelements, 4), intent(in) :: node_indices
-    real(sp), dimension(0:self%nnodes) :: bathymetry
-    real(sp), dimension(0:self%nelements) :: length1, length2, length3, ss, average_thickness
-    integer :: ii
-
-    do ii = 1, self%nelements
-      length1(ii) = sqrt(  (vertx(node_indices(ii, 1)) - vertx(node_indices(ii, 2)) )**(2.0_sp) + ( verty(node_indices(ii, 1)) - verty(node_indices(ii, 2)) )**(2.0_sp)  )
-      length2(ii) = sqrt(  (vertx(node_indices(ii, 2)) - vertx(node_indices(ii, 3)) )**(2.0_sp) + ( verty(node_indices(ii, 2)) - verty(node_indices(ii, 3)) )**(2.0_sp)  )
-      length3(ii) = sqrt(  (vertx(node_indices(ii, 3)) - vertx(node_indices(ii, 1)) )**(2.0_sp) + ( verty(node_indices(ii, 3)) - verty(node_indices(ii, 1)) )**(2.0_sp)  )
-      average_thickness = abs(sum( bathymetry(node_indices(ii,1:3)) )/3.0_sp) ! must be positive
-    end do
-
-    ss(:) = 0.5_sp*(length1(:) + length2(:)+ length3(:))
-    self%elementArea(:) = sqrt( ss * (ss(:) - length1(:)) * (ss(:) - length1(:)) * (ss(:) - length3(:)) ) ! herons's formula for area
-    self%meshArea = sum(self%elementArea(:))
-    self%elementSigmaVolume(:) = self%elementArea(:)*average_thickness(:)
-    self%layerDepth = average_thickness(1)
-    self%layerSigma = float(KBM1)**(-1.0_SP)
-
-  end subroutine
-
-
-  subroutine simulation_read(self, u_vel, v_vel, w_vel, diffusivity, elevation, salinity, temperature, density)
-
+  subroutine readSimulation(self, u_vel, v_vel, w_vel, diffusivity, elevation, salinity, temperature, density)
+    ! read physical drivers from file
     use variables, only : ZERO, sp, KB, M, N, iophys
 
     class(LAG_SIM), intent(inout) :: self
@@ -116,7 +102,7 @@ contains
     write(vert_format, "(A7,I6,A7)") "(F10.3,", 3*KB, "F20.10)"
     read(iophys, vert_format) time, self%verticaltemp(1:KB), self%verticalrho(1:KB), self%verticaldiff(1:KB)
 
-    u_vel(:,:)=ZERO; v_vel(:,:)=ZERO; w_vel(:, :)=ZERO
+    u_vel(:, :)=ZERO; v_vel(:, :)=ZERO; w_vel(:, :)=ZERO
     elevation(:)=-abs(ZERO); salinity(:,:)=ZERO
 
     do ii = 1, self%nnodes
@@ -131,28 +117,38 @@ contains
   end subroutine
 
 
-  subroutine simulation_diffusion(self)
-    ! one dimensional vertical diffusion
-    use variables, only : KB, KBM1, dti, ZERO, sp ! time interpolation step
+  subroutine verticalDiffusion(self)
+    ! One-dimensional vertical diffusion
+    ! TODO: Write a small explaination of this method
+    use variables, only : KB, KBM1, dti, zero, sp ! time interpolation step
 
-    class(LAG_SIM), intent(inout) :: self ! domain structure
-    integer :: ii, jj, nsteps ! iteration parameters
-    real(sp) :: dt_substep, dt_stable, secondDerivative, wdiff ! finite element variables
-    real(sp), dimension(0:self%nlayers+1) :: TP1; TP1=ZERO ! dissolved profile at time plus one
+    class(LAG_SIM), intent(inout) :: self
+    integer :: ii, jj, stepsToStabilityCriteria
+    real(sp) :: &
+            & substep, & ! automatic time substep, only valid for dK/dt=0
+            & stable, &  ! longest time step for conditional stability
+            & diffusivity = 60.0_sp*60.0_sp*10.0_sp**(-5.0_sp)  ! 0.1 cm^2/s
 
-    wdiff = 60.0_SP*60.0_SP*10.0_SP**(-5.0_SP) ! includes hour and meter conversion from 0.1 cm^2/s
-    dt_stable = 0.5_SP*abs(self%layerDepth)**(2.0_SP) ! longest step for conditional stability
-    nsteps = ceiling(dti/dt_stable) ! min number of steps to achieve stability, cannot be less than one
-    dt_substep = dti/float(nsteps) ! automatically substeps nsteps times, only valid for dK/dt=0
+    real(sp), dimension(0:self%nlayers+1) :: profile; profile=zero ! profile update buffer
 
-    do ii = 1, nsteps
-      self%verticaltox(1) = self%verticaltox(2); self%verticaltox(KB) = self%verticaltox(KBM1)
+    stable = 0.5_sp * self%layerDepth**(2.0_sp)
+    stepsToStabilityCriteria = ceiling(dti/stable) ! min number of steps to achieve stability, cannot be less than one
+    substep = dti / float(stepsToStabilityCriteria)
+
+    do ii = 1, stepsToStabilityCriteria
+      self%verticaltox(1) = self%verticaltox(2)
+      self%verticaltox(KB) = self%verticaltox(KBM1)
+
+      ! central-in-space (z), forward-in-time second derivative
       do jj = 2, KBM1
-        secondDerivative = (self%verticaltox(jj-1) + self%verticaltox(jj+1) - 2.0_SP*self%verticaltox(jj)) / self%layerDepth**(2.0_SP) ! central in space, forward in time second derivative with depth
-        TP1(jj) = self%verticaltox(jj) + wdiff*dt_substep*secondDerivative
+        profile(jj) = self%verticaltox(jj) + diffusivity * substep * &
+                & (self%verticaltox(jj-1) + self%verticaltox(jj+1) - 2.0_sp*self%verticaltox(jj)) / &
+                & self%layerDepth * self%layerDepth
       end do
-      TP1(1) = TP1(2); TP1(KB) = TP1(KBM1) ! copy in domain value to boundary nodes
-      self%verticaltox(:) = TP1(:)
+
+      profile(1) = profile(2);
+      profile(KB) = profile(KBM1) ! copy in domain value to boundary nodes
+      self%verticaltox(:) = profile(:)
     end do
 
   end subroutine
@@ -168,7 +164,7 @@ contains
     !  xc(n)    :: xc(i) = x-coordinate of element i (calculated from vx)          !
     !  yc(n)    :: yc(i) = y-coordinate of element i (calculated from vy)          !
     !                                                                              !
-    !  nbe(n,3) :: nbe(i,1->3) = element index of 1->3 neighbors of element i      !
+    !  nbe(n,3) :: nbe(i,1:3) = element index of 1->3 neighbors of element i      !
     !  isbce(n) :: flag if element is on the boundary, see below for values        !
     !  isonb(m) :: flag is node is on the boundary, see below for values           !
     !                                                                              !
@@ -179,102 +175,91 @@ contains
     !                                                                              !
     !classification of the triangles nodes, and edges                         !
     !                                                                              !
-    !     isonb(i)=0:  node in the interior computational domain                   !
-    !     isonb(i)=1:  node on the solid boundary                                  !
-    !     isonb(i)=2:  node on the open boundary                                   !
+    !     isonb
+    !       0: interior computational domain                   !
+    !       1: solid boundary                                  !
+    !       2: open boundary                                   !
     !                                                                              !
-    !     isbce(i)=0:  element in the interior computational domain                !
-    !     isbce(i)=1:  element on the solid boundary                               !
-    !     isbce(i)=2:  element on the open boundary                                !
-    !     isbce(i)=3:  element with 2 solid boundary edges                         !
+    !     isbce
+    !       0:  interior computational domain                !
+    !       1:  1 solid boundary                               !
+    !       2:  open boundary                                !
+    !       3:  2 solid boundary edges                         !
 
     use variables
     implicit none
 
     integer, allocatable, dimension(:, :) :: NB_TMP, CELLS, NBET
     integer, allocatable, dimension(:) :: CELLCNT
-    integer :: ii, jj, kk, ll, NTMP, NCNT, NFLAG, JJB, N1, N2, N3, J1, J2, J3
+    integer :: ii, jj, kk, ll, NTMP, NCNT, JJB, N1, N2, N3, J1, J2, J3, tri(3)
     real(sp) :: X1, X2, X3, Y1, Y2, Y3, DELT, AI1, AI2, AI3, BI1, BI2, BI3, CI1, CI2, CI3, DELTX, DELTY, B1, B2, ART(N)
 
     ! SET UP MESH (HORIZONTAL COORDINATES)
     ! CALCULATE GLOBAL MINIMUMS AND MAXIMUMS
-    VXMIN = MINVAL(VX(1:M)) ; VXMAX = MAXVAL(VX(1:M))
-    VYMIN = MINVAL(VY(1:M)) ; VYMAX = MAXVAL(VY(1:M))
-
-    ! SHIFT GRID TO UPPER RIGHT CARTESIAN
-    VX = VX - VXMIN
-    VY = VY - VYMIN
+    VXMIN = MINVAL(VX(1:M))
+    VXMAX = MAXVAL(VX(1:M))
+    VYMIN = MINVAL(VY(1:M))
+    VYMAX = MAXVAL(VY(1:M))
 
     ! CALCULATE GLOBAL ELEMENT CENTER GRID COORDINATES
+    xc = zero
+    yc = zero
     do ii = 1, N
-      XC(ii) = (VX(NV(ii, 1)) + VX(NV(ii, 2)) + VX(NV(ii, 3)))/3.0_SP
-      YC(ii) = (VY(NV(ii, 1)) + VY(NV(ii, 2)) + VY(NV(ii, 3)))/3.0_SP
+      xc(ii) = sum(VX(NV(ii, :))) / 3.0_SP
+      yc(ii) = sum(VY(NV(ii, :))) / 3.0_SP
     end do
 
-    XC(0) = zero
-    YC(0) = zero
-    ART(:)  = zero
-    do ii = 1, N
-      ART(ii) = (VX(NV(ii, 2)) - VX(NV(ii, 1))) * (VY(NV(ii, 3)) - VY(NV(ii, 1))) - (VX(NV(ii, 3)) - VX(NV(ii, 1))) * (VY(NV(ii, 2)) - VY(NV(ii, 1)))
-    end do
-    ART = ABS(0.5_SP*ART)
+    ART(:) = abs(((VX(NV(:, 2)) - VX(NV(:, 1))) * (VY(NV(:, 3)) - VY(NV(:, 1))) - &
+            &    (VX(NV(:, 3)) - VX(NV(:, 1))) * (VY(NV(:, 2)) - VY(NV(:, 1))))*0.5_sp)
 
     ! INITIALIZE
     ISBCE = 0
     ISONB = 0
     NBE   = 0
 
-    ! DETERMINE NBE(i=1:n,j=1:3): INDEX OF 1 to 3 NEIGHBORING ELEMENTS
-    allocate(NBET(N, 3)) ; NBET = 0
-    allocate(CELLS(M, 50)) ; CELLS = 0
-    allocate(CELLCNT(M))  ; CELLCNT = 0
+    allocate( NBET(N, 3), & ! index of neighbors
+            & CELLS(M, 50), &
+            & CELLCNT(M))
 
-    do ii = 1, N
-      N1 = NV(ii, 1) ; CELLCNT(N1) = CELLCNT(N1)+1
-      N2 = NV(ii, 2) ; CELLCNT(N2) = CELLCNT(N2)+1
-      N3 = NV(ii, 3) ; CELLCNT(N3) = CELLCNT(N3)+1
-      CELLS(NV(ii, 1), CELLCNT(N1)) = ii
-      CELLS(NV(ii, 2), CELLCNT(N2)) = ii
-      CELLS(NV(ii, 3), CELLCNT(N3)) = ii
+    NBET = 0
+    cellcnt = 0
+    cells = 0
+
+    do ii = 1, n
+      tri = nv(ii, 1:3)
+      cellcnt(tri) = cellcnt(tri) + 1
+      cells(tri, cellcnt(tri)) = ii
     end do
 
-    if (maxval(cellcnt) > 50) write(*, *) 'bad', maxval(cellcnt)
-
-    DO ii = 1, N
+    do ii = 1, N
       N1 = NV(ii,1)
       N2 = NV(ii,2)
       N3 = NV(ii,3)
-      DO J1 = 1, CELLCNT(N1)
-        DO J2 = 1, CELLCNT(N2)
-          IF ((CELLS(N1, J1) == CELLS(N2, J2)) .AND. CELLS(N1,J1) /= ii) NBE(ii, 3) = CELLS(N1, J1)
-        END DO
-      END DO
-      DO J2 = 1, CELLCNT(N2)
-        DO J3 = 1, CELLCNT(N3)
-          IF ((CELLS(N2, J2) == CELLS(N3, J3)) .AND. CELLS(N2, J2) /= ii) NBE(ii,1) = CELLS(N2, J2)
-        END DO
-      END DO
-      DO J1 = 1, CELLCNT(N1)
-        DO J3 = 1, CELLCNT(N3)
-          IF((CELLS(N1, J1) == CELLS(N3,J3)) .AND. CELLS(N1,J1) /= ii) NBE(ii, 2) = CELLS(N3, J3)
-        END DO
-      END DO
-    END DO
-    DEALLOCATE(CELLS,CELLCNT)
+      do J1 = 1, CELLCNT(N1)
+        do J2 = 1, CELLCNT(N2)
+          if ((CELLS(N1, J1) == CELLS(N2, J2)) .and. CELLS(N1,J1) /= ii) NBE(ii, 3) = CELLS(N1, J1)
+        end do
+      end do
+      do J2 = 1, CELLCNT(N2)
+        do J3 = 1, CELLCNT(N3)
+          IF ((CELLS(N2, J2) == CELLS(N3, J3)) .and. CELLS(N2, J2) /= ii) NBE(ii,1) = CELLS(N2, J2)
+        end do
+      end do
+      do J1 = 1, CELLCNT(N1)
+        do J3 = 1, CELLCNT(N3)
+          IF((CELLS(N1, J1) == CELLS(N3,J3)) .and. CELLS(N1,J1) /= ii) NBE(ii, 2) = CELLS(N3, J3)
+        end do
+      end do
+    end do
+    DEALLOCATE(CELLS, CELLCNT)
 
-    !   IF(MSR)WRITE(IPT,*)  '!  NEIGHBOR FINDING      :    COMPLETE'
-    !
     ! Ensure all elements have at least one neighbor
-    NFLAG = 0
     do ii = 1, N
       if (sum(NBE(ii, 1:3)) == 0) then
-        NFLAG = 1
-        write(*, *) 'ELEMENT ', ii, ' AT ', XC(ii), YC(ii), ' HAS NO NEIGHBORS'
+        print *, 'cell ', ii, ' @ ', xc(ii), yc(ii), ' has no neighbors'
         stop
       end if
     end do
-    if (NFLAG == 1) stop
-
 
     ! if element on boundary set isbce(i)=1 and isonb(j)=1 for boundary nodes j
     do ii = 1, N
@@ -299,13 +284,13 @@ contains
 
     ! Determine max number of surrounding elements
     MX_NBR_ELEM = 0
-    element_loop: do ii = 1, M
+    do ii = 1, M
       NCNT = 0
-      node_loop: do jj = 1, N
+      do jj = 1, N
         if ( float(NV(jj, 1) - ii) * float(NV(jj, 2) - ii) * float(NV(jj, 3) - ii) == 0.0_SP ) NCNT = NCNT + 1
-      end do node_loop
+      end do
       MX_NBR_ELEM = MAX(MX_NBR_ELEM, NCNT)
-    end do element_loop
+    end do
 
 
     ! allocate arrays based on mx_nbr_elem
@@ -406,17 +391,6 @@ contains
     end do
     deallocate(NB_TMP)
 
-    !--Huang change 911
-    ! This is a special part. Since in original FVCOM subroutine tge.F
-    !       ISONB(I_OBC_N(I)) = 2
-    ! I_OBC_N is read from input file xxx_obc.dat
-    ! here Martin deleted that part
-    ! This line of code needs to be changed for each new case
-    !   do i=1,135
-    !      ISONB(i) = 2
-    !   enddo
-
-
     do ii = 1, N
       if (ISBCE(ii) == 0) then
         Y1 = YC(NBE(ii, 1)) - YC(ii)
@@ -461,35 +435,22 @@ contains
       y2 = vy(nv(ii, 2)) - yc(ii)
       y3 = vy(nv(ii, 3)) - yc(ii)
 
+      ai = (/ y2 - y3, y3 - y1, y1 - y2 /)
+      bi = (/ x3 - x2, x1 - x3, x2 - x1 /)
+      ci = (/ x2*y3 - x3*y2, x3*y1 - x1*y3, x1*y2 - x2*y1 /)
 
-      ai1 = y2 - y3
-      ai2 = y3 - y1
-      ai3 = y1 - y2
-      bi1 = x3 - x2
-      bi2 = x1 - x3
-      bi3 = x2 - x1
-      ci1 = x2*y3 - x3*y2
-      ci2 = x3*y1 - x1*y3
-      ci3 = x1*y2 - x2*y1
-
-      aw0(ii, 1) = -ci1 / 2.0 / art(ii)
-      aw0(ii, 2) = -ci2 / 2.0 / art(ii)
-      aw0(ii, 3) = -ci3 / 2.0 / art(ii)
-      awx(ii, 1) = -ai1 /2.0 / art(ii)
-      awx(ii, 2) = -ai2 / 2.0 / art(ii)
-      awx(ii, 3) = -ai3 / 2.0 / art(ii)
-      awy(ii, 1) = -bi1 / 2.0 / art(ii)
-      awy(ii, 2) = -bi2 / 2.0 / art(ii)
-      awy(ii, 3) = -bi3 / 2.0 / art(ii)
+      aw0(ii, 1:3) = -1.0 * ci / 2.0 / art(ii)
+      awx(ii, 1:3) = -1.0 * ai / 2.0 / art(ii)
+      awy(ii, 1:3) = -1.0 * bi / 2.0 / art(ii)
 
     end do
 
     do ii = 1, n
       if (isbce(ii) > 1) then
-        do jj = 1, 4
-          a1u(ii, jj) = 0.0_SP
-          a2u(ii, jj) = 0.0_SP
-        end do
+
+        a1u(ii, 1:4) = zero
+        a2u(ii, 1:4) = zero
+
       else if (isbce(ii) == 1) then
         do jj = 1, 3
           if (nbe(ii, jj) == 0) ll = jj
@@ -507,16 +468,9 @@ contains
         deltx = vx(nv(ii, j1)) - vx(nv(ii, j2))
         delty = vy(nv(ii, j1)) - vy(nv(ii, j2))
 
+        a1u(ii, (/ 0, ll, j1, j2 /) + 1) = zero
+        a2u(ii, (/ 0, ll, j1, j2 /) + 1) = zero
 
-        a1u(ii, 1) = 0.0_SP
-        a1u(ii, ll + 1) = 0.0_SP
-        a1u(ii, j1 + 1) = 0.0_SP
-        a1u(ii, j2 + 1) = 0.0_SP
-
-        a2u(ii, 1) = 0.0_SP
-        a2u(ii, ll + 1) = 0.0_SP
-        a2u(ii, j1 + 1) = 0.0_SP
-        a2u(ii, j2 + 1) = 0.0_SP
       end if
     end do
 
@@ -627,55 +581,44 @@ contains
     integer(kind = 4) :: clock
     integer, dimension(:), allocatable :: seed
 
-    call random_seed(size = seed_size)
+    call random_seed(size=seed_size)
     allocate(seed(seed_size))
     call system_clock(clock)
     seed = clock + 37 * (/ (uu - 1, uu = 1, seed_size) /)
-    call random_seed(put = seed)
+    call random_seed(put=seed)
     deallocate(seed)
 
     self%current = .true.
-    self%statistics = .true.
+
     self%samples = 0
-    self%rn1 = 0.0_SP
-    self%rn2 = 0.0_SP
-    self%ru1 = 0.0_SP
-    self%ru2 = 0.0_SP
-    self%mean = 0.0_SP
-    self%sumMeanDiffSq = 0.0_SP
+    self%rn = (/ zero, zero /)
+    self%ru = (/ zero, zero /)
+    self%mean = zero
+    self%sumMeanDiffSq = zero
 
     call self%normal()
 
   end subroutine
 
 
-  subroutine random_normal(self) ! OK
+  subroutine random_normal(self)
     ! generate two random normal numbers using Box-Muller method
     use variables, only : sp
     class(LAG_RAND), intent(inout) :: self
-    real(sp) :: V1, V2, S, meanDiff
+    real(sp) :: sq, values(0:1), residual
 
     do
-      V1 = self%uniform() ! uniform random centered on zero
-      V2 = self%uniform()
-      S = V1**2.0_SP + V2**2.0_SP ! check the sum of the squares and reject if outside range
-      if (S <= 1.0_SP) exit
+      values(:) = (/ self%uniform(), self%uniform() /)
+      sq = sum(values*values) ! reject if outside range
+      if (sq <= 1.0_sp) exit
     end do
 
-    self%rn1 = sqrt(-2.0_SP*log(S)/S)*V1 ! generate normal rands from uniform
-    self%rn2 = sqrt(-2.0_SP*log(S)/S)*V2
+    self%rn(:) = sqrt(-2.0_SP*log(sq)/sq)*values(:) ! generate normal rands from uniform
 
-    if (self%statistics) then ! calculate mean and stddev on the fly if desired
-      self%samples = self%samples + 1
-      meanDiff = self%rn1 - self%mean
-      self%mean = self%mean + meanDiff/self%samples
-      self%sumMeanDiffSq = self%sumMeanDiffSq + meanDiff*(self%rn1 - self%mean)
-
-      self%samples = self%samples + 1
-      meanDiff = self%rn2 - self%mean
-      self%mean = self%mean + meanDiff/self%samples
-      self%sumMeanDiffSq = self%sumMeanDiffSq + meanDiff*(self%rn2 - self%mean)
-    end if
+    self%samples = self%samples + 2
+    residual = sum(self%rn - self%mean)
+    self%mean = self%mean + residual / self%samples  ! TODO: make sure this is still correct
+    self%sumMeanDiffSq = self%sumMeanDiffSq + residual*(sum(self%rn - self%mean))
 
   end subroutine
 
@@ -704,75 +647,48 @@ contains
     use variables, only : sp
     class(LAG_RAND), intent(inout) :: self
 
-    call random_number(self%ru1)
-
-    rand = 2.0_SP*self%ru1 - 1.0_SP ! returns uniform pseudorandom in -1 to 1 range
-
-  end function
-
-
-  real(sp) function random_get(self) result(rand)! OK
-    ! returns one of stored gaussian random numbers and generates new ones when used
-    use variables, only : sp
-    class(LAG_RAND), intent(inout) :: self
-
-    if (self%current) then ! if stored randoms haven't been used,
-      rand = self%rn1 ! return the first
-      self%current = .false.
-    else ! if one stored random has been used,
-      rand = self%rn2 ! return the second
-      self%current = .true.
-      call self%normal() ! generate new numbers
-    end if
+    call random_number(self%ru(1))
+    rand = 2.0_SP*self%ru(1) - 1.0_SP ! returns uniform pseudorandom in -1 to 1 range
 
   end function
 
 
-  real(sp) function random_clipped_normal(self) result(rand)! OK
+  real(sp) function random_get(self)
     ! returns one of stored gaussian random numbers and generates new ones when used
     use variables, only : sp
     class(LAG_RAND), intent(inout) :: self
-    real(sp) :: deviate
 
-    deviate = self%get() ! get new random normal
-    do while (abs(deviate) > 1.0_SP) ! check if -1,1
-      deviate = self%get() ! reassign if out of range
+    random_get = merge(self%rn(1), self%rn(2), self%current)
+    if (self%current) call self%normal() ! generate new numbers
+    self%current = .not. self%current
+
+  end function
+
+
+  real(sp) function random_clipped_normal(self)
+    ! returns one of stored gaussian random numbers and generates new ones when used
+    use variables, only : sp
+    class(LAG_RAND), intent(inout) :: self
+
+    random_clipped_normal = self%get() ! get new random normal
+    do while (abs(random_clipped_normal) > 1.0_SP) ! check if -1,1
+      random_clipped_normal = self%get() ! reassign if out of range
     end do
-    rand = deviate
 
-  end function random_clipped_normal
+  end function
 
-
-  subroutine random_displayStatistics(self) ! OK
+  subroutine random_displayStatistics(self)
     ! calculate and display distribution statistics for the random number system
-    use variables ! for real precision
     implicit none
 
     class(LAG_RAND), intent(in) :: self
-    write(*, *); write(*, *) "Statistics for random gaussian numbers generated so far..."; write(*, *)
-    write(*, *) "    Samples:       ", self%samples
-    write(*, *) "    Mean:          ", self%mean
-    write(*, *) "    Variance:      ", self%sumMeanDiffSq / float(self%samples - 1)
-    write(*, *) "    Std Deviation: ", sqrt(self%sumMeanDiffSq / float(self%samples - 1))
-
-  end subroutine random_displayStatistics
-
-
-  subroutine random_test(self)
-    ! iteratively generate random gaussian numbers and calculate statistics
-    use variables, only : sp
-
-    class(LAG_RAND), intent(inout) :: self
-    integer :: ii, nSample = 1000
-    real(sp) :: randomNumber
-
-    do ii = 1, nSample-1
-      randomNumber = self%get() ! return next gaussian random
-    end do
-    call self%stats() ! display distribution statistics
+    print *, "Statistics for random gaussian numbers.";
+    print *, "    Samples:       ", self%samples
+    print *, "    Mean:          ", self%mean
+    print *, "    Variance:      ", self%sumMeanDiffSq / float(self%samples - 1)
+    print *, "    Std Deviation: ", sqrt(self%sumMeanDiffSq / float(self%samples - 1))
 
   end subroutine
-
 
 
   subroutine getInteger(file, key, target, fid)
@@ -798,7 +714,7 @@ contains
     integer, intent(in) :: fid
     integer :: errorCode, ii
 
-    errorCode = find_key(file, key, cval = target)
+    errorCode = find_key(file, key, cval=target)
     if (errorCode /= 0) then
       write(fid, *) 'Error reading '//key//': ', errorCode
       stop
