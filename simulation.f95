@@ -816,7 +816,9 @@ contains
       ! REMOVE LINE CONTINUATION character \\
       if (NREP > 0) then
         do last = 2, LEN_TRIM(buffer)
-          if ( buffer(last-1:last) == '\\\\') buffer(last-1:last) = '  '
+          if ( buffer(last-1:last) == '\\\\') then
+            buffer(last-1:last) = '  ' 
+          end if
         end do
       end if
 
