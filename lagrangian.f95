@@ -56,7 +56,7 @@ contains
     use variables
     implicit none
 
-    integer :: ii, jj, kk, ind, minimum
+    integer :: ii, jj, kk, ind
     integer, dimension(2) :: nearest
 
     class(LAG_OBJ), intent(inout) :: lag
