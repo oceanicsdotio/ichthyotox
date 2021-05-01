@@ -1,48 +1,96 @@
 pub mod cyanobacteria {
 
+
+    struct Coefficients {
+        α: f32,
+        β: f32
+    }
     
-    struct Carbon {
-
+    /**
+     * Regulate vital rates based on the thermodynamics
+     * of the agent. This is generally abstracted to 
+     * a saturation curve.
+     */
+    struct ThermalSystem {
+        reference: f32,
+        optimal: f32,
+        lethal: f32,
+        coefficients: Coefficients
     }
 
-    impl Carbon {
-
-        fn excrete() {
-
+    impl ThermalSystem {
+        fn new() -> ThermalSystem {
+            ThermalSystem {
+                reference: 25.0,
+                optimal: 28.0,
+                lethal: 35.0,
+                coefficients: Coefficients {
+                    α: 0.286,
+                    β: 0.05
+                }
+            }
         }
 
-        fn respire() {
-
+        /**
+         * Temperature limitations coefficient in (0,1) 
+         * for synthesis
+         */
+        fn limit(&self, temperature: &f32) -> f32 {
+            (temperature / self.optimal * (((temperature - self.lethal)/(self.optimal - self.lethal)).powf((self.reference - self.optimal) / self.optimal ))).powf(4.0)
         }
 
-        fn synthesize() {
-
-        }
-
-        fn fix() {
-
+        fn function(&self, temperature: &f32) -> f32 {
+            self.coefficients.α * (self.coefficients.β * (temperature - self.optimal + self.reference)).exp()
         }
     }
 
-
-    struct Toxin {
-
+    struct Buoyancy {
+        fraction: f32,
+        density: f32
     }
+
+    struct BuoyancySystem {
+        radius: f32,
+        vesicle: Buoyancy,
+        cell: Buoyancy
+    }
+
+    impl BuoyancySystem {
+
+        fn new() -> BuoyancySystem {
+            BuoyancySystem {
+                vesicle: Buoyancy{
+                    fraction: 0.08,
+                    ρ: 150.0,
+                },
+                cell: Buoyancy{
+                    fraction: 0.25,
+                    ρ: 0.0
+                }
+            }
+        }
+
+        fn equilibrium(&self, ρ: f32) -> f32 {
+            let eq_density: f32 = ((ρ - (1.0 - self.cell.fraction)*(ρ + 0.7))/self.cell.fraction - self.vesicle_frac(self.vesicle.ρ)/(1.0 - self.vesicle.fraction));
+
+            (1.0 - (eq_density - self.density_min)/(self.density_max - self.density_min)).log()/(-self.cell_density_coefficient)
+        }
+    }
+
+    
+
+
 
     struct LagTox {
+        zpt: f32,
+        thermal: ThermalSystem,
+        buoyancy: BuoyancySystem,
         mclr_production_rate: f32,
         mclr_excretion_rate: f32,
-        radius: Vec<f32>, // meters
-        irradiance: Vec<f32>, // watts per sq meter
-        biomass: Vec<f32>, // grams
-        delta_rho: Vec<f32>,
-        pub carbohydrate: Vec<f32>, // grams
-        pub protein: Vec<f32>, // grams
-        pub microcystin: Vec<f32>, // grams
-        colony_base_radius: f32, // meters
-        temp_ref: f32, // reference for limit fcn
-        temp_opt: f32, // optimal for growth
-        temp_lethal: f32,
+        radius: f32, // meters
+        pub carbohydrate: f32, // grams
+        pub protein: f32, // grams
+        pub microcystin: f32, // grams
         excretion_frac: f32, // unitless
         fixation_max: f32, // per hour rate
         fixation_beta: f32, // shape factor
@@ -50,43 +98,38 @@ pub mod cyanobacteria {
         respiration_active: f32, // unitless
         density_max: f32, // empirical kg/m3
         density_min: f32, 
-        vesicle_density: f32, // kg/m3
-        cell_frac: f32, // volume composed of cell material
         carbon_ratio_max: f32, // empirical
-        vesicle_frac: f32, // fraction occupied by vesicles
         irrad_opt: f32, // for grwoth, W/M2
         synthesis_max: f32, // per hour 
-        temp_fcn_alpha: f32, // unitless shape factor
-        temp_fcn_beta: f32, // shape coef
         cell_density_coefficient: f32, // shape coef
         light_extinction_biomass: f32, // attenuation coef
         light_attenuation_water: f32, // attenuation coef
         shading_upscale: f32
     }
 
-
-
-
     impl LagTox {
         fn new(
             mclr_excretion_rate: f32,
             mclr_production_rate: f32,
             count: usize,
+            biomass: f32,
+            microcystin: f32,
+            zpt: f32
         ) -> LagTox {
+
+            let protein = biomass / count;
+            let buoyancy = BuoyancySystem::new();
+
             LagTox{
+                zpt,
+                thermal: ThermalSystem::new(),
+                buoyancy,
                 mclr_production_rate,
                 mclr_excretion_rate,
-                radius: vec![0.0; count],
-                irradiance: vec![0.0; count],
-                biomass: vec![0.0; count],
-                carbohydrate: vec![0.0; count],
-                protein: vec![0.0; count],
-                microcystin: vec![0.0; count],
-                delta_rho: vec![0.0; count],
-                colony_base_radius: 75e-6,
-                temp_ref: 25.0,
-                temp_opt: 28.0,
-                temp_lethal: 35.0,
+                radius: 75e-6,
+                carbohydrate: buoyancy.equilibrium()*protein,
+                protein,
+                microcystin: microcystin / count,
                 excretion_frac: 0.1,
                 fixation_max: 11.4,
                 fixation_beta: 2e-2,
@@ -94,14 +137,9 @@ pub mod cyanobacteria {
                 respiration_active: 2e-1,
                 density_max: 1150.0,
                 density_min: 1037.0,
-                vesicle_density: 150.0,
-                cell_frac: 0.25,
                 carbon_ratio_max: 4.0,
-                vesicle_frac: 0.08,
                 irrad_opt: 250.0,
                 synthesis_max: 0.05,
-                temp_fcn_alpha: 0.286,
-                temp_fcn_beta: 0.05,
                 cell_density_coefficient: 0.7,
                 light_extinction_biomass: 14.0,
                 light_attenuation_water: 0.15,
@@ -109,114 +147,83 @@ pub mod cyanobacteria {
             }
         }
 
-        /**
-         * Read count and initial position and state from file
-         */
-        fn read() {
+        
 
+        fn biomass(&self, area: &f32) -> f32 {
+            (self.carbohydrate + self.protein) / area
         }
 
-        /**
-         * Write state and position back to file
-         */
-        fn write() {
-
-        }
 
         /**
-         * Placeholder for previous quick sort implmentation
-         */
-        fn sort(abs_depth: Vec<f32>, order: Vec<usize>) {
-
+         * Stencilself.biomass(area)
+         */ 
+        fn light_below(
+            &self, 
+            area: &f32,
+            irradiance: &f32
+        ) -> f32 {
+            irradiance * (-self.light_extinction_biomass * self.shading_upscale * self.biomass(area)).exp()
         }
-
+    
         /**
          * Sorted by depth, starting at surface.
 
          This is a stencil
          */
-        fn carbon_fixation(&mut self, mesh_area: f32, count: usize, global_irradiance: f32) -> Vec<f32> {
+        fn carbon_fixation(
+            &self, area: &f32, 
+            irradiance: &f32
+        ) -> f32 {
 
-            let carbon_fixation: Vec<f32>;
-            let irrad_ratio: Vec<f32>;
-            let fixation_coef: Vec<f32>;
-            let proxy_depth: Vec<f32>;
-            let mut avg_self_shade: Vec<f32>;
+            let carbon_fixation: f32;
+            let fixation_coef: f32;
+            let proxy_depth: f32;
+            
+            let effective_mass: f32 = -self.light_extinction_biomass * (self.biomass(area));
 
-            for ii in 0..count {
-                self.biomass[ii] = (self.carbohydrate[ii] + self.protein[ii]) / mesh_area;
+            let irrad_ratio: f32 = irradiance * (effective_mass.exp()-1.0) / effective_mass * (self.zpt * self.light_attenuation_water).exp() / self.irrad_opt;
 
-                let effective_mass = -self.light_extinction_biomass*self.biomass[ii];
+            let fixation_coef: f32 = (2.0 + self.fixation_beta)*irrad_ratio/(irrad_ratio.powi(2) + self.fixation_beta*irrad_ratio + 1.0);
 
-                avg_self_shade[ii] = effective_mass.exp()-1.0)/effective_mass;
-
-                if (ii == 0) {
-                    self.irradiance[ii] = global_irradiance;
-                } else {
-                    self.irradiance[ii] = self.irradiance[ii-1] * (-light_extinction_biomass*self.shading_upscale*self.biomass[ii-1]).exp();
-                }
-            }
-
-            for ii in 0..count {
-
-                self.irradiance[ii] *= avg_self_shade[ii] * (self.zpt[ii] * self.light_attenuation_water).exp()
-
-                irrad_ratio[ii] = self.irradiance[ii] / self.irrad_opt;
-
-                fixation_coef[ii] = (2.0 + self.fixation_beta)*irrad_ratio[ii]/(irrad_ratio[ii].powi(2) + self.fixation_beta*irrad_ratio[ii] + 1.0);
-
-                carbon_fixation[ii] = self.fixation_max*fixation_coef[ii]*self.protein[ii]*(1.0 - self.vesicle_frac)*(self.carbon_ratio_max - self.carbohydrate[ii]/self.protein[ii])/self.carbon_ratio_max;
-
-            }
-
-            carbon_fixation
+            self.fixation_max*fixation_coef*self.protein*(1.0 - self.vesicle_frac)*(self.carbon_ratio_max - self.carbohydrate/self.protein)/self.carbon_ratio_max
         }
 
         /**
          * Transfer carbon from external system into the
          * Colony agent. 
          */
-        fn carbon_synthesis(self) -> f32 {
-            self.carbohydrate * self.synthesis_max * self.temp_limit()
+        fn carbon_synthesis(&self, temperature: &f32) -> f32 {
+            self.carbohydrate * self.synthesis_max * self.thermal.limit(temperature)
         }
 
         /**
          * Update protein and dissolved pools due to excretion
          */
-        fn carbon_excretion(self) -> f32 {
-            self.excretion_frac * self.temp_function() * (self.respiration_basic * self.carbohydrate + self.synthesis_max * self.protein)
+        fn carbon_excretion(&self, temperature: &f32) -> f32 {
+            self.excretion_frac * self.thermal.function(temperature) * (self.respiration_basic * self.carbohydrate + self.synthesis_max * self.protein)
         }
 
         /**
          * Update carbohydrate and dissolved pools due to 
          * respiration
          */
-        fn carbon_respiration(self) -> f32 {
-            self.respiration_basic * self.temp_function() * self.protein + self.respiration_active*self.synthesis_max*self.temp_limit()*self.carbohydrate
+        fn carbon_respiration(&self, temperature: &f32) -> f32 {
+            self.respiration_basic * self.thermal.function(temperature) * self.protein + self.respiration_active*self.synthesis_max*self.thermal.limit(temperature)*self.carbohydrate
         }
 
-        /**
-         * Temperature limitations coefficient in (0,1) for synthesis
-         */
-        fn temp_limit(self, temperature: f32) -> Vec<f32> {
-            (temperature / self.temp_opt * (((temperature - self.temp_lethal)/(self.temp_opt - self.temp_lethal)).powf((self.temp_ref - self.temp_opt) / self.temp_opt ))).powf(4.0)
-        }
-
-        fn temp_function(self, temperature: f32) -> f32 {
-            self.temp_fcn_alpha * (self.temp_fcn_beta * (temperature - self.temp_opt + self.temp_ref)).exp()
-        }
+        
 
         /**
          * Instantaneous rate of toxin production
          */
-        fn microcystin_production(self) -> f32 {
+        fn microcystin_production(&self) -> f32 {
             self.protein * self.mclr_production_rate
         }
 
         /**
          * Temperature depenedent toxin loss to water column
          */
-        fn microcystin_excretion(self) -> f32 {
+        fn microcystin_excretion(&self) -> f32 {
             self.protein * self.mclr_excretion_rate
         }
 
@@ -224,14 +231,19 @@ pub mod cyanobacteria {
          * Calculate movement due to buoyancy
          * Calls: velocity, zinterp, zlocate, sigma
          */
-        fn vertical_movement() {
-
+        fn vertical_movement(&self) -> f32 {
+            0.0
         }
 
         /**
-         * Random movements due ot turbulence and diffusion
+         * Random chnange in depth due ot turbulence and diffusion. Ross and Sharples 2004
          */
-        fn random_walk() {
+        fn random_walk(&self, dt: &f32, random: &f32) -> f32 {
+            let kzp: f32 = 60.0*60.0*0.00001;
+            let dkzp: f32 = 0.0;
+            let variance: f32 = 1.0;
+            
+            dkzp * dt + random * ((2.0*kzp + dkzp.powi(2))*dt /variance).sqrt()
 
         }
 
@@ -240,18 +252,25 @@ pub mod cyanobacteria {
          * Result if positive if lighter than water
          * Calls desnity() and viscoty()
          */
-        fn stokes_velocity(self) -> f32 {
-            60.0*60.0*2.0/9.0*9.81*self.radius.powi(2)*(self.rho-self.density)/self.dynamic_viscosity()
+        fn stokes_velocity(&self, simple: bool, temperature: &f32, salinity: &f32, density: &f32) -> f32 {
+            60.0*60.0*2.0/9.0*9.81*self.radius.powi(2)*(density-self.algae_density(density))/self.dynamic_viscosity(simple, temperature, salinity)
         }
 
-        fn algae_density(self) -> f32 {
-            let cell_density: f32 = self.density_min + (self.density_max - self.density_min)*(1.0 - (-self.cell_density_coefficient * self.carbohydrate / self.protein).exp());
-
-            (1.0 - self.cell_frac)*(self.rho + 0.7) + self.cell_frac*((1.0 - self.vesicle_frac)*cell_density + self.vesicle_frac * self.vesicle_density)
-
+        /**
+         * Density of cellular material
+         */
+        fn cell_density(&self) -> f32 {
+            self.density_min + (self.density_max - self.density_min)*(1.0 - (-self.cell_density_coefficient * self.carbohydrate / self.protein).exp())
         }
 
-        fn dynamic_viscosity(self, simple: bool, temperature: f32) {
+        /**
+         * Density of all bloom material
+         */ 
+        fn algae_density(&self, density: &f32) -> f32 {
+            (1.0 - self.cell_frac)*(density + 0.7) + self.cell_frac*((1.0 - self.vesicle_frac)*self.cell_density() + self.vesicle_frac * self.vesicle_density)
+        }
+
+        fn dynamic_viscosity(&self, simple: bool, temperature: &f32, salinity: &f32) -> f32 {
 
             let mut viscosity: f32;
             if (simple) {
@@ -263,7 +282,7 @@ pub mod cyanobacteria {
 
                 let vsic_pure = 4.2844e-5 + 1.0/(0.157 * (temperature + 64.993).powi(2) - 91.296);
 
-                viscosity = vsic_pure*(1.0 + aa*self.sal + bb*self.sal.powi(2));
+                viscosity = vsic_pure*(1.0 + aa*salinity + bb*salinity.powi(2));
             }
 
             viscosity

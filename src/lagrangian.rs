@@ -24,6 +24,29 @@ mod lagrangian {
         RHO: Vec<f32>
     }
 
+    struct Location {
+        element: Some(usize),
+        layer: usize,
+        SBOUND: u8,
+        indomain: u8,
+        found: u8,
+    }
+
+    /**
+     * Environmental conditions at particle
+     * location
+     */
+    struct Sample {
+        HP: f32,
+        EP: f32,
+        UP: f32,
+        VP: f32,
+        WP: f32,
+        TEMP: f32,
+        SAL: f32,
+        RHO: f32,
+    }
+
     impl LagrangianObject {
         fn new(count: usize, fixed_depth: bool, label: String) -> LagrangianObject {
             LagrangianObject {

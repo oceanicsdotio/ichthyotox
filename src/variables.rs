@@ -37,6 +37,39 @@ pub mod variables {
     const B_RK: [f32; 4] = [1.0/6.0, 1.0/3.0, 1.0/3.0, 1.0/6.0];
     const C_RK: [f32; 4] = [0.0, 0.5, 0.5, 1.0];
 
+    struct ControlVars { 
+        DTOUT: f32,
+        INSTP: f32,
+        DHOR: f32,
+        DTRW: f32,
+        DTI: f32,
+        TDRIFT: u16,
+        IRW: u8
+    };
+
+
+    impl ControlVars {
+        fn new(ndays: u16) -> ControlVars{
+            ControlVars{
+                DTOUT: 0.1,
+                DHOR: 0.1,
+                INSTP: 1.0,
+                DTI: 0.02,
+                DTRW: 0.02,
+                TDRIFT: 24 * ndays,
+                IRW: 0
+            }
+        }
+    }
+
+    struct Mesh {
+        N: u8,
+        M: u8,
+        KB: u8,
+    }
+
+    
+
     struct vars {
         P_SIGMA: bool,
         OUT_SIGMA: bool,
@@ -56,21 +89,9 @@ pub mod variables {
         HOURLAG: u8,
         IELAG: u8,
         ISLAG: u8,
-        TDRIFT: u8,
         ITOUT: u8,
-        IRW: u8,
-        N: u8,
-        M: u8,
-        KB: u8,
-        KBM1: u8,
-        KBM2: u8,
         NE: u8,
         MX_NBR_ELEM: u8,
-        DTOUT: f32,
-        INSTP: f32,
-        DHOR: f32,
-        DTRW: f32,
-        DTI: f32,
         VXMIN: f32,
         VYMIN: f32,
         VXMAX: f32,
@@ -121,6 +142,5 @@ pub mod variables {
         WTS: Vec<Vec<f32>>,
         KH: Vec<Vec<f32>>
     }
-   
 
 }

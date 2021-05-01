@@ -1,6 +1,7 @@
 
-
-
+mod cyanobacteria;
+mod behavior;
+mod variables;
 
 
 pub mod MOD_LAG {
@@ -92,6 +93,63 @@ pub mod MOD_LAG {
 
 
 fn main() {
+
+
+    struct Experiment {
+        temperature: f32,
+        slope: f32,
+        folder_prefix: String, 
+        dt: f32,
+        diffusivity: f32
+    }
+
+
+
+    impl Experiment {
+
+        /**
+         * Millero and Poisson
+         */
+        fn density(
+            temperature: f32, 
+            salinity: f32
+        ) -> f32 {
+
+
+            let aa = 999.842594 + 6.793952e-2 * temperature - 9.09529e-3 * temperature.powi(2) + 1.001685e-4 * temperature.powi(3) - 1.120083e-6 * temperature.powi(4) + 6.536332e-3 * temperature.powi(5);
+
+            let bb = salinity * (0.824493 - 4.0899e-3*temperature + 7.6438e-5*temperature.powi(2) - 8.2467e-7 * temperature.powi(3) + 5.3875e-9 * temperature.powi(4));
+
+            let cc = salinity.powf(1.5) * -0.00572466 + 0.00010227 * temperature - 1.6546e-6 * temperature.powi(2);
+
+            let dd = 4.8314e-4 * salinity.powi(2);
+
+            aa + bb + cc + dd
+        }
+
+
+        fn new() -> Experiment {
+            Experiment {
+                temperature: 20.0,
+                slope: 694e-5,
+                folder_prefix: ".".to_string(), 
+                dt: 0.1,
+                diffusivity: 3600e-5
+            }
+        }
+
+        fn temperature(&self, step: usize) -> f32 {
+            self.temperature + (step as f32) * self.dt * self.slope
+        }
+
+    }
+
+    let experiment = Experiment::new();
+
+    // skip creating mesh
+
+
+    // diffusivity, temperature, rho_pure, density
 
 
 
