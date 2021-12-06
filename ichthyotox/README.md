@@ -1,6 +1,6 @@
-Drawing conclusions from drunk fish in dynamic environments.
+## Drawing conclusions from drunk fish in dynamic environments.
 
-## Post-processing raw data
+### Post-processing raw data
 
 Files are organized by particle types, `fish` and `cyanobacteria`. The suffixes `_ini.dat` and `_var.dat` are initial conditions for the model, and aren't relevant here. Location data is in `_position.dat` files, and state variables are `_state.dat`.
 
