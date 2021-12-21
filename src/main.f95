@@ -271,6 +271,7 @@ program main
   write(*, *)
 
   call domain%init(exp_type) ! allocate and initialize global environmental variables, and additional mesh-based variables
+  
   write(*, "(A)", advance='no') "Computing mesh topology... "
   call TRIANGLE_GRID_EDGE
   write(*, *) "Finished"

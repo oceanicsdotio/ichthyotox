@@ -2,131 +2,37 @@ module simulation
 
   use variables, only : ZERO, sp
   use random, only : random_number_generator
+  use variables, only : xc, yc, vx, vy, nv, M, isbce, nbe, isonb, awx, awy
+  use variables, only : n, a1u, NBVE, NBVT, vxmin, vxmax, vymin, VYMAX, aw0, a2u, MX_NBR_ELEM, NTVE
+
   
   implicit none
   save
 
   private
 
-  type, public :: experiment
-
-    character(len = 100), public :: simID
+  type, public :: Mesh
 
     integer, public :: &
-            & nnodes=0, &
-            & nelements=0, &
-            & nlayers=0, &
-            & lines_read=0
+        & nnodes=0, &
+        & nelements=0, &
+        & nlayers=0
 
     real(sp), public :: &
-            & globalIrradiance=ZERO, &
-            & meshArea=ZERO, &
-            & layerDepth=ZERO, &
-            & layerSigma=ZERO, &
-            & time=ZERO, & ! total time
-            & daytime=ZERO, & ! time in days
-            & clocktime=ZERO ! twenty four hour periodic
+        & area=ZERO, &
+        & layerDepth=ZERO, &
+        & layerSigma=ZERO
 
     real(sp), allocatable, dimension(:), private :: elementSigmaVolume, elementArea ! mesh stats
-    real(sp), allocatable, dimension(:), public :: verticaltox, verticaldiff, verticaltemp, verticalrho ! uniform horizontal fields
 
   contains
-    ! call in this order
-    procedure, public :: init => initSimulation
-    procedure, public :: read => readSimulation
-    procedure, public :: diffuse => verticalDiffusion
+    procedure, public :: init => TRIANGLE_GRID_EDGE
+  end type
 
-  end type experiment;
-  type(experiment), allocatable, public :: domain ! domain structure imported from this module
+  type(Mesh), allocatable, public :: finite_volume_mesh ! domain structure imported from this module
 
 contains
 
-  subroutine initSimulation(self, exp_type)
-    ! allocate and initialize data structures
-    class(experiment), intent(inout) :: self
-    integer, intent(in) :: exp_type
-
-    allocate( self%verticaltox(0:self%nlayers+1), &
-            & self%elementArea(0:self%nelements), &
-            & self%elementSigmaVolume(0:self%nelements), &
-            & self%verticaldiff(0:self%nlayers+1), &
-            & self%verticaltemp(0:self%nlayers+1), &
-            & self%verticalrho(0:self%nlayers+1))
-
-    self%verticaltox(:) = merge(6324.0_SP, zero, exp_type == 4) ! experiment D or A-C, TODO: move this outside
-    self%elementArea = zero
-    self%elementSigmaVolume = zero
-    self%verticaldiff = zero
-    self%verticaltemp = zero
-    self%verticalrho = zero
-
-  end subroutine
-
-  subroutine readSimulation(self, u_vel, v_vel, w_vel, diffusivity, elevation, salinity, temperature, density)
-    ! read physical drivers from file
-    use variables, only : KB, M, N, iophys
-
-    class(experiment), intent(inout) :: self
-    real(sp), dimension(0:N, KB), intent(inout) :: u_vel, v_vel, w_vel
-    real(sp), dimension(0:M, KB), intent(inout) :: diffusivity, salinity, temperature, density
-    real(sp), dimension(0:M), intent(inout) :: elevation
-
-    character(len = 100) :: vert_format
-    real(sp) :: time
-    integer :: ii
-
-    write(vert_format, "(A7,I6,A7)") "(F10.3,", 3*KB, "F20.10)"
-    read(iophys, vert_format) time, self%verticaltemp(1:KB), self%verticalrho(1:KB), self%verticaldiff(1:KB)
-
-    u_vel(:, :)=ZERO; v_vel(:, :)=ZERO; w_vel(:, :)=ZERO
-    elevation(:)=-abs(ZERO); salinity(:,:)=ZERO
-
-    do ii = 1, self%nnodes
-      temperature(ii, 1:KB) = self%verticaltemp(1:KB)
-      diffusivity(ii, 1:KB) = self%verticaldiff(1:KB)
-      density(ii, 1:KB) = self%verticalrho(1:KB)
-    end do
-
-    if (self%lines_read == 0) rewind(unit=iophys)
-    self%lines_read = self%lines_read + 1
-
-  end subroutine
-
-
-
-  subroutine verticalDiffusion(self)
-    ! One-dimensional vertical diffusion
-    use variables, only : KB, KBM1, dti
-    class(experiment), intent(inout) :: self
-    integer :: ii, jj, steps_to_stability
-    real(sp) :: &
-            & substep, & ! automatic time substep, only valid for dK/dt=0
-            & stable, &  ! longest time step for conditional stability
-            & diffusivity = 60.0*60.0*10.0**(-5.0), &  ! 0.1 cm^2/s
-            & profile(0:self%nlayers+1); 
-    
-    profile = ZERO
-    stable = 0.5 * self%layerDepth**2.0
-    steps_to_stability = ceiling(dti/stable) ! min number of steps to achieve stability, cannot be less than one
-    substep = dti / float(steps_to_stability)
-
-    do ii = 1, steps_to_stability
-      self%verticaltox(1) = self%verticaltox(2)
-      self%verticaltox(KB) = self%verticaltox(KBM1)
-
-      ! central-in-space (z), forward-in-time, second derivative
-      do jj = 2, KBM1
-        profile(jj) = self%verticaltox(jj) + diffusivity * substep * &
-                & (self%verticaltox(jj-1) + self%verticaltox(jj+1) - 2.0*self%verticaltox(jj)) / &
-                & self%layerDepth * self%layerDepth
-      end do
-
-      profile(1) = profile(2);
-      profile(KB) = profile(KBM1) ! copy in domain value to boundary nodes
-      self%verticaltox(:) = profile(:)
-    end do
-
-  end subroutine
 
   subroutine TRIANGLE_GRID_EDGE
 
@@ -161,8 +67,6 @@ contains
     !       2:  open boundary                                !
     !       3:  2 solid boundary edges                         !
 
-    use variables, only : xc, yc, vx, vy, nv, M, isbce, nbe, isonb, awx, awy
-    use variables, only : n, a1u, NBVE, NBVT, vxmin, vxmax, vymin, VYMAX, aw0, a2u, MX_NBR_ELEM, NTVE
 
     integer, allocatable, dimension(:, :) :: NB_TMP, CELLS, NBET
     integer, allocatable, dimension(:) :: CELLCNT
@@ -187,14 +91,14 @@ contains
     ART(:) = abs(((VX(NV(:, 2)) - VX(NV(:, 1))) * (VY(NV(:, 3)) - VY(NV(:, 1))) - &
             &    (VX(NV(:, 3)) - VX(NV(:, 1))) * (VY(NV(:, 2)) - VY(NV(:, 1))))*0.5)
 
-    ! INITIALIZE
     ISBCE = 0
     ISONB = 0
     NBE   = 0
 
-    allocate( NBET(N, 3), & ! index of neighbors
-            & CELLS(M, 50), &
-            & CELLCNT(M))
+    allocate( &
+        &NBET(N, 3), & ! index of neighbors
+        & CELLS(M, 50), &
+        & CELLCNT(M))
 
     NBET = 0
     cellcnt = 0

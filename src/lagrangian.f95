@@ -309,22 +309,22 @@ contains
       PDZ(:) = min(PDZ(:), zero) ! keep sigma depth below free surface
 
       ! Calculate velocity field for stage using c_rk coefficients
-      UL = (1.0_SP - C_RK(stage)) * U1 + C_RK(stage) * U2
-      VL = (1.0_SP - C_RK(stage)) * V1 + C_RK(stage) * V2
-      WL = (1.0_SP - C_RK(stage)) * W1 + C_RK(stage) * W2
-      ELL = (1.0_SP - C_RK(stage)) * EL1 + C_RK(stage) * EL2
+      UL = (1.0 - C_RK(stage)) * U1 + C_RK(stage) * U2
+      VL = (1.0 - C_RK(stage)) * V1 + C_RK(stage) * V2
+      WL = (1.0 - C_RK(stage)) * W1 + C_RK(stage) * W2
+      ELL = (1.0 - C_RK(stage)) * EL1 + C_RK(stage) * EL2
 
-      call self%INTERP_V(PDX, PDY, PDZ, UL, VL, WL)  
+      call self%INTERP_V(PDX, PDY, PDZ, UL, VL, WL)
       ! interpolate particle velocity, automatically updates host elements
       call self%INTERP_ELH(PDX, PDY, HL, ELL, 0) ! interpolate elevation and bathymetry at stage particle position, zero denotes not to search for host elements
 
-      CHI(:, stage, 1) = self%UP(:) ! Update CHI values for next time step
-      CHI(:, stage, 2) = self%VP(:)
+      CHI(:, stage, 1) = self%UP ! Update CHI values for next time step
+      CHI(:, stage, 2) = self%VP
 
-      where ((self%EP(:) - self%HP(:)) < EPS) 
+      where ((self%EP - self%HP) < EPS) 
         CHI(:, stage, 3) = zero ! Limit vertical motion in very shallow water
       elsewhere
-        CHI(:, stage, 3) = self%WP(:) / (self%HP(:) - self%EP(:))    ! delta_sigma/deltaT = ww/D
+        CHI(:, stage, 3) = self%WP / (self%HP - self%EP)    ! delta_sigma/deltaT = ww/D
       end where
     end do
 
@@ -546,7 +546,7 @@ contains
     real(SP), intent(out), dimension(self%ndrft) :: DKHOUT, KHOUT
     real(SP), intent(in), dimension(0:M, KB) :: DZKH, ZKH
 
-    real(SP) :: offset(1), offset(2), COF1, COF2, COF3
+    real(SP) :: offset(2), COF1, COF2, COF3
     integer :: N1, N2, N3, ii
     real(SP) :: DKHR1, DKHR2, DKHR3 !, DKHR4
     real(SP) :: KHR1, KHR2, KHR3 !, KHR4
