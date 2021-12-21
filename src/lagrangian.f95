@@ -56,17 +56,16 @@ contains
   subroutine find_host_element(lag, x, y, inwater)
     !  Find host elements of particles by searching progressively further elements
     use variables, only: N, NV, ISONB, VX, NV, VY, XC, YC, NTVE, NBVE
-    implicit none
-
-    integer :: ii, jj, kk, ind
-    integer, dimension(2) :: nearest
+  
 
     class(Agent), intent(inout) :: lag
     real(sp), dimension(lag%ndrft), intent(in) :: x, y
-    logical, dimension(lag%ndrft), intent(out) ::  INWATER
+    logical, dimension(lag%ndrft), intent(out) :: INWATER
 
     real(sp), dimension(1:N, 1) :: distance
     real(sp) :: previous
+    integer :: ii, jj, kk, ind
+    integer, dimension(2) :: nearby
 
     do ii = 1, lag%ndrft
 
@@ -94,34 +93,26 @@ contains
       distance(1:n, 1) = sqrt((xc(1:n) - x(ii))**2 + (yc(1:n) - y(ii))**2)
       previous = zero
 
-      search: do jj = 1, 16
-        nearest(:) = minloc(distance, distance > previous)
-        if (nearest(1) == 0) exit search
-        previous = distance(nearest(1), 1)
-        if (ISINTRIANGLE(VX(NV(nearest(1), 1:3)), VY(NV(nearest(1), 1:3)) , x(ii), y(ii))) then
+      do jj = 1, 16
+        nearby(:) = minloc(distance, distance > previous)
+        if (nearby(1) == 0) exit
+        previous = distance(nearby(1), 1)
+        if (ISINTRIANGLE(VX(NV(nearby(1), 1:3)), VY(NV(nearby(1), 1:3)) , x(ii), y(ii))) then
           lag%found(ii) = 1
-          lag%host(ii) = nearest(1)
+          lag%host(ii) = nearby(1)
           lag%sbound(ii) = merge(1, 0, &
                   & (ISONB(NV(lag%host(ii), 1)) == 1) .or. &
                   & (ISONB(NV(lag%host(ii), 2)) == 1) .or. &
                   & (ISONB(NV(lag%host(ii), 3)) == 1))
-          exit search
+          exit
         end if
-      end do search
+      end do
     end do
-
-    where ((lag%found(:) == 0) .and. (lag%SBOUND(:) == 0)) lag%INDOMAIN(:) = 0 ! moved outside domain
-    where ((lag%found(:) == 0) .and. (lag%SBOUND(:) == 1)) INWATER(:) = .false. ! no longer in water
-
-    return
   end subroutine
 
 
   logical function isintriangle(XT, YT, X0, Y0)
     ! Determine if point is in triangle defined by nodes (XT(3),YT(3))
-    use variables, only : sp
-    implicit none
-
     real(sp), intent(in) :: X0, Y0
     real(sp), intent(in) :: XT(3), YT(3)
     real(sp) :: F1, F2, F3
@@ -137,8 +128,6 @@ contains
 
   subroutine lag_alloc(self)
 
-    use variables, only: SP
-    implicit none
     class(Agent), intent(inout) :: self
 
     allocate( self%XP( self%ndrft ), &
@@ -196,8 +185,6 @@ contains
 
 
   subroutine readLocations(self)
-
-    use variables, only : sp
     use variables, only : folderprefix
 
     class(Agent), intent(inout) :: self
@@ -327,7 +314,8 @@ contains
       WL = (1.0_SP - C_RK(stage)) * W1 + C_RK(stage) * W2
       ELL = (1.0_SP - C_RK(stage)) * EL1 + C_RK(stage) * EL2
 
-      call self%INTERP_V(PDX, PDY, PDZ, UL, VL, WL)  ! interpolate particle velocity, automatically updates host elements
+      call self%INTERP_V(PDX, PDY, PDZ, UL, VL, WL)  
+      ! interpolate particle velocity, automatically updates host elements
       call self%INTERP_ELH(PDX, PDY, HL, ELL, 0) ! interpolate elevation and bathymetry at stage particle position, zero denotes not to search for host elements
 
       CHI(:, stage, 1) = self%UP(:) ! Update CHI values for next time step
@@ -372,46 +360,41 @@ contains
   end subroutine
 
 
-  function layer_velocity(count, host, mask, k, position, velocity)
+  function layer_velocity(count, host, layer, velocity)
     integer, intent(in) :: count
-    integer, intent(in) :: host(count), k(count)
-    logical, intent(in) :: mask(count)
-    real(SP) :: layer_velocity(count)
+    integer, intent(in) :: host(count), layer(count)
+    real(SP) :: layer_velocity(count, 2)
 
     use variables, only : A1U, A2U, NBE, YC, XC, DZ, ZZ
     use variables, only : N, KB
 
-    real(sp), intent(in), dimension(count) :: position ! Z is sigma depth
     real(sp), intent(in), dimension(0:N, 1:KB, 3) :: velocity
 
     integer :: ii, stencil(count, 4)
     real(SP) :: delta(3, 2)
-    real(SP) :: X0C, Y0C
 
     stencil(:, 1) = host
     stencil(:, 2:3) = NBE(host, :)
 
-    where (mask)
-     
-      ! Linear interpolation of velocity in sigma level above particle
-      delta(:, 1) = sum(A1U(host, 1:3) * velocity(stencil, K, :))
-      delta(:, 2) = sum(A2U(host, 1:3) * velocity(stencil, K, :))
-    end where
+    ! Linear interpolation of velocity in sigma level above particle
+    layer_velocity(:, 1) = sum(A1U(host, 1:3) * velocity(stencil, layer, :))
+    layer_velocity(:, 2) = sum(A2U(host, 1:3) * velocity(stencil, layer, :))
+   
   end function
 
-  subroutine INTERP_V(lag, XP, YP, ZP, UIN, VIN, WIN) ! OK
+  subroutine INTERP_V(lag, XP, YP, ZP, velocity)
     ! linear interpolation of velocity field at particle positions
     use variables, only : A1U, A2U, NBE, YC, XC, DZ, ZZ
     use variables, only : KBM1, N, KB
 
     class(Agent), intent(inout) :: lag
     real(sp), intent(in), dimension(lag%ndrft) :: XP, YP, ZP ! ZP is sigma depth
-    real(sp), intent(in), dimension(0:N, 1:KB) :: UIN, VIN, WIN
+    real(sp), intent(in), dimension(0:N, 1:KB, 3) :: velocity
 
     logical, dimension(lag%ndrft) ::  inwater
-    integer :: ii, host, edges(3), K1(lag%ndrft), K2(lag%ndrft), K
-    real(SP) :: delta(3, 2), UE01, UE02, VE01, VE02, WE01, WE02
-    real(SP) :: ZF1(lag%ndrft), ZF2(lag%ndrft), X0C, Y0C
+    integer :: ii, host, edges(3), K(lag%ndrft, 2)
+    real(SP) :: delta(3, 2), interpolated(2, 3)
+    real(SP) :: ZF(lag%ndrft, 2), offset(lag%ndrft, 2)
 
     inwater(:) = .true.
     lag%FOUND(:) = 0
@@ -420,62 +403,52 @@ contains
 
     ! Determine sigma layers above and below particle
     where (ZP > ZZ(1)) ! Particle near surface
-      K1  = 1
-      K2  = 1
-      ZF1 = 1.0
-      ZF2 = zero
+      K(:, 1)  = 1
+      K(:, 2)  = 1
+      ZF(:, 1) = 1.0
+      ZF(:, 2) = zero
     else where (ZP < ZZ(KBM1)) ! Particle near bottom
-      K1 = KBM1
-      K2 = KBM1
-      ZF1 = 1.0
-      ZF2 = zero
+      K(:, 1) = KBM1
+      K(:, 2) = KBM1
+      ZF(:, 1) = 1.0
+      ZF(:, 2) = zero
     else where
-      K1 = int( (ZZ(1) - ZP) / DZ(1) ) + 1;
-      K2 = K1 + 1
-      ZF1 = (ZP - ZZ(K2)) / DZ(1)
-      ZF2 = (ZZ(K1) - ZP) / DZ(1)
+      K(:, 1) = int( (ZZ(1) - ZP) / DZ(1) ) + 1;
+      K(:, 2) = K(:, 1) + 1
+      ZF(:, 1) = (ZP - ZZ(K(:, 2))) / DZ(1)
+      ZF(:, 2) = (ZZ(K(:, 1)) - ZP) / DZ(1)
     end where
 
-    where ((lag%indomain) .and. (inwater))
+    edges = NBE(host,:)
+    
+    offset(:, 1) = XP - XC(lag%HOST)
+    offset(:, 2) = YP - YC(lag%HOST)
 
-      edges = NBE(host,:)
-     
-      X0C = XP - XC(lag%HOST)
-      Y0C = YP - YC(lag%HOST)
+    ! Linear interpolation of velocity in sigma level above particle
+    delta = layer_velocity(lag%ndrft, lag%host, K(:, 1), velocity)
+
+    interpolated(1,1) = velocity(host, K(:, 1), 1) + sum(delta(1, :)*offset)
+    interpolated(1,2) = velocity(host, K(:, 1), 2) + sum(delta(2, :)*offset)
+    interpolated(1,3) = velocity(host, K(:, 1), 3) + sum(delta(3, :)*offset)
+
+    ! Linear interpolation of velocity in sigma level below particle
+    delta = layer_velocity(lag%ndrft, lag%host, K(:, 2), velocity)
+    
+    interpolated(2,1) = velocity(host, K(:, 2), 1) + sum(delta(1, :)*offset)
+    interpolated(2,2) = velocity(host, K(:, 2), 2) + sum(delta(2, :)*offset)
+    interpolated(2,3) = velocity(host, K(:, 2), 3) + sum(delta(3, :)*offset)
 
 
-      ! Linear interpolation of velocity in sigma level above particle
-      K = K1
-      delta = layer_velocity(lag%ndrft, lag%host, mask, K1, position, velocity)
+    ! Interpolate particle velocity between two sigma layers
+    lag%UP = sum(interpolated*ZF)
+    lag%VP = sum(interpolated*ZF)
+    lag%WP = sum(interpolated*ZF)
 
-      UE01 = UIN(host,K) + delta(1, 1)*X0C + delta(1, 2)*Y0C
-      VE01 = VIN(host,K) + delta(2, 1)*X0C + delta(2, 2)*Y0C
-      WE01 = WIN(host,K) + delta(3, 1)*X0C + delta(3, 2)*Y0C
-
-      ! Linear interpolation of velocity in sigma level below particle
-      K = K2
-      delta(1, 1) = A1U(host,1)*UIN(host,K) + A1U(host,2)*UIN(edges(1),K)+A1U(host,3)*UIN(E2,K)+A1U(host,4)*UIN(E3,K)
-      delta(1, 2) = A2U(host,1)*UIN(host,K) + A2U(host,2)*UIN(edges(1),K)+A2U(host,3)*UIN(E2,K)+A2U(host,4)*UIN(E3,K)
-      delta(2, 1) = A1U(host,1)*VIN(host,K) + A1U(host,2)*VIN(edges(1),K)+A1U(host,3)*VIN(E2,K)+A1U(host,4)*VIN(E3,K)
-      delta(2, 2) = A2U(host,1)*VIN(host,K) + A2U(host,2)*VIN(edges(1),K)+A2U(host,3)*VIN(E2,K)+A2U(host,4)*VIN(E3,K)
-      delta(3, 1) = A1U(host,1)*WIN(host,K) + A1U(host,2)*WIN(edges(1),K)+A1U(host,3)*WIN(E2,K)+A1U(host,4)*WIN(E3,K)
-      delta(3, 2) = A2U(host,1)*WIN(host,K) + A2U(host,2)*WIN(edges(1),K)+A2U(host,3)*WIN(E2,K)+A2U(host,4)*WIN(E3,K)
-      UE02 = UIN(host,K) + delta(1, 1*X0C + delta(1, 2)*Y0C
-      VE02 = VIN(host,K) + delta(2, 1)*X0C + delta(2, 2)*Y0C
-      WE02 = WIN(host,K) + delta(3, 1)*X0C + delta(3, 2)*Y0C
-
-      ! Interpolate particle velocity between two sigma layers
-      lag%UP(ii) = UE01*ZF1 + UE02*ZF2
-      lag%VP(ii) = VE01*ZF1 + VE02*ZF2
-      lag%WP(ii) = WE01*ZF1 + WE02*ZF2
-
-    end where
   end subroutine INTERP_V
 
 
   subroutine INTERP_ELH(self, XP, YP, HIN, EIN, FHE) ! OK
     ! Linearly interpolate elevation and bathymetry at a set of particle positions
-    use variables, only : sp
     use variables, only : AW0, AWX, AWY, NV, XC, YC
     use variables, only : M
 
@@ -486,13 +459,13 @@ contains
 
     integer :: ii, host, N1, N2, N3
     logical, dimension(self%ndrft) :: inwater
-    real(sp) :: H0, HX, HY, E0, EX, EY, X0C, Y0C
+    real(sp) :: H0, HX, HY, E0, EX, EY, offset(1), offset(2)
 
-    find_host: if (FHE == 1) then
-      inwater(:) = 1
+    if (FHE == 1) then
+      inwater(:) = .true.
       self%FOUND(:) = 0
       call self%find_host_element(XP, YP, inwater)
-    end if find_host
+    end if
 
     do ii = 1, self%ndrft
       if (self%INDOMAIN(ii) == 0) cycle ! skip particle outside domain
@@ -500,17 +473,18 @@ contains
       N1 = NV(self%host(ii), 1); 
       N2 = NV(self%host(ii), 2); 
       N3 = NV(self%host(ii), 3) ! node indices
-      X0C = XP(ii) - XC(host); Y0C = YP(ii) - YC(host) ! distance from element center
+      offset(1) = XP(ii) - XC(host); 
+      offset(2) = YP(ii) - YC(host) ! distance from element center
 
       H0 = AW0(host, 1)*HIN(N1) + AW0(host, 2)*HIN(N2) + AW0(host, 3)*HIN(N3)
       HX = AWX(host, 1)*HIN(N1) + AWX(host, 2)*HIN(N2) + AWX(host, 3)*HIN(N3)
       HY = AWY(host, 1)*HIN(N1) + AWY(host, 2)*HIN(N2) + AWY(host, 3)*HIN(N3)
-      self%HP(ii) = -1.0*(H0 + HX*X0C + HY*Y0C) ! Linear interpolation of bathymetry, forced to be negtaive?
+      self%HP(ii) = -1.0*(H0 + HX*offset(1) + HY*offset(2)) ! Linear interpolation of bathymetry, forced to be negtaive?
 
       E0 = AW0(host, 1)*EIN(N1) + AW0(host, 2)*EIN(N2) + AW0(host, 3)*EIN(N3)
       EX = AWX(host, 1)*EIN(N1) + AWX(host, 2)*EIN(N2) + AWX(host, 3)*EIN(N3)
       EY = AWY(host, 1)*EIN(N1) + AWY(host, 2)*EIN(N2) + AWY(host, 3)*EIN(N3)
-      self%EP(ii) = -1.0*(E0 + EX*X0C + EY*Y0C) ! Linear interpolation of free surface height, forced to be positive
+      self%EP(ii) = -1.0*(E0 + EX*offset(1) + EY*offset(2)) ! Linear interpolation of free surface height, forced to be positive
 
     end do
   end subroutine
@@ -518,7 +492,7 @@ contains
 
   subroutine INTERP_FIELDS(self, XP, YP, ZP, SAL, TEMP, RHO, FHE) ! OK
     ! Linearly interpolates salinity, temperature and density
-    use variables, only : AW0, AWX, AWY, NV, XC, YC, sp, KB, M
+    use variables, only : AW0, AWX, AWY, NV, XC, YC, KB, M
 
     class(Agent), intent(inout) :: self
     real(sp), intent(in), dimension(self%ndrft) :: XP, YP, ZP
@@ -527,7 +501,7 @@ contains
 
     logical, dimension(self%ndrft) :: inwater
     integer :: ii, host, N1, N2, N3
-    real(sp) :: S0, SX, SY, T0, TX, TY, D0, DX, DY, X0C, Y0C, ZTMP(self%ndrft)
+    real(sp) :: S0, SX, SY, T0, TX, TY, D0, DX, DY, offset(1), offset(2), ZTMP(self%ndrft)
 
     ZTMP(:) = ZP(:)
     find_host: if (FHE == 1) then
@@ -536,29 +510,28 @@ contains
       call self%find_host_element(XP, YP, inwater)
     end if find_host
 
-    do ii = 1, self%ndrft
+    host = self%host(ii) ! element containing particle
+    N1 = NV(host, 1); 
+    N2 = NV(host, 2); 
+    N3 = NV(host, 3) ! node indices
+    offset(1) = XP(ii) - XC(host); 
+    offset(2) = YP(ii) - YC(host) ! distance from element center
 
-      if (self%INDOMAIN(ii) == 0) cycle ! skip particle outside domain
-      host = self%host(ii) ! element containing particle
-      N1 = NV(host, 1); N2 = NV(host, 2); N3 = NV(host, 3) ! node indices
-      X0C = XP(ii) - XC(host); Y0C = YP(ii) - YC(host) ! distance from element center
+    S0 = AW0(host, 1)*SAL(N1, 1) + AW0(host, 2)*SAL(N2, 1) + AW0(host, 3)*SAL(N3, 1)
+    SX = AWX(host, 1)*SAL(N1, 1) + AWX(host, 2)*SAL(N2, 1) + AWX(host, 3)*SAL(N3, 1)
+    SY = AWY(host, 1)*SAL(N1, 1) + AWY(host, 2)*SAL(N2, 1) + AWY(host, 3)*SAL(N3, 1)
+    self%SAL(ii) = abs(S0 + SX*offset(1) + SY*offset(2)) ! Linear interpolation of salinity field
 
-      S0 = AW0(host, 1)*SAL(N1, 1) + AW0(host, 2)*SAL(N2, 1) + AW0(host, 3)*SAL(N3, 1)
-      SX = AWX(host, 1)*SAL(N1, 1) + AWX(host, 2)*SAL(N2, 1) + AWX(host, 3)*SAL(N3, 1)
-      SY = AWY(host, 1)*SAL(N1, 1) + AWY(host, 2)*SAL(N2, 1) + AWY(host, 3)*SAL(N3, 1)
-      self%SAL(ii) = abs(S0 + SX*X0C + SY*Y0C) ! Linear interpolation of salinity field
+    T0 = AW0(host, 1)*TEMP(N1, 1) + AW0(host, 2)*TEMP(N2, 1) + AW0(host, 3)*TEMP(N3, 1)
+    TX = AWX(host, 1)*TEMP(N1, 1) + AWX(host, 2)*TEMP(N2, 1) + AWX(host, 3)*TEMP(N3, 1)
+    TY = AWY(host, 1)*TEMP(N1, 1) + AWY(host, 2)*TEMP(N2, 1) + AWY(host, 3)*TEMP(N3, 1)
+    self%TEMP(ii) = abs(T0 + TX*offset(1) + TY*offset(2)) ! Linear interpolation of temperature field
 
-      T0 = AW0(host, 1)*TEMP(N1, 1) + AW0(host, 2)*TEMP(N2, 1) + AW0(host, 3)*TEMP(N3, 1)
-      TX = AWX(host, 1)*TEMP(N1, 1) + AWX(host, 2)*TEMP(N2, 1) + AWX(host, 3)*TEMP(N3, 1)
-      TY = AWY(host, 1)*TEMP(N1, 1) + AWY(host, 2)*TEMP(N2, 1) + AWY(host, 3)*TEMP(N3, 1)
-      self%TEMP(ii) = abs(T0 + TX*X0C + TY*Y0C) ! Linear interpolation of temperature field
+    D0 = AW0(host, 1)*RHO(N1, 1) + AW0(host, 2)*RHO(N2, 1) + AW0(host, 3)*RHO(N3, 1)
+    DX = AWX(host, 1)*RHO(N1, 1) + AWX(host, 2)*RHO(N2, 1) + AWX(host, 3)*RHO(N3, 1)
+    DY = AWY(host, 1)*RHO(N1, 1) + AWY(host, 2)*RHO(N2, 1) + AWY(host, 3)*RHO(N3, 1)
+    self%RHO(ii) = abs(D0 + DX*offset(1) + DY*offset(2)) ! Linear interpolation of temperature field
 
-      D0 = AW0(host, 1)*RHO(N1, 1) + AW0(host, 2)*RHO(N2, 1) + AW0(host, 3)*RHO(N3, 1)
-      DX = AWX(host, 1)*RHO(N1, 1) + AWX(host, 2)*RHO(N2, 1) + AWX(host, 3)*RHO(N3, 1)
-      DY = AWY(host, 1)*RHO(N1, 1) + AWY(host, 2)*RHO(N2, 1) + AWY(host, 3)*RHO(N3, 1)
-      self%RHO(ii) = abs(D0 + DX*X0C + DY*Y0C) ! Linear interpolation of temperature field
-
-    end do
 
   end subroutine INTERP_FIELDS
 
@@ -573,7 +546,7 @@ contains
     real(SP), intent(out), dimension(self%ndrft) :: DKHOUT, KHOUT
     real(SP), intent(in), dimension(0:M, KB) :: DZKH, ZKH
 
-    real(SP) :: X0C, Y0C, COF1, COF2, COF3
+    real(SP) :: offset(1), offset(2), COF1, COF2, COF3
     integer :: N1, N2, N3, ii
     real(SP) :: DKHR1, DKHR2, DKHR3 !, DKHR4
     real(SP) :: KHR1, KHR2, KHR3 !, KHR4
@@ -596,7 +569,7 @@ contains
       if (self%indomain(ii) == 0) cycle
       host = self%host(ii) ! element containing particle
       N1 = NV(host, 1); N2 = NV(host, 2); N3 = NV(host, 3) ! get node indices of host element
-      X0C = self%XP(ii) - XC(host); Y0C = self%YP(ii) - YC(host) ! distance from element center
+      offset(1) = self%XP(ii) - XC(host); offset(2) = self%YP(ii) - YC(host) ! distance from element center
 
       ! DERIVATIVE OF THE DIFFUSION
       ! find vertical location
@@ -621,7 +594,7 @@ contains
       COF2=AWX(self%HOST(ii),1)*DKHR1 +AWX(self%HOST(ii),2)*DKHR2+AWX(self%HOST(ii),3)*DKHR3
       COF3=AWY(self%HOST(ii),1)*DKHR1 +AWY(self%HOST(ii),2)*DKHR2+AWY(self%HOST(ii),3)*DKHR3
 
-      DKHTMP = COF1 + COF2*X0C + COF3*Y0C
+      DKHTMP = COF1 + COF2*offset(1) + COF3*offset(2)
       DKHOUT(ii) = DKHTMP / (self%HP(ii) - self%EP(ii))     !--want the answer to be dkh/dz not dkh/dsigma, changed sign, keeney 1/7
 
       ! DIFFUSION ITSELF
@@ -652,7 +625,7 @@ contains
       COF2 = AWX(self%HOST(ii),1)*KHR1 + AWX(self%HOST(ii),2)*KHR2+AWX(self%HOST(ii),3)*KHR3
       COF3 = AWY(self%HOST(ii),1)*KHR1 + AWY(self%HOST(ii),2)*KHR2+AWY(self%HOST(ii),3)*KHR3
 
-      KHOUT(ii) = COF1 + COF2*X0C + COF3*Y0C
+      KHOUT(ii) = COF1 + COF2*offset(1) + COF3*offset(2)
 
     end do
   end subroutine

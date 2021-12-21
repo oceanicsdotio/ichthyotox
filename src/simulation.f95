@@ -37,7 +37,7 @@ module simulation
     procedure, public :: diffuse => verticalDiffusion
 
   end type experiment;
-  class(experiment), allocatable, public :: domain ! domain structure imported from this module
+  type(experiment), allocatable, public :: domain ! domain structure imported from this module
 
 contains
 
@@ -53,7 +53,7 @@ contains
             & self%verticaltemp(0:self%nlayers+1), &
             & self%verticalrho(0:self%nlayers+1))
 
-    self%verticaltox(:) = merge(6324.0_sp, zero, exp_type == 4) ! experiment D or A-C, TODO: move this outside
+    self%verticaltox(:) = merge(6324.0_SP, zero, exp_type == 4) ! experiment D or A-C, TODO: move this outside
     self%elementArea = zero
     self%elementSigmaVolume = zero
     self%verticaldiff = zero
@@ -93,31 +93,31 @@ contains
   end subroutine
 
 
+
   subroutine verticalDiffusion(self)
     ! One-dimensional vertical diffusion
-    ! TODO: Write a small explaination of this method
-    use variables, only : KB, KBM1, dti ! time interpolation step
+    use variables, only : KB, KBM1, dti
     class(experiment), intent(inout) :: self
-    integer :: ii, jj, stepsToStabilityCriteria
+    integer :: ii, jj, steps_to_stability
     real(sp) :: &
             & substep, & ! automatic time substep, only valid for dK/dt=0
             & stable, &  ! longest time step for conditional stability
-            & diffusivity = 60.0_sp*60.0_sp*10.0_sp**(-5.0_sp)  ! 0.1 cm^2/s
+            & diffusivity = 60.0*60.0*10.0**(-5.0), &  ! 0.1 cm^2/s
+            & profile(0:self%nlayers+1); 
+    
+    profile = ZERO
+    stable = 0.5 * self%layerDepth**2.0
+    steps_to_stability = ceiling(dti/stable) ! min number of steps to achieve stability, cannot be less than one
+    substep = dti / float(steps_to_stability)
 
-    real(sp), dimension(0:self%nlayers+1) :: profile; profile=zero ! profile update buffer
-
-    stable = 0.5_sp * self%layerDepth**(2.0_sp)
-    stepsToStabilityCriteria = ceiling(dti/stable) ! min number of steps to achieve stability, cannot be less than one
-    substep = dti / float(stepsToStabilityCriteria)
-
-    do ii = 1, stepsToStabilityCriteria
+    do ii = 1, steps_to_stability
       self%verticaltox(1) = self%verticaltox(2)
       self%verticaltox(KB) = self%verticaltox(KBM1)
 
-      ! central-in-space (z), forward-in-time second derivative
+      ! central-in-space (z), forward-in-time, second derivative
       do jj = 2, KBM1
         profile(jj) = self%verticaltox(jj) + diffusivity * substep * &
-                & (self%verticaltox(jj-1) + self%verticaltox(jj+1) - 2.0_sp*self%verticaltox(jj)) / &
+                & (self%verticaltox(jj-1) + self%verticaltox(jj+1) - 2.0*self%verticaltox(jj)) / &
                 & self%layerDepth * self%layerDepth
       end do
 
@@ -185,7 +185,7 @@ contains
     end do
 
     ART(:) = abs(((VX(NV(:, 2)) - VX(NV(:, 1))) * (VY(NV(:, 3)) - VY(NV(:, 1))) - &
-            &    (VX(NV(:, 3)) - VX(NV(:, 1))) * (VY(NV(:, 2)) - VY(NV(:, 1))))*0.5_sp)
+            &    (VX(NV(:, 3)) - VX(NV(:, 1))) * (VY(NV(:, 2)) - VY(NV(:, 1))))*0.5)
 
     ! INITIALIZE
     ISBCE = 0
@@ -449,98 +449,5 @@ contains
       end if
     end do
   end subroutine
-
-  subroutine hunt(sigma_nodes, KB, sigma_particle, jlo) ! Z, KB, self%ZP(ii), NZR
-    ! from numerical recipies vol 2
-    use variables, only : N
-    integer, intent(inout) :: jlo ! sigma layer below particle?
-    integer, intent(in) :: KB ! number of sigma layers
-    real(sp), dimension(KB), intent(in) :: sigma_nodes ! sigma coordinate value
-    real(sp), intent(in) :: sigma_particle ! depth of particle
-
-    integer :: inc, jhi, jm
-    logical :: ascnd
-
-    ascnd = (sigma_nodes(KB) > sigma_nodes(1)) ! bottom sigma layer greater than first layer
-    if ((jlo <= 0) .or. (jlo > KB)) then
-      jlo = 0
-      jhi = KB + 1
-      goto 3
-    endif
-    inc = 1
-
-    if ((sigma_particle >= sigma_nodes(jlo)) .eqv. ascnd) then
-      1    jhi = jlo + inc
-      if(jhi > KB)then
-        jhi=n+1
-      else if ((sigma_particle >= sigma_nodes(jhi)) .eqv. ascnd) then
-        jlo = jhi
-        inc = inc + inc
-        goto 1
-      end if
-    else
-      jhi = jlo
-      2    jlo = jhi - inc
-      if (jlo < 1) then
-        jlo=0
-      else if ((sigma_particle < sigma_nodes(jlo)) .eqv. ascnd) then
-        jhi = jlo
-        inc = inc + inc
-        go to 2
-      end if
-    end if
-    3 if (jhi-jlo == 1) then
-      if (sigma_particle == sigma_nodes(KB)) jlo = KB - 1
-      if (sigma_particle == sigma_nodes(1)) jlo = 1
-      return
-    end if
-    jm = (jhi + jlo)/2
-    if (sigma_particle >= sigma_nodes(jm) .eqv. ascnd) then
-      jlo = jm
-    else
-      jhi = jm
-    end if
-    go to 3
-
-  end subroutine hunt
-
-
-  subroutine spline(x, y, n, yp1, ypn, y2)
-    ! from numerical recipies vol 2, but modfied so that nmax=50
-    integer, intent(in)  :: n
-    real(sp), intent(in) :: x(n), y(n), yp1, ypn
-    real(sp), intent(out), dimension(n) :: y2
-
-    integer :: i, k
-    integer, parameter :: nmax=50
-    real(sp) :: p, qn, sig, un
-    real(sp), dimension(nmax) :: u
-
-    if (yp1 > 0.99e30) then ! force natural lower boundary
-      y2(1) = ZERO
-      u(1) = ZERO
-    else ! or set specific values
-      y2(1) = -0.5_SP
-      u(1) = (3.0_SP/(x(2)-x(1)))*((y(2)-y(1))/(x(2)-x(1))-yp1)
-    end if
-    do i = 2, n-1 ! tridiagonal algorithm decomp
-      sig = (x(i) - x(i-1)) / (x(i+1) - x(i-1))
-      p = sig * y2(i-1) + 2.0_SP
-      y2(i) = (sig-1.) / p
-      u(i) = (6.0*((y(i+1) - y(i)) / (x(i+1) - x(i)) - (y(i) - y(i-1))/(x(i) - x(i-1)))/(x(i+1) - x(i-1)) - (- sig*u(i-1)))/p
-    end do
-    if (ypn > 0.99e30) then ! force natural upper boundary
-      qn = ZERO
-      un = ZERO
-    else
-      qn = 0.5_SP
-      un = (3.0_SP/(x(n)-x(n-1)))*(ypn-(y(n)-y(n-1))/(x(n)-x(n-1)))
-    end if
-    y2(n) = (un - qn * u(n-1)) / (qn * y2(n-1) + 1.0_SP)
-    do k = n-1, 1, -1
-      y2(k) = y2(k) * y2(k+1) + u(k)
-    end do
-
-  end subroutine spline
 
 end module

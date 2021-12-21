@@ -10,29 +10,29 @@ module Cyanobacteria
     save
 
     real(sp), parameter :: &
-            & colonyBaseRadius = 75.0_SP*10.0_SP**(-6.0_SP), & ! meters
-            & tempRef = 25.0_SP, & ! reference temperature for limit fcn
-            & tempOpt = 28.0_SP, & ! optimal growth temperature
-            & tempLethal = 35.0_SP, & ! lethal temperature
-            & excretionFrac = 0.1_SP, & ! unitless
-            & fixationMax = 11.4_SP, & ! maximum carbon fixation, per hour rate
-            & fixationBeta = 0.02_SP, & ! shape factor in fixation calculation
-            & respirationBasic = 0.004_SP, & ! basic respiration rate, per hour
-            & respirationActive = 0.2_SP, & ! active respiration rate, unitless
-            & densityMax = 1150.0_SP, & ! maximum empirical density of algal cells, kg/m^3
-            & densityMin = 1037.0_SP, & ! minimum empirical density of algal cells, kg/m^3
-            & vesicleDensity = 150.0_SP, & ! density of gas filled vesicles, kg/m^3
-            & cellFrac = 0.25_SP, & ! fraction of colony volume composed of cell material, unitless
-            & carbonRatioMax = 4.0_SP, & ! maximum empirical ratio of carbon reservoirs in algal cells, unitless
-            & vesicleFrac = 0.08_SP, & ! fraction of cell volume occupied by vesicles, unitless
-            & irradOpt = 250.0_SP, & ! optimal irradiance W/M^-2
-            & synthesisMax = 0.05_SP, & ! per hour rate
-            & tempFcnAlpha = 0.286_SP, & ! shape factor, unitless
-            & tempFcnBeta = 0.05_SP, &   ! shape coefficient, unitless
-            & cellDensityCoefficient = 0.7_SP, & ! shape coefficient, unitless
-            & lightExtinctionBiomass = 14.0_SP, & ! light extinction due to overlying biomass
-            & lightAttenuationWater = 0.15_SP, & ! light extinction coefficient due to coastal waters
-            & shading_upscale = 1.0_SP
+            & colonyBaseRadius = 75.0*10.0**(-6.0), & ! meters
+            & tempRef = 25.0, & ! reference temperature for limit fcn
+            & tempOpt = 28.0, & ! optimal growth temperature
+            & tempLethal = 35.0, & ! lethal temperature
+            & excretionFrac = 0.1, & ! unitless
+            & fixationMax = 11.4, & ! maximum carbon fixation, per hour rate
+            & fixationBeta = 0.02, & ! shape factor in fixation calculation
+            & respirationBasic = 0.004, & ! basic respiration rate, per hour
+            & respirationActive = 0.2, & ! active respiration rate, unitless
+            & densityMax = 1150.0, & ! maximum empirical density of algal cells, kg/m^3
+            & densityMin = 1037.0, & ! minimum empirical density of algal cells, kg/m^3
+            & vesicleDensity = 150.0, & ! density of gas filled vesicles, kg/m^3
+            & cellFrac = 0.25, & ! fraction of colony volume composed of cell material, unitless
+            & carbonRatioMax = 4.0, & ! maximum empirical ratio of carbon reservoirs in algal cells, unitless
+            & vesicleFrac = 0.08, & ! fraction of cell volume occupied by vesicles, unitless
+            & irradOpt = 250.0, & ! optimal irradiance W/M^-2
+            & synthesisMax = 0.05, & ! per hour rate
+            & tempFcnAlpha = 0.286, & ! shape factor, unitless
+            & tempFcnBeta = 0.05, &   ! shape coefficient, unitless
+            & cellDensityCoefficient = 0.7, & ! shape coefficient, unitless
+            & lightExtinctionBiomass = 14.0, & ! light extinction due to overlying biomass
+            & lightAttenuationWater = 0.15, & ! light extinction coefficient due to coastal waters
+            & shading_upscale = 1.0
 
     type, public, extends(Agent) :: CyanobacteriaAgent
         ! algal state inherited from lagrangian particle class
@@ -92,14 +92,14 @@ contains
             self%mclrProductionRate = zero
             self%mclrExcretionRate = zero
         else if (experimentType == 2) then
-            self%mclrProductionRate = 0.0001_sp
+            self%mclrProductionRate = 0.0001
             self%mclrExcretionRate = zero
         else if (experimentType == 3) then
-            self%mclrProductionRate = 0.0001_sp
-            self%mclrExcretionRate = 0.0001_sp
+            self%mclrProductionRate = 0.0001
+            self%mclrExcretionRate = 0.0001
         else if (experimentType == 4) then
             self%mclrProductionRate = zero
-            self%mclrExcretionRate = 0.0001_sp
+            self%mclrExcretionRate = 0.0001
         else
             write (*, *) "Problem with experiment type, stopping..."; stop
         end if
@@ -232,7 +232,7 @@ contains
         call colony_QsortC(proxy_depth(:), indices(:)) ! sort indices by position from shallowest to deepest
 
         self%biomass(:) = (self%carbohydrate(:) + self%protein(:))/domain%meshArea ! contribution to shading by particle
-        avg_self_shade(:) = (exp(-lightExtinctionBiomass*self%biomass(:)) - 1.0_SP)/(-lightExtinctionBiomass*self%biomass(:)) ! average area under self shading curve from zero to self biomass
+        avg_self_shade(:) = (exp(-lightExtinctionBiomass*self%biomass(:)) - 1.0)/(-lightExtinctionBiomass*self%biomass(:)) ! average area under self shading curve from zero to self biomass
         self%irradiance(indices(1)) = domain%globalIrradiance ! first particle unshaded
 
         do ii = 2, self%ndrft
@@ -244,10 +244,10 @@ contains
         self%irradiance(:) = self%irradiance(:)*avg_self_shade(:) ! multiply by particle self shading component
         self%irradiance(:) = self%irradiance(:)*exp(self%zpt(:)*lightAttenuationWater) ! find irradiance at particle position after attenuation
         irradRatio(:) = self%irradiance(:)/irradOpt ! substitution function
-        fixationCoef(:) = (2.0_SP + fixationBeta)*irradRatio(:)/(irradRatio(:)**2.0_SP + &
-            & fixationBeta*irradRatio(:) + 1.0_SP) ! scaling coefficient for transfer
+        fixationCoef(:) = (2.0 + fixationBeta)*irradRatio(:)/(irradRatio(:)**2.0 + &
+            & fixationBeta*irradRatio(:) + 1.0) ! scaling coefficient for transfer
         ! actual mass transfer
-        colony_carbonFixation(:) = fixationMax*fixationCoef(:)*self%protein(:)*(1.0_SP - vesicleFrac) * &
+        colony_carbonFixation(:) = fixationMax*fixationCoef(:)*self%protein(:)*(1.0 - vesicleFrac) * &
             & (carbonRatioMax - self%carbohydrate(:)/self%protein(:))/carbonRatioMax 
 
     end function
@@ -291,7 +291,7 @@ colony_carbonExcretion(:) = excretionFrac*self%tempFunction()*(respirationBasic*
         real(sp), dimension(self%ndrft) :: limit ! array of output coefficients for each particle
 
         limit(:) = (self%TEMP(:) / tempOpt * (  ((self%TEMP(:) - tempLethal)/(tempOpt - tempLethal))** &
-            & ( (tempRef - tempOpt) / tempOpt )  ))**(4.0_SP)
+            & ( (tempRef - tempOpt) / tempOpt )  ))**(4.0)
 
     end function
 
@@ -375,12 +375,12 @@ colony_carbonExcretion(:) = excretionFrac*self%tempFunction()*(respirationBasic*
             mc_excretion(:) = self%release()
             mc_production(:) = self%production()
 
-            mcoef = merge(A_RK(ii + 1), 1.0_sp, ii < mstage)
+            mcoef = merge(A_RK(ii + 1), 1.0, ii < mstage)
 
             calc_array(:) = synthesis(:)/respiration(:)
             where (((synthesis(:) + respiration(:))*dti*mcoef) > (self%carbohydrate(:) + fixation(:)*dti*mcoef))
-                synthesis(:) = (self%carbohydrate(:)/dti/mcoef + fixation(:))/(1.0_SP + 1.0_SP/calc_array(:))
-                respiration(:) = (self%carbohydrate(:)/dti/mcoef + fixation(:))/(1.0_SP + calc_array(:))
+                synthesis(:) = (self%carbohydrate(:)/dti/mcoef + fixation(:))/(1.0 + 1.0/calc_array(:))
+                respiration(:) = (self%carbohydrate(:)/dti/mcoef + fixation(:))/(1.0 + calc_array(:))
             end where
 
             where (excretion(:)*dti*mcoef > (self%protein(:) + synthesis(:)*dti*mcoef))
@@ -426,26 +426,26 @@ colony_carbonExcretion(:) = excretionFrac*self%tempFunction()*(respirationBasic*
             ! update dissolved toxin  at particle position for each stage
             self%zp(:) = self%sigma(self%zpt(:)) ! update sigma
             self%layer(:) = self%zlocate(self%zp(:)) ! update layer
-            idz(:) = float(KBM1)*abs((1.0_SP/float(KBM1)*(self%layer(:) - 1)) - self%zp(:)) ! relative distance from layer above
-            where (idz(:) > 1.0_SP)
-                idz(:) = 1.0_SP
+            idz(:) = float(KBM1)*abs((1.0/float(KBM1)*(self%layer(:) - 1)) - self%zp(:)) ! relative distance from layer above
+            where (idz(:) > 1.0)
+                idz(:) = 1.0
             elsewhere(idz(:) < zero)
                 idz(:) = zero
             end where
 
             where (self%layer(:) == 1)
                 domain%verticaltox(self%layer(:)) = domain%verticaltox(self%layer(:)) + &
-                    & 2.0_SP*B_RK(ii)*dti*chi_dissolved(:,ii)*(1.0_SP - idz(:))/domain%layerDepth ! add to sigma above
+                    & 2.0*B_RK(ii)*dti*chi_dissolved(:,ii)*(1.0 - idz(:))/domain%layerDepth ! add to sigma above
                 domain%verticaltox(self%layer(:)+1) = domain%verticaltox(self%layer(:)+1) + &
                     & B_RK(ii)*dti*chi_dissolved(:,ii)*idz(:)/domain%layerDepth ! add to sigma below
             elsewhere(self%layer(:) == KBM1)
                 domain%verticaltox(self%layer(:)) = domain%verticaltox(self%layer(:)) + &
-                    & B_RK(ii)*dti*chi_dissolved(:,ii)*(1.0_SP - idz(:))/domain%layerDepth ! add to sigma above
+                    & B_RK(ii)*dti*chi_dissolved(:,ii)*(1.0 - idz(:))/domain%layerDepth ! add to sigma above
                 domain%verticaltox(self%layer(:)+1) = domain%verticaltox(self%layer(:)+1) + &
-                    & 2.0_SP*B_RK(ii)*dti*chi_dissolved(:,ii)*idz(:)/domain%layerDepth ! add to sigma below
+                    & 2.0*B_RK(ii)*dti*chi_dissolved(:,ii)*idz(:)/domain%layerDepth ! add to sigma below
             elsewhere
                 domain%verticaltox(self%layer(:)) = domain%verticaltox(self%layer(:)) + &
-                    & B_RK(ii)*dti*chi_dissolved(:,ii)*(1.0_SP - idz(:))/domain%layerDepth ! add to sigma above
+                    & B_RK(ii)*dti*chi_dissolved(:,ii)*(1.0 - idz(:))/domain%layerDepth ! add to sigma above
                 domain%verticaltox(self%layer(:)+1) = domain%verticaltox(self%layer(:)+1) + &
                     & B_RK(ii)*dti*chi_dissolved(:,ii)*idz(:)/domain%layerDepth ! add to sigma below
             end where
@@ -472,15 +472,15 @@ colony_carbonExcretion(:) = excretionFrac*self%tempFunction()*(respirationBasic*
         real(sp), dimension(self%ndrft) :: noise
         real(sp), dimension(self%ndrft) :: wdiff, kzp, dkzp ! diffusivity and first derivative at particle positions
         integer :: substeps
-        real(sp), parameter :: variance = 1.0_SP, AC = 1.0_SP/6.0_SP, BIG = 1.0E30
+        real(sp), parameter :: variance = 1.0, AC = 1.0/6.0, BIG = 1.0E30
 
         ! vertical random walk
         do substeps = 1, int(dti/dtrw)
            
-            kzp(:) = 60.0_SP*60.0_SP*10.0_SP**(-4.0_SP)*0.1
-            dkzp(:) = 0.0_SP
+            kzp(:) = 60.0*60.0*10.0**(-4.0)*0.1
+            dkzp(:) = 0.0
             wdiff(:) = dkzp(:)*dtrw + noise * &
-                & sqrt((2.0_sp*kzp(:) + dkzp(:)**(2.0_SP))*dtrw/variance) ! Ross and Sharples 2004 eqn 1
+                & sqrt((2.0*kzp(:) + dkzp(:)**2.0)*dtrw/variance) ! Ross and Sharples 2004 eqn 1
             self%zpt(:) = self%zpt(:) + wdiff(:)
             self%zpt(:) = min(self%zpt(:), self%ep(:)) ! stop at surface during integration
             self%zpt(:) = max(self%zpt(:), self%hp(:)) ! stop at sediment during integration
@@ -498,29 +498,28 @@ colony_carbonExcretion(:) = excretionFrac*self%tempFunction()*(respirationBasic*
 
         self%delta_rho(:) = self%rho(:) - self%density() ! water density array - colony density fcn
         colony_stokesVelocity(:) = &
-                & 60.0_SP*60.0_SP*(2.0_SP/9.0_SP)*grav*self%radius(:)**(2.0_SP)* &
-                & self%delta_rho(:)*self%viscosity()**(-1.0_SP)
+                & (60.0**2)*(2.0/9.0)*grav*self%radius(:)**2.0* &
+                & self%delta_rho(:)*self%viscosity()**(-1.0)
 
     end function
 
-    elemental function algae_density()
-
+    elemental function algae_density(carbohydrate, protein, water_density)
+        ! colony density including contibutions of mucus and gas vacuoles
+        real(sp) :: algae_density, carbohydrate, protein, water_density, cell_density
+        
+        ! array of density without mucus and vacuoles
+        cell_density = densityMin + (densityMax - densityMin) * &
+            & (1.0 - exp(-cellDensityCoefficient * carbohydrate/protein))
+        algae_density = (1.0 - cellFrac) * (water_density + 0.7) + &
+            & cellFrac * ((1.0 - vesicleFrac) * cell_density + vesicleFrac*vesicleDensity)
     end function
 
     function colony_algaeDensity(self)
         ! colony density including contibutions of mucus and gas vacuoles
         class(CyanobacteriaAgent), intent(in) :: self
         real(sp), dimension(self%ndrft) :: colony_algaeDensity ! output array of overall colony density
-        real(sp), dimension(self%ndrft) :: cellDensity ! array of density without mucus and vacuoles
 
-        cellDensity(:) = &
-                & densityMin + (densityMax - densityMin)*(1.0_SP - exp(-cellDensityCoefficient* &
-                & self%carbohydrate(:)/self%protein(:)))
-
-        colony_algaeDensity(:) = &
-                & (1.0_SP - cellFrac)*(self%rho(:) + 0.7_SP) + &
-                & cellFrac*((1.0_SP - vesicleFrac)*cellDensity(:) + vesicleFrac*vesicleDensity)
-
+        colony_algaeDensity(:) = algae_density(self%carbohydrate, self%protein, self%rho)
     end function
 
     function colony_dynamicViscosity(self)
@@ -530,12 +529,12 @@ colony_carbonExcretion(:) = excretionFrac*self%tempFunction()*(respirationBasic*
         real(sp), dimension(self%ndrft) :: A, B, visc_pure, colony_dynamicViscosity
 
         if (simple) then
-            colony_dynamicViscosity(:) = 10.0_SP**(-3.0_SP)*10.0_SP**(-1.65_SP + 262.0_SP/(self%temp(:) + 169.0_SP))
+            colony_dynamicViscosity(:) = 10.0**(-3.0)*10.0**(-1.65 + 262.0/(self%temp(:) + 169.0))
         else ! Sharqway et al 2010
-            A(:) = 1.541_SP + 19.998_SP*10.0_SP**(-2.0_SP)*self%temp - 9.52_SP*10.0_SP**(-5.0_SP)*self%temp**(2.0_SP)
-            B(:) = 7.974_SP - 7.561_SP*10.0_SP**(-2.0_SP) + 4.724_SP*10.0_SP**(-4.0_SP)*self%temp**(2.0_SP)
-            visc_pure(:) = 4.2844_SP*10.0_SP**(-5.0_SP) + (0.157_SP*(self%temp + 64.993_SP)**(2.0_SP) - 91.296_SP)**(-1.0_SP)
-            colony_dynamicViscosity(:) = visc_pure*(1.0_SP + A*self%sal + B*self%sal**(2.0_SP))
+            A(:) = 1.541 + 19.998*10.0**(-2.0)*self%temp - 9.52*10.0**(-5.0)*self%temp**(2.0)
+            B(:) = 7.974 - 7.561*10.0**(-2.0) + 4.724*10.0**(-4.0)*self%temp**(2.0)
+            visc_pure(:) = 4.2844*10.0**(-5.0) + (0.157*(self%temp + 64.993)**(2.0) - 91.296)**(-1.0)
+            colony_dynamicViscosity(:) = visc_pure*(1.0 + A*self%sal + B*self%sal**(2.0))
         end if
     end function
 
