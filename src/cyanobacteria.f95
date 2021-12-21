@@ -328,14 +328,12 @@ colony_carbonExcretion(:) = excretionFrac*self%tempFunction()*(respirationBasic*
 
     subroutine colony_verticalMovement(self)
         ! update position due to buoyant movement: calls velocity(), zinterp(), zlocate(), sigma()
-        use variables, only: sp ! single precision
-        use variables, only: KB, KBM1
         use simulation, only: domain
-        use variables, only: dti, zero ! integration step
+        use variables, only: dti, zero, KBM1 ! integration step
         use variables, only: A_RK, B_RK, MSTAGE, strict_integration ! runge-kutta integration parameters
 
         class(CyanobacteriaAgent), intent(inout) :: self
-        integer :: ii, jj
+        integer :: ii
         real(sp) :: mcoef
         real(sp), dimension(self%ndrft) :: idz, ini_position, ini_sigma, ini_microcystin, ini_carbohydrate, ini_protein ! initial valuess
         real(sp), dimension(self%ndrft, 0:MSTAGE) :: chi_dissolved, chi_position, chi_carbohydrate, chi_protein, chi_microcystin ! stage fcn evaluations
@@ -468,37 +466,17 @@ colony_carbonExcretion(:) = excretionFrac*self%tempFunction()*(respirationBasic*
 
     subroutine colony_random_walk(self, noise)
         ! vertical and horizontal random walk
-        use variables, only: dti, dtrw, z, KB, KBM1, KBM2
-        use simulation, only: domain
-        use random, only : random_number_generator
+        use variables, only: dti, dtrw
         class(CyanobacteriaAgent), intent(inout) :: self
 
         real(sp), dimension(self%ndrft) :: noise
         real(sp), dimension(self%ndrft) :: wdiff, kzp, dkzp ! diffusivity and first derivative at particle positions
-        real(sp), dimension(KB) :: kspline_in, kspline_out, zspline, dkspline, smooth1, smooth2
-        integer :: substeps, ii
+        integer :: substeps
         real(sp), parameter :: variance = 1.0_SP, AC = 1.0_SP/6.0_SP, BIG = 1.0E30
-
-        ! Spline by Ross and Sharples (2004) to creates continuous and differentiable diffusivity profile, to meet time step criterion DT<<MIN(1/K")
-        !smooth2(:) = domain%verticaldiff(1:KB) ! smoothed array of first sigma layer from initial values
-        !    smooth2(2:KBM1) = (domain%verticaldiff(1:KBM2) + domain%verticaldiff(2:KBM1)) / 2.0_SP ! two point filter
-        !    smooth1(:) = smooth2(:) ! copy first two point filter
-        !    smooth1(2:KBM1) = AC*smooth2(1:KBM2) + (1.0_SP - 2.0_SP*AC)*smooth2(2:KBM1) + AC*smooth2(3:KB) ! three point smoothing filter [1/6 2/3 1/6]
-        !
-        !    do ii = 1, KB
-        !       kspline_in(KB-ii+1) = smooth1(ii) ! reverse smoothed array for spline subroutine
-        !       zspline(KB-ii+1) = z(ii) ! reverse order of sigma layer depths for spline subroutine
-        !    end do
-        !    call spline(zspline, kspline_in, KB, BIG, BIG, kspline_out) ! create spline, natural (K'=0) at boundaries
-        !    do ii = 1, KB
-        !      dkspline(ii) = kspline_out(KB-ii+1) ! revert output to original order
-        !    end do
 
         ! vertical random walk
         do substeps = 1, int(dti/dtrw)
-            !kzp(:) = self%zinterp(smooth1) ! interpolate diffusivity at particle depth
-            !dkzp(:) = self%zinterp(dkspline) ! interpolate first derivative at particle depth
-            !kzp(:) = max(kzp(:), 0.0_SP) ! remove negative values
+           
             kzp(:) = 60.0_SP*60.0_SP*10.0_SP**(-4.0_SP)*0.1
             dkzp(:) = 0.0_SP
             wdiff(:) = dkzp(:)*dtrw + noise * &
@@ -522,6 +500,10 @@ colony_carbonExcretion(:) = excretionFrac*self%tempFunction()*(respirationBasic*
         colony_stokesVelocity(:) = &
                 & 60.0_SP*60.0_SP*(2.0_SP/9.0_SP)*grav*self%radius(:)**(2.0_SP)* &
                 & self%delta_rho(:)*self%viscosity()**(-1.0_SP)
+
+    end function
+
+    elemental function algae_density()
 
     end function
 

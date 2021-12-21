@@ -1,42 +1,31 @@
 module Fish
 
-    use variables
     use lagrangian, only: agent
-    use variables, only: zero
+    use variables, only: ZERO, SP, h1h1, h2h2, M, KB
     
     implicit none
     save
 
-      ! fish constants
-    real(sp), parameter :: &
-            & PI = 3.141592653_sp, &
-            & PI2 = 6.283185307_sp, &
-            & traveld = 0.5787_sp, &  ! m/s = 50 km/day, test @ 20 and 2
-            & epsx = sqrt((traveld**2.0)*0.5_sp), &
-            & epsx_sigma= 0.5_sp*traveld, &
-            & sal_opt = 30.0_sp, & ! test @ 2.0
-            & sal_sigma = 5.0_sp
-
-    real(sp), dimension(0:4), parameter :: &
-            & speedtable = (/0.50_SP, 1.00_SP, 0.50_SP, 0.25_SP, 0.33_SP/), &
-            & angletable = (/2.00_SP, 0.25_SP, 0.25_SP, 1.00_SP, 0.50_SP/)
-
-    real(sp), dimension(0:1), parameter :: &
-            & memory = (/0.5_SP, 0.96_SP/) ! unitless, memory coefficients
-
-    real(sp), dimension(1:2), parameter :: &
-            & threshold = (/0.005_SP*10.0_SP**(-6.0_SP), 0.5_SP/), & ! detection thresholds
-            & weight = (/0.7_SP, 1.0_SP/) ! sensitivity analyis @ (/0.1_SP, 1.0_SP/)
-
-    real(sp), parameter :: &
-            & initBodylength = 0.1_SP,                      & ! meters
-            & growthMax = 0.0025_SP*12.0_SP*0.001_SP,   & ! conversion to meters per hour from mm per 5min
-            & util_cutoff = 0.01,                           & ! level at which default behavior is chosen
-            & absorptionRate = 0.01_SP*10.0_SP*0.046748_SP, & ! grams of toxin / m^2 / hour / [toxin]
-            & depurationRate = 0.01_SP,                     & ! sensitivity analysis @ 0.005
-            & ingestionRate = 0.001_SP*0.02_SP,             &
-            & toxfrac = 0.015_SP*10.0_SP**(-6.0_SP),        &
-            & speedimpair = 0.9_SP                            ! sensitivity analysis @ 0.5
+    real(SP), parameter :: &
+            & PI = 3.141592653, &
+            & travel_distance = 0.5787, & ! m/s = 50 km/day, test @ 20 and 2
+            & epsx = sqrt((travel_distance**2.0)*0.5), &
+            & epsx_sigma= 0.5*travel_distance, &
+            & salinity_optimal = 30.0, & ! test @ 2.0
+            & salinity_sigma_coef = 5.0, &
+            & speedtable(0:4) = (/0.50, 1.00, 0.50, 0.25, 0.33/), &
+            & angletable(0:4) = (/2.00, 0.25, 0.25, 1.00, 0.50/), &
+            & memory(0:1) = (/0.5, 0.96/), & ! unitless, memory coefficients
+            & threshold(1:2) = (/0.005*10.0**(-6.0), 0.5/), & ! detection thresholds
+            & weight(1:2) = (/0.7, 1.0/), & ! sensitivity analyis @ (/0.1, 1.0/)
+            & initBodylength = 0.1, & ! meters
+            & growthMax = 0.0025*12.0*0.001, & ! conversion to meters per hour from mm per 5min
+            & util_cutoff = 0.01, & ! level at which default behavior is chosen
+            & absorptionRate = 0.01*10.0*0.046748, & ! grams of toxin / m^2 / hour / [toxin]
+            & depurationRate = 0.01, & ! sensitivity analysis @ 0.005
+            & ingestionRate = 0.001*0.02, &
+            & toxfrac = 0.015*10.0**(-6.0), &
+            & speedimpair = 0.9 ! sensitivity analysis @ 0.5
 
     logical, parameter :: &
             & enforce_default = .false., &
@@ -45,10 +34,13 @@ module Fish
 
     type, public, extends(Agent) :: FishAgent
 
-        logical, allocatable, dimension(:), private :: impaired
-        integer, allocatable, dimension(:), private :: last_rule
+        logical, allocatable, dimension(:), private :: &
+                & impaired
 
-        real(sp), allocatable, dimension(:), private :: &
+        integer, allocatable, dimension(:), private :: &
+                & last_rule
+
+        real(SP), allocatable, dimension(:), private :: &
                 & reverse, &
                 & suitability, & ! spatial varying growth rate
                 & length, &
@@ -59,17 +51,16 @@ module Fish
                 & angle, &
                 & pathway
 
-        real(sp), allocatable, dimension(:, :), private :: &
-                & event, &        ! fish x agents
-                & probability, &  ! fish x (agents x timescales)
-                & utility         ! fish x (agents x timescales)
+        real(SP), allocatable, dimension(:, :), private :: &
+                & event, & ! fish x agents
+                & probability, & ! fish x (agents x timescales)
+                & utility ! fish x (agents x timescales)
 
     contains
         ! Call in the order: dynamics, toxicity, movement
         procedure, public :: init => fish_initialize
         procedure, public :: writeState => fish_writeState
         procedure, public :: movement => fish_movement ! behavior selection and movement
-
     end type; 
 
 contains
@@ -77,12 +68,13 @@ contains
     subroutine fish_initialize(self, random_angle)
 
         class(FishAgent), intent(inout) :: self
-        real(sp), intent(in) :: random_angle
+        real(SP), intent(in) :: random_angle
 
         self%species = 'fish'
         call self%readPosition() ! read particles counts and allocates position variables
 
-        allocate (self%suitability(self%ndrft), &
+        allocate (&
+                & self%suitability(self%ndrft), &
                 & self%impaired(self%ndrft), &
                 & self%microcystin(self%ndrft), &
                 & self%dissolved(self%ndrft), &
@@ -101,10 +93,10 @@ contains
         self%event = 0
         self%last_rule = 0
 
-        self%angle = pi2*random_angle
+        self%angle = 2.0*PI*random_angle
         self%length = initBodylength
-        self%effective_length = 1.0_sp
-        self%mass = 2.0_SP*10.0_SP**(-6.0_SP)*(1000.0*self%length(:))**(3.38_SP)
+        self%effective_length = 1.0
+        self%mass = 2.0*10.0**(-6.0)*(1000.0*self%length)**(3.38)
 
         self%microcystin = zero
         self%dissolved = zero
@@ -116,48 +108,46 @@ contains
 
     end subroutine
 
-    subroutine fish_writeState(self, fid)
-        use simulation, only: domain ! domain structure for elapsed time
+    subroutine fish_writeState(self, fid, time)
+        real(SP), intent(in) :: time
         class(FishAgent), intent(in) :: self ! cyanobacteria extended type
         integer, intent(in) :: fid ! persistent file unit number
         integer :: ii
 
-        write (fid, "(1F10.2,9000(I6,3F20.6))") domain%time, &
-                & (self%itag(ii), self%mass(ii), 1000.0_SP*self%microcystin(ii), zero, ii=1, self%ndrft)
+        write (fid, "(1F10.2,9000(I6,3F20.6))") time, &
+                & (self%itag(ii), self%mass(ii), 1000.0*self%microcystin(ii), zero, ii=1, self%ndrft)
 
     end subroutine
 
 
     subroutine kinesis(self, noise, deltat, salinity, temperature, density, HIN, EIN)
    
-        implicit none
-
         class(agent), intent(inout) :: self
-        real(sp), intent(in) :: noise(self%ndrft, 2)
-        real(sp), intent(in) :: deltat ! time step, usually DTI
-        real(sp), dimension(0:M, KB), intent(in) :: salinity, temperature, density ! grid based field for kinesis (usually salinity)
-        real(sp), dimension(0:M), intent(in) :: HIN, EIN ! grid based field for kinesis (usually salinity)
+        real(SP), intent(in) :: noise(self%ndrft, 2)
+        real(SP), intent(in) :: deltat ! time step, usually DTI
+        real(SP), dimension(0:M, KB), intent(in) :: salinity, temperature, density ! grid based field for kinesis (usually salinity)
+        real(SP), dimension(0:M), intent(in) :: HIN, EIN ! grid based field for kinesis (usually salinity)
 
-        real(sp), dimension(self%ndrft) :: PDXT, PDYT
+        real(SP), dimension(self%ndrft) :: PDXT, PDYT
         logical, dimension(self%ndrft) :: inwater
         integer :: ii
-        real(sp) :: pp1, p1
+        real(SP) :: pp1, p1
 
         do ii = 1, self%ndrft
 
-            pp1 = (self%sal(ii) - sal_opt) / sal_sigma
-            p1 = exp(-0.5_SP * (pp1 * pp1))
+            pp1 = (self%sal(ii) - salinity_optimal) / salinity_sigma_coef
+            p1 = exp(-0.5 * (pp1 * pp1))
 
-            self%up(ii) = self%UP(ii) * h1h1 * p1 + (noise(ii,1)*epsx_sigma + epsx) * (1.0_SP - h2h2 * p1) ! Update U and V velocities
-            self%up(ii) = self%VP(ii) * h1h1 * p1 + (noise(ii,2)*epsx_sigma + epsx) * (1.0_SP - h2h2 * p1)
+            self%up(ii) = self%UP(ii) * h1h1 * p1 + (noise(ii,1)*epsx_sigma + epsx) * (1.0 - h2h2 * p1) ! Update U and V velocities
+            self%up(ii) = self%VP(ii) * h1h1 * p1 + (noise(ii,2)*epsx_sigma + epsx) * (1.0 - h2h2 * p1)
             pdxt(ii) = self%xp(ii) + self%up(ii) * deltat * float(self%indomain(ii)) ! Update position
             pdyt(ii) = self%yp(ii) + self%vp(ii) * deltat * float(self%indomain(ii))
 
         end do
 
         ! Evaluate Temporary Location
-        self%found(:) = 0
-        inwater(:) = .true.
+        self%found = 0
+        inwater = .true.
 
         ! Update only particles still in water
         call self%find_host_element(pdxt, pdyt, inwater)
@@ -172,38 +162,37 @@ contains
 
     end subroutine
 
-    subroutine fish_movement(self, noise)
+    subroutine fish_movement(self, noise, carbon_ratio)
 
         use simulation, only: domain
-        use cyanobacteria, only: cyano
-        use variables, only: dti, vxmin, vxmax, vymin, vymax, M, KBM1
+        use variables, only: dti, vxmin, vxmax, vymin, vymax
 
         class(FishAgent), intent(inout) :: self
         integer :: ii, jj, rule_index
-        real(sp), intent(in) :: noise(self%ndrft)
-        real(sp) :: maxutil, speed
-        real(sp), dimension(self%ndrft) :: absorption, depuration, ingestion, mass
+        real(SP), intent(in) :: noise(self%ndrft), carbon_ratio(self%ndrft)
+        real(SP) :: maxutil, speed
+        real(SP), dimension(self%ndrft) :: absorption, depuration, ingestion, mass
 
         maxutil = zero
         speed = zero
-        self%suitability(:) = 0.5_SP*(1.0_sp + sin(pi2*(self%xp(:) - vxmin - (vxmax/4.0_SP))/(vxmax - vxmin)))
+        self%suitability = 0.5*(1.0 + sin(2.0*PI*(self%xp - vxmin - (vxmax/4.0))/(vxmax - vxmin)))
 
-        where (self%microcystin(:)/self%mass(:) > toxfrac) ! induce impairment if toxin level above some threshold
-            self%impaired(:) = .true.
-            self%effective_length(:) = speedimpair
+        where (self%microcystin/self%mass > toxfrac) ! induce impairment if toxin level above some threshold
+            self%impaired = .true.
+            self%effective_length = speedimpair
         elsewhere
-            self%impaired(:) = .false.
-            self%effective_length(:) = 1.0_SP
+            self%impaired = .false.
+            self%effective_length = 1.0
         end where
 
         self%event(:, :) = zero
-        where (self%microcystin(:) > threshold(1)) self%event(:, 1) = 1.0_SP ! intoxication/mortality
-        where (self%suitability(:) > threshold(2)) self%event(:, 2) = 1.0_SP ! current suitability
+        where (self%microcystin > threshold(1)) self%event(:, 1) = 1.0 ! intoxication/mortality
+        where (self%suitability > threshold(2)) self%event(:, 2) = 1.0 ! current suitability
 
         do ii = 1, self%ndrft
 
-            self%probability(ii, 1:2) = (1.0_SP - memory(0:1))*self%event(ii, 1) + memory(0:1)*self%probability(ii, 1:2)
-            self%probability(ii, 3:4) = (1.0_SP - memory(0:1))*self%event(ii, 2) + memory(0:1)*self%probability(ii, 3:4)
+            self%probability(ii, 1:2) = (1.0 - memory(0:1))*self%event(ii, 1) + memory(0:1)*self%probability(ii, 1:2)
+            self%probability(ii, 3:4) = (1.0 - memory(0:1))*self%event(ii, 2) + memory(0:1)*self%probability(ii, 3:4)
 
             self%utility(ii, 0) = 0.01
             self%utility(ii, 1:2) = weight(1)*self%probability(ii, 1:2)
@@ -226,49 +215,48 @@ contains
             end if
 
             self%last_rule(ii) = rule_index ! store last behavior
-            self%reverse(ii) = merge(1.0_SP, zero, ((rule_index == 1) .and. (self%reverse(ii) < 0.5_SP))) ! reverse direction for avoidance
+            self%reverse(ii) = merge(1.0_SP, zero, ((rule_index == 1) .and. (self%reverse(ii) < 0.5))) ! reverse direction for avoidance
             self%angle(ii) = self%angle(ii) + self%reverse(ii)*pi + &
                     & noise(ii)*pi*angletable(rule_index)
 
             if (self%angle(ii) < -pi) then
-                self%angle(ii) = self%angle(ii) + pi2 ! normalize angles to -pi, pi]
+                self%angle(ii) = self%angle(ii) + 2*PI ! normalize angles to -pi, pi]
             elseif (self%angle(ii) > pi) then
-                self%angle(ii) = self%angle(ii) - pi2
+                self%angle(ii) = self%angle(ii) - 2*PI
             end if
 
-            speed = dti*3600.0_sp*speedtable(rule_index)*self%length(ii)*self%effective_length(ii)
+            speed = dti*3600.0*speedtable(rule_index)*self%length(ii)*self%effective_length(ii)
             self%xp(ii) = self%xp(ii) + cos(self%angle(ii))*speed
             self%yp(ii) = self%yp(ii) + sin(self%angle(ii))*speed
 
         end do
 
         ! wrap positions
-        where (self%xp(:) > vxmax)
-            self%xp(:) = vxmin + (self%xp(:) - vxmax)
-        elsewhere(self%xp(:) < vxmin)
-            self%xp(:) = vxmax - (vxmin - self%xp(:))
+        where (self%xp > vxmax)
+            self%xp = vxmin + (self%xp - vxmax)
+        elsewhere(self%xp < vxmin)
+            self%xp = vxmax - (vxmin - self%xp)
         end where
 
-        where (self%yp(:) > vymax)
-            self%yp(:) = vymin + (self%yp(:) - vymax)
-        elsewhere(self%yp(:) < vymin)
-            self%yp(:) = vymax - (vymin - self%yp(:))
+        where (self%yp > vymax)
+            self%yp = vymin + (self%yp - vymax)
+        elsewhere(self%yp < vymin)
+            self%yp = vymax - (vymin - self%yp)
         end where
 
         ! length growth of individuals in meters per hour based on small pelagic fish
-        self%length(:) = self%length(:) + growthMax*self%suitability(:)*dti
+        self%length = self%length + growthMax*self%suitability*dti
 
         ! add consumed biomass to gut, and a portion of that to fish mass
-        mass(:) = 2.0_SP*10.0_SP**(-6.0_SP)*(1000.0_SP*self%length(:))**(3.38_SP)
-        ingestion(:) = (self%mass(:) - mass(:))*ingestionRate*merge(10.0_SP, 1.0_SP, ingestion_multiplier)* &
-                & sum(cyano%microcystin(:))/sum(cyano%carbohydrate(:) + cyano%protein(:))
+        mass = 2.0*10.0**(-6.0)*(1000.0*self%length)**(3.38)
+        ingestion = (self%mass - mass)*ingestionRate*merge(10.0, 1.0, ingestion_multiplier) * carbon_ratio
 
-        depuration(:) = depurationRate*self%microcystin(:)
-        absorption(:) = self%zinterp(domain%verticaltox(:))/domain%meshArea/500.0_SP*500.0_SP* &
-                & absorptionRate*self%length(:)
+        depuration = depurationRate * self%microcystin
+        absorption = self%zinterp(domain%verticaltox)/domain%meshArea/500.0*500.0* &
+                & absorptionRate*self%length
 
-        self%microcystin(:) = self%microcystin(:) + ingestion(:) + (absorption(:) - depuration(:))*dti
-        self%mass(:) = mass(:)
+        self%microcystin = self%microcystin + ingestion + (absorption - depuration)*dti
+        self%mass = mass
         self%pathway = zero
 
     end subroutine

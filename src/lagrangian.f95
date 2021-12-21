@@ -9,26 +9,28 @@ module Lagrangian
   type, public :: Agent
 
     character(len = 20) :: species ! string for identification
-    logical :: F_DEPTH = .false. ! fixed particle depth option in cartesian
+    logical :: fixed_depth = .false. ! fixed particle depth option in cartesian
     integer :: ndrft  ! total particles
 
+    logical, allocatable, dimension(:) :: &
+        & indomain ! Particle is in the domain
+
     integer, allocatable, dimension(:) :: &
-            & ITAG, &     ! Label for the particle
-            & host, &     ! Element containing particle
-            & layer, &    ! sigma layer
-            & found, &    ! Host element is found
-            & indomain, & ! Particle is in the domain
-            & SBOUND      ! Host element has a solid boundary node
+        & ITAG, &     ! Label for the particle
+        & host, &     ! Element containing particle
+        & layer, &    ! sigma layer
+        & found, &    ! Host element is found
+        & SBOUND      ! Host element has a solid boundary node
 
     real(SP), allocatable, dimension(:) :: &
-            & XP, YP, ZP, &       ! position of particle
-            & XPT, YPT, ZPT, &    ! absolute position of particle
-            & HP, &               ! Bathymetry at particle position
-            & EP, &               ! Free surface height at particle
-            & UP, VP, WP, &       ! velocity of particle
-            & TEMP, &             ! temperature at particle position
-            & SAL, &              ! salinity at particle position
-            & RHO                 ! density at particle position
+        & XP, YP, ZP, &       ! position of particle
+        & XPT, YPT, ZPT, &    ! absolute position of particle
+        & HP, &               ! Bathymetry at particle position
+        & EP, &               ! Free surface height at particle
+        & UP, VP, WP, &       ! velocity of particle
+        & TEMP, &             ! temperature at particle position
+        & SAL, &              ! salinity at particle position
+        & RHO                 ! density at particle position
 
   contains
 
@@ -68,7 +70,7 @@ contains
 
     do ii = 1, lag%ndrft
 
-      if (lag%indomain(ii) == 0) cycle
+      if (.not. lag%indomain(ii)) cycle
       if (isintriangle(VX(NV(lag%HOST(ii), 1:3)), VY(NV(lag%HOST(ii), 1:3)), x(ii), y(ii))) then
         lag%FOUND(ii) = 1
         cycle
@@ -165,7 +167,7 @@ contains
     self%HOST(:) = 1
     self%LAYER(:) = 1
     self%SBOUND(:) = 0
-    self%INDOMAIN(:) = 1
+    self%INDOMAIN(:) = .true.
     self%TEMP(:) = zero
     self%SAL(:) = zero
     self%RHO(:) = zero
@@ -186,7 +188,7 @@ contains
     write(*, *) '    Particle Class'
     write(*, *) '        Species       : ', self%species
     write(*, *) '        Quantity      : ', self%ndrft
-    write(*, *) '        Out of bounds : ', self%ndrft - sum(self%INDOMAIN)
+    write(*, *) '        Out of bounds : ', self%ndrft - count(self%INDOMAIN)
     write(*, *) '        Stopped       : ', self%ndrft - sum(self%FOUND)
     write(*, *)
 
@@ -297,51 +299,53 @@ contains
 
     real(SP), dimension(self%ndrft) :: PDXT, PDYT, PDZT, PDX, PDY, PDZ ! RK stage positions
     logical, dimension(self%ndrft) :: inwater
-    integer :: ii, NS
+    integer :: stage
     real(SP), dimension(0:N, KB) :: UL, VL, WL ! ERK stage velocities
     real(SP), dimension(0:M) :: ELL ! ERK stage freesurface height
-    real(SP), dimension(self%ndrft, 0:MSTAGE) :: CHIX, CHIY, CHIZ ! ERK stage function evaluation for velocities
+
+    real(SP), dimension(self%ndrft, 0:MSTAGE, 3) :: CHI ! ERK stage function evaluation for velocities
 
     real(SP), parameter :: EPS  = 10.0 ** (-5.0) ! depth of dry element
 
-    CHIX = zero ! Initialize Stage Functional Evaluations
-    CHIY = zero
-    CHIZ = zero
+    CHI = zero ! Initialize Stage Functional Evaluations
 
     PDXT(:) = self%xp(:) ! Assign position at previous time to current position
     PDYT(:) = self%yp(:)
     PDZT(:) = self%zp(:)
 
-    do NS = 1, MSTAGE ! Runge-Kutta integration stages
+    do stage = 1, MSTAGE ! Runge-Kutta integration stages
       ! New stage position updated from time zero position
-      PDX(:) = self%yp(:) + A_RK(NS) * dt * CHIX(:, NS - 1)
-      PDY(:) = self%yp(:) + A_RK(NS) * dt * CHIY(:, NS - 1)
-      PDZ(:) = self%zp(:) + A_RK(NS) * dt * CHIZ(:, NS - 1)
+      PDX(:) = self%yp(:) + A_RK(stage) * dt * CHI(:, stage - 1, 1)
+      PDY(:) = self%yp(:) + A_RK(stage) * dt * CHI(:, stage - 1, 2)
+      PDZ(:) = self%zp(:) + A_RK(stage) * dt * CHI(:, stage - 1, 3)
       PDZ(:) = max(PDZ(:), -(2.0 + PDZ(:))) ! reflect sigma depth off bottom
       PDZ(:) = min(PDZ(:), zero) ! keep sigma depth below free surface
 
       ! Calculate velocity field for stage using c_rk coefficients
-      UL = (1.0_SP - C_RK(NS)) * U1 + C_RK(NS) * U2
-      VL = (1.0_SP - C_RK(NS)) * V1 + C_RK(NS) * V2
-      WL = (1.0_SP - C_RK(NS)) * W1 + C_RK(NS) * W2
-      ELL = (1.0_SP - C_RK(NS)) * EL1 + C_RK(NS) * EL2
+      UL = (1.0_SP - C_RK(stage)) * U1 + C_RK(stage) * U2
+      VL = (1.0_SP - C_RK(stage)) * V1 + C_RK(stage) * V2
+      WL = (1.0_SP - C_RK(stage)) * W1 + C_RK(stage) * W2
+      ELL = (1.0_SP - C_RK(stage)) * EL1 + C_RK(stage) * EL2
 
       call self%INTERP_V(PDX, PDY, PDZ, UL, VL, WL)  ! interpolate particle velocity, automatically updates host elements
       call self%INTERP_ELH(PDX, PDY, HL, ELL, 0) ! interpolate elevation and bathymetry at stage particle position, zero denotes not to search for host elements
 
-      CHIX(:, NS) = self%UP(:) ! Update CHI values for next time step
-      CHIY(:, NS) = self%VP(:)
-      CHIZ(:, NS) = self%WP(:) / (self%HP(:) - self%EP(:))    ! delta_sigma/deltaT = ww/D
+      CHI(:, stage, 1) = self%UP(:) ! Update CHI values for next time step
+      CHI(:, stage, 2) = self%VP(:)
 
       where ((self%EP(:) - self%HP(:)) < EPS) 
-        CHIZ(:, NS) = zero ! Limit vertical motion in very shallow water
+        CHI(:, stage, 3) = zero ! Limit vertical motion in very shallow water
+      elsewhere
+        CHI(:, stage, 3) = self%WP(:) / (self%HP(:) - self%EP(:))    ! delta_sigma/deltaT = ww/D
       end where
     end do
 
-    do NS = 1, MSTAGE
-      PDXT(:) = PDXT(:) + dt * CHIX(:, NS) * B_RK(NS) * float(self%INDOMAIN(:)) ! Update current position if particle is in domain
-      PDYT(:) = PDYT(:) + dt * CHIY(:, NS) * B_RK(NS) * float(self%INDOMAIN(:))
-      PDZT(:) = PDZT(:) + dt * CHIZ(:, NS) * B_RK(NS) * float(self%INDOMAIN(:))
+    do stage = 1, MSTAGE
+      where (self%indomain)
+        PDXT(:) = PDXT(:) + dt * CHI(:, stage, 1) * B_RK(stage) ! Update current position if particle is in domain
+        PDYT(:) = PDYT(:) + dt * CHI(:, stage, 2) * B_RK(stage)
+        PDZT(:) = PDZT(:) + dt * CHI(:, stage, 3) * B_RK(stage)
+      end where
     end do
 
     self%FOUND = 0
@@ -355,17 +359,45 @@ contains
       self%zp(:) = PDZT(:)
     end where
 
-    call self%INTERP_ELH(self%xp, self%yp, HL, ELL, 1) ! interpolate bathymetry and elevation
-
     self%zp = max(self%zp, -(2.0_SP + self%zp)) ! reflect off bottom, sigma
     self%zp = min(self%zp, -self%zp) ! reflect off free surface, sigma
-
-    call self%INTERP_FIELDS(self%xp, self%yp, self%zp, salinity, temperature, density, 0) ! interpolate salinity and temperature
-
     self%zpt(:) = self%cartesian(self%zp(:)) ! Calculate particle location in cartesian vertical coordinate
     self%layer(:) = self%zlocate(self%zp(:)) ! only valid for sigma layers of equal separation
 
+    call self%INTERP_ELH(self%xp, self%yp, HL, ELL, 1) ! interpolate bathymetry and elevation
+    call self%INTERP_FIELDS(self%xp, self%yp, self%zp, salinity, temperature, density, 0) ! interpolate salinity and temperature
+
+    
+
   end subroutine
+
+
+  function layer_velocity(count, host, mask, k, position, velocity)
+    integer, intent(in) :: count
+    integer, intent(in) :: host(count), k(count)
+    logical, intent(in) :: mask(count)
+    real(SP) :: layer_velocity(count)
+
+    use variables, only : A1U, A2U, NBE, YC, XC, DZ, ZZ
+    use variables, only : N, KB
+
+    real(sp), intent(in), dimension(count) :: position ! Z is sigma depth
+    real(sp), intent(in), dimension(0:N, 1:KB, 3) :: velocity
+
+    integer :: ii, stencil(count, 4)
+    real(SP) :: delta(3, 2)
+    real(SP) :: X0C, Y0C
+
+    stencil(:, 1) = host
+    stencil(:, 2:3) = NBE(host, :)
+
+    where (mask)
+     
+      ! Linear interpolation of velocity in sigma level above particle
+      delta(:, 1) = sum(A1U(host, 1:3) * velocity(stencil, K, :))
+      delta(:, 2) = sum(A2U(host, 1:3) * velocity(stencil, K, :))
+    end where
+  end function
 
   subroutine INTERP_V(lag, XP, YP, ZP, UIN, VIN, WIN) ! OK
     ! linear interpolation of velocity field at particle positions
@@ -377,73 +409,67 @@ contains
     real(sp), intent(in), dimension(0:N, 1:KB) :: UIN, VIN, WIN
 
     logical, dimension(lag%ndrft) ::  inwater
-    integer :: ii, host, E1, E2, E3, K1, K2, K
-    real(SP) :: DUDX, DUDY, DVDX, DVDY, DWDX, DWDY, UE01, UE02, VE01, VE02, WE01, WE02
-    real(SP) :: ZF1, ZF2, X0C, Y0C
+    integer :: ii, host, edges(3), K1(lag%ndrft), K2(lag%ndrft), K
+    real(SP) :: delta(3, 2), UE01, UE02, VE01, VE02, WE01, WE02
+    real(SP) :: ZF1(lag%ndrft), ZF2(lag%ndrft), X0C, Y0C
 
     inwater(:) = .true.
     lag%FOUND(:) = 0
     call lag%find_host_element(XP, YP, inwater)
 
-    particle_loop: do ii = 1, lag%ndrft
-      if ( (lag%INDOMAIN(ii) == 0) .or. (.not. inwater(ii))) cycle ! skip particles outside domain
-      host = lag%HOST(ii)
-      E1  = NBE(host,1)
-      E2  = NBE(host,2)
-      E3  = NBE(host,3)
-      X0C = XP(ii) - XC(host)
-      Y0C = YP(ii) - YC(host)
 
-      ! Determine sigma layers above and below particle
-      if (ZP(ii) > ZZ(1)) then ! Particle near surface
-        K1  = 1
-        K2  = 1
-        ZF1 = 1.0_SP
-        ZF2 = zero
-      else if (ZP(ii) < ZZ(KBM1)) then ! Particle near bottom
-        K1 = KBM1
-        K2 = KBM1
-        ZF1 = 1.0_SP
-        ZF2 = zero
-      else
-        K1 = int( (ZZ(1) - ZP(ii)) / DZ(1) ) + 1;
-        K2 = K1 + 1
-        ZF1 = (ZP(ii) - ZZ(K2)) / DZ(1)
-        ZF2 = (ZZ(K1) - ZP(ii)) / DZ(1)
-      end if
+    ! Determine sigma layers above and below particle
+    where (ZP > ZZ(1)) ! Particle near surface
+      K1  = 1
+      K2  = 1
+      ZF1 = 1.0
+      ZF2 = zero
+    else where (ZP < ZZ(KBM1)) ! Particle near bottom
+      K1 = KBM1
+      K2 = KBM1
+      ZF1 = 1.0
+      ZF2 = zero
+    else where
+      K1 = int( (ZZ(1) - ZP) / DZ(1) ) + 1;
+      K2 = K1 + 1
+      ZF1 = (ZP - ZZ(K2)) / DZ(1)
+      ZF2 = (ZZ(K1) - ZP) / DZ(1)
+    end where
+
+    where ((lag%indomain) .and. (inwater))
+
+      edges = NBE(host,:)
+     
+      X0C = XP - XC(lag%HOST)
+      Y0C = YP - YC(lag%HOST)
 
 
       ! Linear interpolation of velocity in sigma level above particle
       K = K1
-      DUDX = A1U(host,1)*UIN(host,K)+A1U(host,2)*UIN(E1,K)+A1U(host,3)*UIN(E2,K)+A1U(host,4)*UIN(E3,K)
-      DUDY = A2U(host,1)*UIN(host,K)+A2U(host,2)*UIN(E1,K)+A2U(host,3)*UIN(E2,K)+A2U(host,4)*UIN(E3,K)
-      DVDX = A1U(host,1)*VIN(host,K)+A1U(host,2)*VIN(E1,K)+A1U(host,3)*VIN(E2,K)+A1U(host,4)*VIN(E3,K)
-      DVDY = A2U(host,1)*VIN(host,K)+A2U(host,2)*VIN(E1,K)+A2U(host,3)*VIN(E2,K)+A2U(host,4)*VIN(E3,K)
-      DWDX = A1U(host,1)*WIN(host,K)+A1U(host,2)*WIN(E1,K)+A1U(host,3)*WIN(E2,K)+A1U(host,4)*WIN(E3,K)
-      DWDY = A2U(host,1)*WIN(host,K)+A2U(host,2)*WIN(E1,K)+A2U(host,3)*WIN(E2,K)+A2U(host,4)*WIN(E3,K)
-      UE01 = UIN(host,K) + DUDX*X0C + DUDY*Y0C
-      VE01 = VIN(host,K) + DVDX*X0C + DVDY*Y0C
-      WE01 = WIN(host,K) + DWDX*X0C + DWDY*Y0C
+      delta = layer_velocity(lag%ndrft, lag%host, mask, K1, position, velocity)
+
+      UE01 = UIN(host,K) + delta(1, 1)*X0C + delta(1, 2)*Y0C
+      VE01 = VIN(host,K) + delta(2, 1)*X0C + delta(2, 2)*Y0C
+      WE01 = WIN(host,K) + delta(3, 1)*X0C + delta(3, 2)*Y0C
 
       ! Linear interpolation of velocity in sigma level below particle
       K = K2
-      DUDX = A1U(host,1)*UIN(host,K)+A1U(host,2)*UIN(E1,K)+A1U(host,3)*UIN(E2,K)+A1U(host,4)*UIN(E3,K)
-      DUDY = A2U(host,1)*UIN(host,K)+A2U(host,2)*UIN(E1,K)+A2U(host,3)*UIN(E2,K)+A2U(host,4)*UIN(E3,K)
-      DVDX = A1U(host,1)*VIN(host,K)+A1U(host,2)*VIN(E1,K)+A1U(host,3)*VIN(E2,K)+A1U(host,4)*VIN(E3,K)
-      DVDY = A2U(host,1)*VIN(host,K)+A2U(host,2)*VIN(E1,K)+A2U(host,3)*VIN(E2,K)+A2U(host,4)*VIN(E3,K)
-      DWDX = A1U(host,1)*WIN(host,K)+A1U(host,2)*WIN(E1,K)+A1U(host,3)*WIN(E2,K)+A1U(host,4)*WIN(E3,K)
-      DWDY = A2U(host,1)*WIN(host,K)+A2U(host,2)*WIN(E1,K)+A2U(host,3)*WIN(E2,K)+A2U(host,4)*WIN(E3,K)
-      UE02 = UIN(host,K) + DUDX*X0C + DUDY*Y0C
-      VE02 = VIN(host,K) + DVDX*X0C + DVDY*Y0C
-      WE02 = WIN(host,K) + DWDX*X0C + DWDY*Y0C
+      delta(1, 1) = A1U(host,1)*UIN(host,K) + A1U(host,2)*UIN(edges(1),K)+A1U(host,3)*UIN(E2,K)+A1U(host,4)*UIN(E3,K)
+      delta(1, 2) = A2U(host,1)*UIN(host,K) + A2U(host,2)*UIN(edges(1),K)+A2U(host,3)*UIN(E2,K)+A2U(host,4)*UIN(E3,K)
+      delta(2, 1) = A1U(host,1)*VIN(host,K) + A1U(host,2)*VIN(edges(1),K)+A1U(host,3)*VIN(E2,K)+A1U(host,4)*VIN(E3,K)
+      delta(2, 2) = A2U(host,1)*VIN(host,K) + A2U(host,2)*VIN(edges(1),K)+A2U(host,3)*VIN(E2,K)+A2U(host,4)*VIN(E3,K)
+      delta(3, 1) = A1U(host,1)*WIN(host,K) + A1U(host,2)*WIN(edges(1),K)+A1U(host,3)*WIN(E2,K)+A1U(host,4)*WIN(E3,K)
+      delta(3, 2) = A2U(host,1)*WIN(host,K) + A2U(host,2)*WIN(edges(1),K)+A2U(host,3)*WIN(E2,K)+A2U(host,4)*WIN(E3,K)
+      UE02 = UIN(host,K) + delta(1, 1*X0C + delta(1, 2)*Y0C
+      VE02 = VIN(host,K) + delta(2, 1)*X0C + delta(2, 2)*Y0C
+      WE02 = WIN(host,K) + delta(3, 1)*X0C + delta(3, 2)*Y0C
 
       ! Interpolate particle velocity between two sigma layers
       lag%UP(ii) = UE01*ZF1 + UE02*ZF2
       lag%VP(ii) = VE01*ZF1 + VE02*ZF2
       lag%WP(ii) = WE01*ZF1 + WE02*ZF2
 
-    end do particle_loop
-    return
+    end where
   end subroutine INTERP_V
 
 
@@ -471,7 +497,9 @@ contains
     do ii = 1, self%ndrft
       if (self%INDOMAIN(ii) == 0) cycle ! skip particle outside domain
       host = self%host(ii) ! element containing particle
-      N1 = NV(self%host(ii), 1); N2 = NV(self%host(ii), 2); N3 = NV(self%host(ii), 3) ! node indices
+      N1 = NV(self%host(ii), 1); 
+      N2 = NV(self%host(ii), 2); 
+      N3 = NV(self%host(ii), 3) ! node indices
       X0C = XP(ii) - XC(host); Y0C = YP(ii) - YC(host) ! distance from element center
 
       H0 = AW0(host, 1)*HIN(N1) + AW0(host, 2)*HIN(N2) + AW0(host, 3)*HIN(N3)
@@ -508,7 +536,7 @@ contains
       call self%find_host_element(XP, YP, inwater)
     end if find_host
 
-    particle_loop: do ii = 1, self%ndrft
+    do ii = 1, self%ndrft
 
       if (self%INDOMAIN(ii) == 0) cycle ! skip particle outside domain
       host = self%host(ii) ! element containing particle
@@ -530,7 +558,7 @@ contains
       DY = AWY(host, 1)*RHO(N1, 1) + AWY(host, 2)*RHO(N2, 1) + AWY(host, 3)*RHO(N3, 1)
       self%RHO(ii) = abs(D0 + DX*X0C + DY*Y0C) ! Linear interpolation of temperature field
 
-    end do particle_loop
+    end do
 
   end subroutine INTERP_FIELDS
 
