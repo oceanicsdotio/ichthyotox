@@ -1,11 +1,21 @@
-module behavior
+module Fish
 
     use variables
-    use MOD_LAG, only: LAG_OBJ
-    use variables, only: zero, pi, pi2
+    use lagrangian, only: agent
+    use variables, only: zero
     
     implicit none
     save
+
+      ! fish constants
+    real(sp), parameter :: &
+            & PI = 3.141592653_sp, &
+            & PI2 = 6.283185307_sp, &
+            & traveld = 0.5787_sp, &  ! m/s = 50 km/day, test @ 20 and 2
+            & epsx = sqrt((traveld**2.0)*0.5_sp), &
+            & epsx_sigma= 0.5_sp*traveld, &
+            & sal_opt = 30.0_sp, & ! test @ 2.0
+            & sal_sigma = 5.0_sp
 
     real(sp), dimension(0:4), parameter :: &
             & speedtable = (/0.50_SP, 1.00_SP, 0.50_SP, 0.25_SP, 0.33_SP/), &
@@ -33,7 +43,7 @@ module behavior
             & no_flight = .false., &
             & ingestion_multiplier = .true.
 
-    type, public, extends(LAG_OBJ) :: LAG_FISH
+    type, public, extends(Agent) :: FishAgent
 
         logical, allocatable, dimension(:), private :: impaired
         integer, allocatable, dimension(:), private :: last_rule
@@ -60,16 +70,14 @@ module behavior
         procedure, public :: writeState => fish_writeState
         procedure, public :: movement => fish_movement ! behavior selection and movement
 
-    end type LAG_FISH; 
-    type(LAG_FISH), allocatable, public :: FISH
+    end type; 
 
 contains
 
-    subroutine fish_initialize(self)
+    subroutine fish_initialize(self, random_angle)
 
-        use simulation, only: random
-        use variables, only: pi2, zero, sp
-        class(LAG_FISH), intent(inout) :: self
+        class(FishAgent), intent(inout) :: self
+        real(sp), intent(in) :: random_angle
 
         self%species = 'fish'
         call self%readPosition() ! read particles counts and allocates position variables
@@ -93,7 +101,7 @@ contains
         self%event = 0
         self%last_rule = 0
 
-        self%angle = pi2*random%uniform()
+        self%angle = pi2*random_angle
         self%length = initBodylength
         self%effective_length = 1.0_sp
         self%mass = 2.0_SP*10.0_SP**(-6.0_SP)*(1000.0*self%length(:))**(3.38_SP)
@@ -109,10 +117,8 @@ contains
     end subroutine
 
     subroutine fish_writeState(self, fid)
-
         use simulation, only: domain ! domain structure for elapsed time
-        use variables, only: zero
-        class(LAG_FISH), intent(in) :: self ! cyanobacteria extended type
+        class(FishAgent), intent(in) :: self ! cyanobacteria extended type
         integer, intent(in) :: fid ! persistent file unit number
         integer :: ii
 
@@ -121,14 +127,60 @@ contains
 
     end subroutine
 
-    subroutine fish_movement(self)
 
-        use simulation, only: domain, random
+    subroutine kinesis(self, noise, deltat, salinity, temperature, density, HIN, EIN)
+   
+        implicit none
+
+        class(agent), intent(inout) :: self
+        real(sp), intent(in) :: noise(self%ndrft, 2)
+        real(sp), intent(in) :: deltat ! time step, usually DTI
+        real(sp), dimension(0:M, KB), intent(in) :: salinity, temperature, density ! grid based field for kinesis (usually salinity)
+        real(sp), dimension(0:M), intent(in) :: HIN, EIN ! grid based field for kinesis (usually salinity)
+
+        real(sp), dimension(self%ndrft) :: PDXT, PDYT
+        logical, dimension(self%ndrft) :: inwater
+        integer :: ii
+        real(sp) :: pp1, p1
+
+        do ii = 1, self%ndrft
+
+            pp1 = (self%sal(ii) - sal_opt) / sal_sigma
+            p1 = exp(-0.5_SP * (pp1 * pp1))
+
+            self%up(ii) = self%UP(ii) * h1h1 * p1 + (noise(ii,1)*epsx_sigma + epsx) * (1.0_SP - h2h2 * p1) ! Update U and V velocities
+            self%up(ii) = self%VP(ii) * h1h1 * p1 + (noise(ii,2)*epsx_sigma + epsx) * (1.0_SP - h2h2 * p1)
+            pdxt(ii) = self%xp(ii) + self%up(ii) * deltat * float(self%indomain(ii)) ! Update position
+            pdyt(ii) = self%yp(ii) + self%vp(ii) * deltat * float(self%indomain(ii))
+
+        end do
+
+        ! Evaluate Temporary Location
+        self%found(:) = 0
+        inwater(:) = .true.
+
+        ! Update only particles still in water
+        call self%find_host_element(pdxt, pdyt, inwater)
+        where (inwater)
+            self%xp = PDXT
+            self%yp = PDYT
+        end where
+       
+        ! interpolate bathymetry, elevation, and fields at new position
+        call self%INTERP_ELH(self%xp, self%yp, HIN, EIN, 1) 
+        call self%INTERP_FIELDS(self%xp, self%yp, self%zp, salinity, temperature, density, 0) 
+
+    end subroutine
+
+    subroutine fish_movement(self, noise)
+
+        use simulation, only: domain
         use cyanobacteria, only: cyano
-        use variables, only: pi, pi2, dti, vxmin, vxmax, vymin, vymax, zero, M, KBM1, sp
+        use variables, only: dti, vxmin, vxmax, vymin, vymax, M, KBM1
 
-        class(LAG_FISH), intent(inout) :: self
+        class(FishAgent), intent(inout) :: self
         integer :: ii, jj, rule_index
+        real(sp), intent(in) :: noise(self%ndrft)
         real(sp) :: maxutil, speed
         real(sp), dimension(self%ndrft) :: absorption, depuration, ingestion, mass
 
@@ -176,7 +228,7 @@ contains
             self%last_rule(ii) = rule_index ! store last behavior
             self%reverse(ii) = merge(1.0_SP, zero, ((rule_index == 1) .and. (self%reverse(ii) < 0.5_SP))) ! reverse direction for avoidance
             self%angle(ii) = self%angle(ii) + self%reverse(ii)*pi + &
-                    &merge(random%uniform(), random%clipped(), self%impaired(ii))*pi*angletable(rule_index)
+                    & noise(ii)*pi*angletable(rule_index)
 
             if (self%angle(ii) < -pi) then
                 self%angle(ii) = self%angle(ii) + pi2 ! normalize angles to -pi, pi]

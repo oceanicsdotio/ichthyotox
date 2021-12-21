@@ -1,11 +1,23 @@
 program main
 
   use variables
-  use simulation, only : domain, TRIANGLE_GRID_EDGE, random, getInteger, getString, find_key
-  use cyanobacteria, only : cyano
-  use behavior, only : fish
+  use random, only : random_number_generator
+  use simulation, only : domain, TRIANGLE_GRID_EDGE, getInteger, getString, find_key
+  use cyanobacteria, only : CyanobacteriaAgent
+  use fish, only : FishAgent
 
   implicit none
+
+  type :: Container
+    type(CyanobacteriaAgent) :: cyanobacteria
+    type(FishAgent) :: fish
+  end type;
+  type(Container) :: agent
+
+
+  logical, parameter :: &
+    & includeAlgae = .true., &
+    & includeFish =  .true.
 
   real(sp), dimension(0:N, KB) :: UNC, UNC1, UNC2, VNC, VNC1, VNC2, WNC, WNC1, WNC2 ! velocity fields start and end of hour
   real(sp), dimension(0:M, KB) :: KHNC, KHNC1, KHNC2, SALNC, SALNC1, SALNC2, TEMPNC, TEMPNC1, TEMPNC2, RHONC, RHONC1, RHONC2 ! diffusion and physical fields start and end of hour
@@ -267,7 +279,7 @@ program main
 
   write(*, "(A)", advance='no') "Allocating cyanobacteria and fish structures... "
   allocate(cyano)
-  allocate(fish)
+  allocate(fish_agent)
   allocate(random); call random%init()
   write(*, *) "Finished"
 
@@ -282,68 +294,68 @@ program main
   IELAG = ISLAG + TDRIFT - 1 ! tracking end iteration
 
   write(*, "(A)", advance='no') "Initiatializing particle structures... "
-  call cyano%init(exp_type) ! initialize and allocate type specific structures, also reads position and state variables from file
-  call fish%init() !
+  call agent%cyanobacteria%init(exp_type) ! initialize and allocate type specific structures, also reads position and state variables from file
+  call agent%fish%init() !
   write(*, *) "Finished"
   write(*, "(A)", advance='no') "Allocating common variables... "
-  call cyano%lag_alloc() ! allocate common variables other than position and itag
-  call fish%lag_alloc()
+  call agent%cyanobacteria%lag_alloc() ! allocate common variables other than position and itag
+  call agent%fish%lag_alloc()
 
-  allocate( INWATER(cyano%ndrft) ); INWATER(:) = 1 ! allocate inwater flag for only single species
+  allocate( INWATER(agent%cyanobacteria%ndrft) ); INWATER(:) = 1 ! allocate inwater flag for only single species
   write(*, *) "Finished"
 
-  cyano%XP(:) = cyano%XPT(:) ! Shift x to model coordinate system
-  cyano%YP(:) = cyano%YPT(:) ! Shift y to model coordinate system
+  agent%cyanobacteria%XP(:) = agent%cyanobacteria%XPT(:) ! Shift x to model coordinate system
+  agent%cyanobacteria%YP(:) = agent%cyanobacteria%YPT(:) ! Shift y to model coordinate system
 
   write(*, "(A)", advance='no') "Finding host elements... "
-  call cyano%find_host_element(cyano%XP, cyano%YP, INWATER) ! Determine element containing each particle
-  where (cyano%FOUND == 0) cyano%INDOMAIN(:) = 0 ! if not found, particle is not in domain and will not be tracked
+  call agent%cyanobacteria%find_host_element(agent%cyanobacteria%XP, agent%cyanobacteria%YP, INWATER) ! Determine element containing each particle
+  where (agent%cyanobacteria%FOUND == 0) agent%cyanobacteria%INDOMAIN(:) = 0 ! if not found, particle is not in domain and will not be tracked
   write(*, *) "Finished"
 
   write(*, "(A)", advance='no') "Interpolating physical fields... "
-  call cyano%INTERP_ELH(cyano%XP, cyano%YP, H, ELNC, 1) ! interpolate elevation and bathymetry
-  call cyano%INTERP_FIELDS(cyano%XP, cyano%YP, cyano%ZP, SALNC, TEMPNC, RHONC, 0) ! interpolate salinity and temperature
+  call agent%cyanobacteria%INTERP_ELH(agent%cyanobacteria%XP, agent%cyanobacteria%YP, H, ELNC, 1) ! interpolate elevation and bathymetry
+  call agent%cyanobacteria%INTERP_FIELDS(agent%cyanobacteria%XP, agent%cyanobacteria%YP, agent%cyanobacteria%ZP, SALNC, TEMPNC, RHONC, 0) ! interpolate salinity and temperature
   write(*, *) "Finished"
 
   write(*, "(A)", advance='no') "Adjusting vertical domain... "
-  cyano%ZPT(:) = -1.0_sp*abs(cyano%ZPT(:)) ! make depth negative
-  cyano%ZP(:) = cyano%sigma(cyano%ZPT(:)) ! convert to sigma coordinate
-  cyano%LAYER(:) = cyano%zlocate(cyano%ZP(:)) ! valid when sigma layers are equal thickness
+  agent%cyanobacteria%ZPT(:) = -1.0_sp*abs(agent%cyanobacteria%ZPT(:)) ! make depth negative
+  agent%cyanobacteria%ZP(:) = agent%cyanobacteria%sigma(agent%cyanobacteria%ZPT(:)) ! convert to sigma coordinate
+  agent%cyanobacteria%LAYER(:) = agent%cyanobacteria%zlocate(agent%cyanobacteria%ZP(:)) ! valid when sigma layers are equal thickness
 
   write(*, "(A)", advance='no') "Writing position and state variables to file... "
   open(unit=iocp, file="./"//trim(folderprefix)//"/"//"cyanobacteria_position.dat", status='replace') ! create new position file
   open(unit=iocs, file="./"//trim(folderprefix)//"/"//"cyanobacteria_state.dat", status='replace') ! create new state variable file
-  call cyano%writeState(iocs)
-  call cyano%writePosition(iocp) ! write particle positions to output file
+  call agent%cyanobacteria%writeState(iocs)
+  call agent%cyanobacteria%writePosition(iocp) ! write particle positions to output file
   write(*, *) "Finished"
 
   deallocate(INWATER) ! needs to be resized for new particle structure
 
-  allocate( INWATER(fish%ndrft) ); INWATER(:) = 1 ! allocate inwater flag for only single species
+  allocate( INWATER(agent%fish%ndrft) ); INWATER(:) = 1 ! allocate inwater flag for only single species
 
-  fish%XP(:) = fish%XPT(:) ! Shift x to model coordinate system
-  fish%YP(:) = fish%YPT(:) ! Shift y to model coordinate system
+  agent%fish%XP(:) = agent%fish%XPT(:) ! Shift x to model coordinate system
+  agent%fish%YP(:) = agent%fish%YPT(:) ! Shift y to model coordinate system
 
   write(*, "(A)", advance='no') "Finding host elements... "
-  call fish%find_host_element(fish%XP, fish%YP, INWATER) ! Determine element containing each particle
-  where (fish%FOUND == 0) fish%INDOMAIN(:) = 0 ! if not found, particle is not in domain and will not be tracked
+  call agent%fish%find_host_element(agent%fish%XP, agent%fish%YP, INWATER) ! Determine element containing each particle
+  where (agent%fish%FOUND == 0) agent%fish%INDOMAIN(:) = 0 ! if not found, particle is not in domain and will not be tracked
   write(*, *) "Finished"
 
   write(*, "(A)", advance='no') "Interpolating physical fields... "
-  call fish%INTERP_ELH(fish%XP, fish%YP, H, ELNC, 1) ! interpolate elevation and bathymetry
-  call fish%INTERP_FIELDS(fish%XP, fish%YP, fish%ZP, SALNC, TEMPNC, RHONC, 0) ! interpolate salinity and temperature
+  call agent%fish%INTERP_ELH(agent%fish%XP, agent%fish%YP, H, ELNC, 1) ! interpolate elevation and bathymetry
+  call agent%fish%INTERP_FIELDS(agent%fish%XP, agent%fish%YP, agent%fish%ZP, SALNC, TEMPNC, RHONC, 0) ! interpolate salinity and temperature
   write(*, *) "Finished"
 
   write(*, "(A)", advance='no') "Adjusting vertical domain... "
-  fish%ZPT(:) = -1.0_sp*abs(fish%ZPT(:)) ! make depth negative
-  fish%ZP(:) = fish%sigma(fish%ZPT(:)) ! convert to sigma coordinate
-  fish%LAYER(:) = fish%zlocate(fish%ZP(:)) ! valid when sigma layers are equal thickness
+  agent%fish%ZPT(:) = -1.0_sp*abs(agent%fish%ZPT(:)) ! make depth negative
+  agent%fish%ZP(:) = agent%fish%sigma(agent%fish%ZPT(:)) ! convert to sigma coordinate
+  agent%fish%LAYER(:) = agent%fish%zlocate(agent%fish%ZP(:)) ! valid when sigma layers are equal thickness
 
   write(*, "(A)", advance='no') "Writing position and state variables to file... "
   open(unit=iofp, file="./"//trim(folderprefix)//"/"//"fish_position.dat", status='replace') ! create new position file
   open(unit=iofs, file="./"//trim(folderprefix)//"/"//"fish_state.dat", status='replace') ! create new state variable file
-  call fish%writeState(iofs)
-  call fish%writePosition(iofp) ! write particle positions to output file
+  call agent%fish%writeState(iofs)
+  call agent%fish%writePosition(iofp) ! write particle positions to output file
   write(*, *) "Finished"
 
   deallocate(INWATER) ! needs to be resized for new particle structure
@@ -353,8 +365,8 @@ program main
   write(*, *) '        Start iteration :', ISLAG
   write(*, *) '        Final iteration :', IELAG
   write(*, *)
-  call cyano%stats
-  call fish%stats
+  call agent%cyanobacteria%stats
+  call agent%fish%stats
 
   write(*, *) "Starting simulation loop... "
 
@@ -422,24 +434,24 @@ program main
 
       if (includeAlgae) then
         call domain%diffuse() ! vertical diffusion of dissolved toxin
-        call cyano%movement() ! uses runge-kutta integration
-        call cyano%random() ! random walk
+        call agent%cyanobacteria%movement() ! uses runge-kutta integration
+        call agent%cyanobacteria%random() ! random walk
         if ( mod(IINT, int(DTOUT/DTI) ) == 0) then
-          cyano%XPT(:) = cyano%XP(:) ! change back to initial coordinate system for output
-          cyano%YPT(:) = cyano%YP(:)
-          call cyano%writePosition(iocp) ! output position, same for all particle types
-          call cyano%writeState(iocs)
+          agent%cyanobacteria%XPT(:) = agent%cyanobacteria%XP(:) ! change back to initial coordinate system for output
+          agent%cyanobacteria%YPT(:) = agent%cyanobacteria%YP(:)
+          call agent%cyanobacteria%writePosition(iocp) ! output position, same for all particle types
+          call agent%cyanobacteria%writeState(iocs)
           write(iotox,"(1f20.3,51F20.6)") domain%time, domain%verticaltox(1:KB)
         end if
       end if
 
       if (includeFish) then
-        call fish%movement() ! uses runge-kutta integration
+        call agent%fish%movement() ! uses runge-kutta integration
         if ( mod(IINT, int(DTOUT/DTI) ) == 0) then
-          fish%XPT(:) = fish%XP(:) ! change back to initial coordinate system for output
-          fish%YPT(:) = fish%YP(:)
-          call fish%writePosition(iofp) ! output position, same for all particle types
-          call fish%writeState(iofs) ! output state variables
+          agent%fish%XPT(:) = agent%fish%XP(:) ! change back to initial coordinate system for output
+          agent%fish%YPT(:) = agent%fish%YP(:)
+          call agent%fish%writePosition(iofp) ! output position, same for all particle types
+          call agent%fish%writeState(iofs) ! output state variables
         end if
       end if
 

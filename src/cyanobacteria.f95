@@ -1,6 +1,10 @@
-module cyanobacteria
+module Cyanobacteria
+    ! The Cyanobacteria module handles state and calculations for the growth,
+    ! buoyancy, and toxicity at the individual colony level for organisms
+    ! like cyanobacteria of Anabaena and Microcystis genera. State is saved 
+    ! between executions, allowing seperate invokations to do different things (init/run)
 
-    use MOD_LAG, only: LAG_OBJ ! module extends the lagrangian particle type
+    use lagrangian, only: Agent ! module extends the lagrangian particle type
     use variables, only: zero, sp
     implicit none
     save
@@ -30,22 +34,22 @@ module cyanobacteria
             & lightAttenuationWater = 0.15_SP, & ! light extinction coefficient due to coastal waters
             & shading_upscale = 1.0_SP
 
-    type, public, extends(LAG_OBJ) :: LAG_TOX
+    type, public, extends(Agent) :: CyanobacteriaAgent
         ! algal state inherited from lagrangian particle class
         real(sp) :: &
                 & mclrProductionRate = zero, &
                 & mclrExcretionRate = zero
 
         real(sp), allocatable, dimension(:), private :: &
-                & radius,       & ! radius for vertical movement of spherical colonies, meters
-                & irradiance,   & ! irradiance at particle position, watts per sq meter
-                & biomass,      & ! overlying biomass used for light attenuation calculations, gram
-                & delta_rho       ! difference in density between water and colony
+                & radius, & ! radius for vertical movement of spherical colonies, meters
+                & irradiance, & ! irradiance at particle position, watts per sq meter
+                & biomass, & ! overlying biomass used for light attenuation calculations, gram
+                & delta_rho ! difference in density between water and colony
 
         real(sp), allocatable, dimension(:), public :: &
                 & carbohydrate, & ! mass of carbohydration ballast, grams
-                & protein,      & ! mass of buoyant cellular material, grams
-                & microcystin     ! mass of cellular toxins, grams
+                & protein, & ! mass of buoyant cellular material, grams
+                & microcystin ! mass of cellular toxins, grams
 
     contains
         ! user interface subroutines
@@ -71,15 +75,14 @@ module cyanobacteria
         procedure, private :: production => colony_microcystinProduction ! constant production
         procedure, private :: release => colony_microcystinExcretion ! constant excretion
 
-    end type LAG_TOX; 
-    type(LAG_TOX), allocatable, public :: CYANO
+    end type CyanobacteriaAgent; 
 
 contains
 
     subroutine colony_initialize(self, experimentType)
         ! read position and state, and allocate internal variables
-        use variables, only: zero, sp, iovar, folderprefix
-        class(LAG_TOX), intent(inout) :: self
+        use variables, only: iovar, folderprefix
+        class(CyanobacteriaAgent), intent(inout) :: self
         integer :: experimentType, ii, indexMatch
         character(len=50) :: filename
         logical :: fexist
@@ -142,11 +145,13 @@ contains
 
     subroutine colony_writeState(self, fid)
         use simulation, only: domain ! domain structure for elapsed time
-        class(LAG_TOX), intent(in) :: self ! cyanobacteria extended type
+        class(CyanobacteriaAgent), intent(in) :: self ! cyanobacteria extended type
         integer, intent(in) :: fid ! persistent file unit number
         integer :: ii
 
-    write(fid, "(1F10.2,9000(I6,3F20.3))") domain%time, (self%itag(ii), self%carbohydrate(ii), self%protein(ii), self%microcystin(ii), ii=1,self%ndrft)
+    write(fid, "(1F10.2,9000(I6,3F20.3))") domain%time, & 
+            & (self%itag(ii), self%carbohydrate(ii), self%protein(ii), &
+            & self%microcystin(ii), ii=1,self%ndrft)
 
     end subroutine
 
@@ -214,7 +219,7 @@ contains
         use variables, only: SP ! for single or double precision
         use simulation, only: domain
 
-        class(LAG_TOX), intent(inout) :: self
+        class(CyanobacteriaAgent), intent(inout) :: self
         real(sp), dimension(self%ndrft) :: colony_carbonFixation ! result array
         real(sp), dimension(self%ndrft) :: irradRatio ! array of particle specific actual:optimal light ratios
         real(sp), dimension(self%ndrft) :: fixationCoef ! array transport for each particle
@@ -229,14 +234,21 @@ contains
         self%biomass(:) = (self%carbohydrate(:) + self%protein(:))/domain%meshArea ! contribution to shading by particle
         avg_self_shade(:) = (exp(-lightExtinctionBiomass*self%biomass(:)) - 1.0_SP)/(-lightExtinctionBiomass*self%biomass(:)) ! average area under self shading curve from zero to self biomass
         self%irradiance(indices(1)) = domain%globalIrradiance ! first particle unshaded
+
         do ii = 2, self%ndrft
-      self%irradiance(indices(ii)) = self%irradiance(indices(ii-1)) * exp(-lightExtinctionBiomass*shading_upscale*self%biomass(indices(ii-1))) ! attenuate by next biomass
+            ! attenuate by next biomass
+            self%irradiance(indices(ii)) = self%irradiance(indices(ii-1)) * &
+                & exp(-lightExtinctionBiomass*shading_upscale*self%biomass(indices(ii-1))) 
         end do
+
         self%irradiance(:) = self%irradiance(:)*avg_self_shade(:) ! multiply by particle self shading component
         self%irradiance(:) = self%irradiance(:)*exp(self%zpt(:)*lightAttenuationWater) ! find irradiance at particle position after attenuation
         irradRatio(:) = self%irradiance(:)/irradOpt ! substitution function
-        fixationCoef(:) = (2.0_SP + fixationBeta)*irradRatio(:)/(irradRatio(:)**2.0_SP + fixationBeta*irradRatio(:) + 1.0_SP) ! scaling coefficient for transfer
-    colony_carbonFixation(:) = fixationMax*fixationCoef(:)*self%protein(:)*(1.0_SP - vesicleFrac)*(carbonRatioMax - self%carbohydrate(:)/self%protein(:))/carbonRatioMax ! actual mass transfer
+        fixationCoef(:) = (2.0_SP + fixationBeta)*irradRatio(:)/(irradRatio(:)**2.0_SP + &
+            & fixationBeta*irradRatio(:) + 1.0_SP) ! scaling coefficient for transfer
+        ! actual mass transfer
+        colony_carbonFixation(:) = fixationMax*fixationCoef(:)*self%protein(:)*(1.0_SP - vesicleFrac) * &
+            & (carbonRatioMax - self%carbohydrate(:)/self%protein(:))/carbonRatioMax 
 
     end function
 
@@ -244,7 +256,7 @@ contains
         ! updates carbohydrate and protein state variables due to synthesis transport (alias is "synthesis")
         ! calls tempLimit()
         use variables, only: sp ! real precision
-        class(LAG_TOX), intent(inout) :: self
+        class(CyanobacteriaAgent), intent(inout) :: self
         real(sp), dimension(self%ndrft) :: colony_carbonSynthesis
 
         colony_carbonSynthesis(:) = self%carbohydrate(:)*synthesisMax*self%tempLimit()
@@ -255,7 +267,7 @@ contains
         ! update protein and dissolved pools due to excretion transport (alias is "excretion")
         ! temperature is tracked for all particles, so function uses algae array subset
         use variables, only: sp ! for single or double precision
-        class(LAG_TOX), intent(inout) :: self
+        class(CyanobacteriaAgent), intent(inout) :: self
         real(sp), dimension(self%ndrft) :: colony_carbonExcretion
 
 colony_carbonExcretion(:) = excretionFrac*self%tempFunction()*(respirationBasic*self%carbohydrate(:) + synthesisMax*self%protein(:))
@@ -265,21 +277,21 @@ colony_carbonExcretion(:) = excretionFrac*self%tempFunction()*(respirationBasic*
     function colony_carbonRespiration(self)
         ! update carbohydrate and dissolved pools due to respiration transport (alias is "respiration")
         ! temperature is tracked for all particles, so function calls use algae array subset
-        use variables, only: sp ! for single or double precision
-        class(LAG_TOX), intent(inout) :: self
+        class(CyanobacteriaAgent), intent(inout) :: self
         real(sp), dimension(self%ndrft) :: colony_carbonRespiration
 
-    colony_carbonRespiration(:) = respirationBasic*self%tempFunction()*self%protein(:) + respirationActive*synthesisMax*self%tempLimit()*self%carbohydrate(:)
+    colony_carbonRespiration(:) = respirationBasic*self%tempFunction()*self%protein(:) + &
+            & respirationActive*synthesisMax*self%tempLimit()*self%carbohydrate(:)
 
     end function
 
-    function colony_temperatureLimit(self)
+    function colony_temperatureLimit(self) result(limit)
         ! Returns array of temperature limitation coefficents (0,1) for C synthesis
-        use variables, only: sp ! for single or double precision
-        class(LAG_TOX), intent(in) :: self
-        real(sp), dimension(self%ndrft) :: colony_temperatureLimit ! array of output coefficients for each particle
+        class(CyanobacteriaAgent), intent(in) :: self
+        real(sp), dimension(self%ndrft) :: limit ! array of output coefficients for each particle
 
-    colony_temperatureLimit(:) = (self%TEMP(:) / tempOpt * (  ((self%TEMP(:) - tempLethal)/(tempOpt - tempLethal))**( (tempRef - tempOpt) / tempOpt )  ))**(4.0_SP)
+        limit(:) = (self%TEMP(:) / tempOpt * (  ((self%TEMP(:) - tempLethal)/(tempOpt - tempLethal))** &
+            & ( (tempRef - tempOpt) / tempOpt )  ))**(4.0_SP)
 
     end function
 
@@ -287,7 +299,7 @@ colony_carbonExcretion(:) = excretionFrac*self%tempFunction()*(respirationBasic*
         ! returns array of scaling coefficents for biometric fcns
         use variables, only: sp! for single and double precision
 
-        class(LAG_TOX), intent(in) :: self
+        class(CyanobacteriaAgent), intent(in) :: self
         real(sp), dimension(self%ndrft) :: colony_temperatureFunction ! array of output coefficients for each particles
 
         colony_temperatureFunction(:) = tempFcnAlpha*exp(tempFcnBeta*(self%temp(:) - tempOpt + tempRef))
@@ -298,7 +310,7 @@ colony_carbonExcretion(:) = excretionFrac*self%tempFunction()*(respirationBasic*
         ! calculates toxin production per time step
         use variables, only: sp ! for precision
 
-        class(LAG_TOX), intent(inout) :: self
+        class(CyanobacteriaAgent), intent(inout) :: self
         real(sp), dimension(self%ndrft) :: colony_microcystinProduction ! array of microcystin production for colony particles
         colony_microcystinProduction(:) = self%mclrProductionRate*self%protein(:)
 
@@ -308,7 +320,7 @@ colony_carbonExcretion(:) = excretionFrac*self%tempFunction()*(respirationBasic*
         ! calculates temperature dependent toxin loss and moves mass to host element
         use variables, only: sp
 
-        class(LAG_TOX), intent(inout) :: self
+        class(CyanobacteriaAgent), intent(inout) :: self
         real(sp), dimension(self%ndrft) :: colony_microcystinExcretion
         colony_microcystinExcretion(:) = self%mclrExcretionRate*self%protein(:)
 
@@ -322,7 +334,7 @@ colony_carbonExcretion(:) = excretionFrac*self%tempFunction()*(respirationBasic*
         use variables, only: dti, zero ! integration step
         use variables, only: A_RK, B_RK, MSTAGE, strict_integration ! runge-kutta integration parameters
 
-        class(LAG_TOX), intent(inout) :: self
+        class(CyanobacteriaAgent), intent(inout) :: self
         integer :: ii, jj
         real(sp) :: mcoef
         real(sp), dimension(self%ndrft) :: idz, ini_position, ini_sigma, ini_microcystin, ini_carbohydrate, ini_protein ! initial valuess
@@ -424,14 +436,20 @@ colony_carbonExcretion(:) = excretionFrac*self%tempFunction()*(respirationBasic*
             end where
 
             where (self%layer(:) == 1)
-        domain%verticaltox(self%layer(:)) = domain%verticaltox(self%layer(:)) + 2.0_SP*B_RK(ii)*dti*chi_dissolved(:,ii)*(1.0_SP - idz(:))/domain%layerDepth ! add to sigma above
-        domain%verticaltox(self%layer(:)+1) = domain%verticaltox(self%layer(:)+1) + B_RK(ii)*dti*chi_dissolved(:,ii)*idz(:)/domain%layerDepth ! add to sigma below
+                domain%verticaltox(self%layer(:)) = domain%verticaltox(self%layer(:)) + &
+                    & 2.0_SP*B_RK(ii)*dti*chi_dissolved(:,ii)*(1.0_SP - idz(:))/domain%layerDepth ! add to sigma above
+                domain%verticaltox(self%layer(:)+1) = domain%verticaltox(self%layer(:)+1) + &
+                    & B_RK(ii)*dti*chi_dissolved(:,ii)*idz(:)/domain%layerDepth ! add to sigma below
             elsewhere(self%layer(:) == KBM1)
-        domain%verticaltox(self%layer(:)) = domain%verticaltox(self%layer(:)) + B_RK(ii)*dti*chi_dissolved(:,ii)*(1.0_SP - idz(:))/domain%layerDepth ! add to sigma above
-        domain%verticaltox(self%layer(:)+1) = domain%verticaltox(self%layer(:)+1) + 2.0_SP*B_RK(ii)*dti*chi_dissolved(:,ii)*idz(:)/domain%layerDepth ! add to sigma below
+                domain%verticaltox(self%layer(:)) = domain%verticaltox(self%layer(:)) + &
+                    & B_RK(ii)*dti*chi_dissolved(:,ii)*(1.0_SP - idz(:))/domain%layerDepth ! add to sigma above
+                domain%verticaltox(self%layer(:)+1) = domain%verticaltox(self%layer(:)+1) + &
+                    & 2.0_SP*B_RK(ii)*dti*chi_dissolved(:,ii)*idz(:)/domain%layerDepth ! add to sigma below
             elsewhere
-        domain%verticaltox(self%layer(:)) = domain%verticaltox(self%layer(:)) + B_RK(ii)*dti*chi_dissolved(:,ii)*(1.0_SP - idz(:))/domain%layerDepth ! add to sigma above
-        domain%verticaltox(self%layer(:)+1) = domain%verticaltox(self%layer(:)+1) + B_RK(ii)*dti*chi_dissolved(:,ii)*idz(:)/domain%layerDepth ! add to sigma below
+                domain%verticaltox(self%layer(:)) = domain%verticaltox(self%layer(:)) + &
+                    & B_RK(ii)*dti*chi_dissolved(:,ii)*(1.0_SP - idz(:))/domain%layerDepth ! add to sigma above
+                domain%verticaltox(self%layer(:)+1) = domain%verticaltox(self%layer(:)+1) + &
+                    & B_RK(ii)*dti*chi_dissolved(:,ii)*idz(:)/domain%layerDepth ! add to sigma below
             end where
 
         end do
@@ -448,12 +466,14 @@ colony_carbonExcretion(:) = excretionFrac*self%tempFunction()*(respirationBasic*
 
     end subroutine
 
-    subroutine colony_random_walk(self)
+    subroutine colony_random_walk(self, noise)
         ! vertical and horizontal random walk
         use variables, only: dti, dtrw, z, KB, KBM1, KBM2
-        use simulation, only: domain, random
-        class(LAG_TOX), intent(inout) :: self
+        use simulation, only: domain
+        use random, only : random_number_generator
+        class(CyanobacteriaAgent), intent(inout) :: self
 
+        real(sp), dimension(self%ndrft) :: noise
         real(sp), dimension(self%ndrft) :: wdiff, kzp, dkzp ! diffusivity and first derivative at particle positions
         real(sp), dimension(KB) :: kspline_in, kspline_out, zspline, dkspline, smooth1, smooth2
         integer :: substeps, ii
@@ -481,7 +501,8 @@ colony_carbonExcretion(:) = excretionFrac*self%tempFunction()*(respirationBasic*
             !kzp(:) = max(kzp(:), 0.0_SP) ! remove negative values
             kzp(:) = 60.0_SP*60.0_SP*10.0_SP**(-4.0_SP)*0.1
             dkzp(:) = 0.0_SP
-            wdiff(:) = dkzp(:)*dtrw + random%array(self%ndrft)*sqrt((2.0_sp*kzp(:) + dkzp(:)**(2.0_SP))*dtrw/variance) ! Ross and Sharples 2004 eqn 1
+            wdiff(:) = dkzp(:)*dtrw + noise * &
+                & sqrt((2.0_sp*kzp(:) + dkzp(:)**(2.0_SP))*dtrw/variance) ! Ross and Sharples 2004 eqn 1
             self%zpt(:) = self%zpt(:) + wdiff(:)
             self%zpt(:) = min(self%zpt(:), self%ep(:)) ! stop at surface during integration
             self%zpt(:) = max(self%zpt(:), self%hp(:)) ! stop at sediment during integration
@@ -493,9 +514,8 @@ colony_carbonExcretion(:) = excretionFrac*self%tempFunction()*(respirationBasic*
     function colony_stokesVelocity(self)
         ! returns stokes velocity of particle in m/hr, if lighter than water result is positive
         ! calls density() and viscosity()
-        use variables, only: sp ! precision
         use variables, only: grav ! grav is positive, m/s2
-        class(LAG_TOX), intent(inout) :: self
+        class(CyanobacteriaAgent), intent(inout) :: self
         real(sp), dimension(self%ndrft) :: colony_stokesVelocity ! output array of particle vertical velocities
 
         self%delta_rho(:) = self%rho(:) - self%density() ! water density array - colony density fcn
@@ -507,8 +527,7 @@ colony_carbonExcretion(:) = excretionFrac*self%tempFunction()*(respirationBasic*
 
     function colony_algaeDensity(self)
         ! colony density including contibutions of mucus and gas vacuoles
-        use variables
-        class(LAG_TOX), intent(in) :: self
+        class(CyanobacteriaAgent), intent(in) :: self
         real(sp), dimension(self%ndrft) :: colony_algaeDensity ! output array of overall colony density
         real(sp), dimension(self%ndrft) :: cellDensity ! array of density without mucus and vacuoles
 
@@ -524,10 +543,8 @@ colony_carbonExcretion(:) = excretionFrac*self%tempFunction()*(respirationBasic*
 
     function colony_dynamicViscosity(self)
         ! returns array of dynamic viscosity values at particle locations
-        use variables, only: sp ! for precision
-        class(LAG_TOX), intent(in) :: self
+        class(CyanobacteriaAgent), intent(in) :: self
         logical :: simple = .true.
-
         real(sp), dimension(self%ndrft) :: A, B, visc_pure, colony_dynamicViscosity
 
         if (simple) then
@@ -538,7 +555,6 @@ colony_carbonExcretion(:) = excretionFrac*self%tempFunction()*(respirationBasic*
             visc_pure(:) = 4.2844_SP*10.0_SP**(-5.0_SP) + (0.157_SP*(self%temp + 64.993_SP)**(2.0_SP) - 91.296_SP)**(-1.0_SP)
             colony_dynamicViscosity(:) = visc_pure*(1.0_SP + A*self%sal + B*self%sal**(2.0_SP))
         end if
-
     end function
 
 end module

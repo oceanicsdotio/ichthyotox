@@ -2,7 +2,7 @@ program setup
   ! program writes initial position and state variables to simulation file for reading by offlag
   use variables, only : zero, folderprefix, sp, iorun, iophys
   use cyanobacteria, only : colonyBaseRadius, densityMin, densitymax, cellFrac, vesicleFrac, vesicleDensity, cellDensityCoefficient
-  use simulation, only : random
+  use random, only : random_number_generator
 
   implicit none
   
@@ -42,8 +42,8 @@ program setup
   end if
   folderprefix = adjustl(foldername)
 
-  allocate(random);
-  call random%init()
+  allocate(random_number_generator);
+  call random_number_generator%init()
 
   if (makeGrid) then
     print *, "Building a simple topology"
@@ -143,9 +143,14 @@ program setup
       temperature(:) = control_temp + temp_slope*time
 
       ! density of pure water from Millero and Poisson, convert to temperature
-      density(:) = 999.842594_SP + 0.06793952_SP*temperature(:) - 0.009095290_SP*temperature(:)**(2.0_SP) + 0.0001001685_SP*temperature(:)**(3.0_SP) - (1.120083D-6)*temperature(:)**(4.0_SP) + (6.536332D-9)*temperature(:)**(5.0_SP)
-      density(:) = density(:) + salinity*( 0.824493_SP - 0.0040899_SP*temperature(:) + 0.000076438_SP*temperature(:)**(2.0_SP) - (8.2467D-7)*temperature(:)**(3.0_SP) + (5.3875D-9)*temperature(:)**(4.0_SP) )
-      density(:) = density(:) + salinity**(1.5_SP)*( -0.00572466_SP + 0.00010227_SP*temperature(:) - (1.6546D-6)*temperature(:)**(2.0_SP) )
+      density(:) = 999.842594_SP + 0.06793952_SP*temperature(:) - 0.009095290_SP*temperature(:)**(2.0_SP) +  &
+        & 0.0001001685_SP*temperature(:)**(3.0_SP) - (1.120083D-6)*temperature(:)**(4.0_SP) + &
+        & (6.536332D-9)*temperature(:)**(5.0_SP)
+      density(:) = density(:) + salinity*( 0.824493_SP - 0.0040899_SP*temperature(:) + &
+        & 0.000076438_SP*temperature(:)**(2.0_SP) - (8.2467D-7)*temperature(:)**(3.0_SP) + &
+        & (5.3875D-9)*temperature(:)**(4.0_SP) )
+      density(:) = density(:) + salinity**(1.5_SP)*( -0.00572466_SP + 0.00010227_SP*temperature(:) - &
+        & (1.6546D-6)*temperature(:)**(2.0_SP) )
       density(:) = density(:) + 0.00048314_SP*salinity**(2.0_SP)
       
       write(iophys, "(1F10.3)", advance='no') time
@@ -185,15 +190,18 @@ program setup
   ncolony = 100
   write(*, *); write(*, '(A)', advance = 'no') "    What is the total initial protein biomass in grams? "; read(*, *) biomass
   write(*, *); write(*, '(A)', advance = 'no') "    What is the total initial microcystin load in grams? "; read(*, *) microcystin
-  cyanobacteria: if (ncolony > 0) then
+  
+  if (ncolony > 0) then
   
     ! write initial position
     open(unit = fid, file = "../"//trim(folderprefix)//"/cyanobacteria_ini.dat", status = 'replace')
     write(*, *); write(*, *) '        Writing initial positions to ', '../cyanobacteria_ini.dat'
     write(fid, "(I6)") ncolony ! read number of particles
     do ii = 1, ncolony
-       initial_position = -1.0*abs(random%uniform()*5.0)
-       write(fid, "(I4,3F20.3)") ii, abs(random%uniform()*x_div*div_inc), abs(random%uniform()*y_div*div_inc), initial_position ! write identifier and position for each particle
+       initial_position = -1.0*abs(random_number_generator%uniform()*5.0)
+       ! write identifier and position for each particle
+       write(fid, "(I4,3F20.3)") ii, abs(random_number_generator%uniform()*x_div*div_inc), &
+        & abs(random_number_generator%uniform()*y_div*div_inc), initial_position 
     end do
     
     ! write state variables
@@ -201,11 +209,13 @@ program setup
     write(*, *); write(*, *) '        Writing state variables to ', '../cyanobacteria_var.dat'
     write(fid, "(I6)") ncolony
     do ii = 1, ncolony
-      radius = colonyBaseRadius + 5.0_SP*10.0_SP**(-6.0_SP)*random%get()
+      radius = colonyBaseRadius + 5.0_SP*10.0_SP**(-6.0_SP)*random_number_generator%get()
       carbon = biomass/float(ncolony)
       
-      reqCellDensity = ((density(1) - (1.0_SP - cellFrac)*(density(1) + 0.7_SP))/cellFrac - vesicleFrac*vesicleDensity)/(1.0_SP - vesicleFrac)
-      ratio = log(1.0_SP - (reqCellDensity - densityMin)/(densityMax - densityMin))/(-cellDensityCoefficient)
+      reqCellDensity = ((density(1) - (1.0_SP - cellFrac)*(density(1) + 0.7_SP)) / &
+        & cellFrac - vesicleFrac*vesicleDensity)/(1.0_SP - vesicleFrac)
+      ratio = log(1.0_SP - (reqCellDensity - densityMin)/(densityMax - densityMin)) / &
+        & (-cellDensityCoefficient)
       protein = carbon
       carbohydrate = protein*ratio
       
@@ -216,7 +226,7 @@ program setup
     
   else
     print *, new_line('A'), "No cyanobacteria in this simulation.", new_line('A')
-  end if cyanobacteria
+  end if
 
   ! write(*, '(A)', advance = 'no') "    How many fish particles should be used? "; read(*, *) nfish
   nfish = 200
@@ -229,11 +239,12 @@ program setup
 
     do ii = 1, nfish
       if (ii <= nfish/2) then ! write surface particles
-        write(fid, "(I4,3F20.6)") ii, abs(random%uniform()*x_range), abs(random%uniform()*y_range), -0.1_SP
+        write(fid, "(I4,3F20.6)") ii, abs(random_number_generator%uniform()*x_range), &
+          & abs(random_number_generator%uniform()*y_range), -0.1_SP
         
       else ! write demersal particles
-        write(fid, "(I4,3F20.6)") ii, abs(random%uniform()*x_range), abs(random%uniform()*y_range), -4.9_SP
-
+        write(fid, "(I4,3F20.6)") ii, abs(random_number_generator%uniform()*x_range), &
+          & abs(random_number_generator%uniform()*y_range), -4.9_SP
       end if
     end do
 
@@ -243,7 +254,7 @@ program setup
 
   print *, "Setup finished."
 
-  call random%stats();
-  deallocate(random)
+  call random_number_generator%stats();
+  deallocate(random_number_generator)
 
 end program setup

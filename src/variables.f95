@@ -3,10 +3,7 @@ module variables
   implicit none
   save
   
-  logical, parameter :: &
-          & includeAlgae =        .true., &
-          & includeFish =         .true., &
-          & strict_integration =  .false. ! set mass transfer
+  logical, parameter :: strict_integration =  .false. ! set mass transfer
 
   integer, parameter :: &
           & iocp = 101, iocs = 102, iotox = 103, iofp = 201, &
@@ -14,26 +11,13 @@ module variables
           & sp = SELECTED_REAL_KIND(12,300), & ! double precision, single -> (6,30)
           & MSTAGE = 4 ! number of Runge-Kutta integration stages
   
-  ! physical and mathematical constants
-  real(sp), parameter :: &
+    ! physical and mathematical constants
+    real(sp), parameter :: &
           & GRAV = 9.81_sp, & ! note that this is positive
-          & PI = 3.141592653_sp, &
-          & PI2 = 6.283185307_sp, &
           & ZERO = 0.0_sp, &
           & ONE_THIRD = 1.0_sp/3.0_sp, &
-          & traveld = 0.5787_sp, &  ! m/s = 50 km/day, test @ 20 and 2
-          & epsx = sqrt((traveld**2.0)*0.5_sp), &
-          & epsx_sigma= 0.5_sp*traveld, &
-          & sal_opt = 30.0_sp, & ! test @ 2.0
-          & sal_sigma = 5.0_sp, &
-          & w1w1 = 0.5_sp, &
           & h1h1 = 0.75_sp, &
           & h2h2 = 0.9_sp, &
-          & boltzmann = 1.3806488_sp * 10.0_sp**(-23.0_sp), & ! m2 kg s-2 K-1
-          & microcystinRadius = 1.5_sp * 10.0_sp**(-9.0_sp), & ! m
-          & avogadro = 6022.0_sp * 10.0_sp**(20.0_sp), & ! per mol
-          & planckNumber = 663.0_sp * 10.0_sp**(-7.0_sp), & ! Js
-          & lightSpeed = 2998.0_sp  * 10.0_sp**(5.0_sp), & ! meters per second
           & irradSurf = 650.0_sp ! W/M^2
 
   ! Runge-Kutta integration coefficients

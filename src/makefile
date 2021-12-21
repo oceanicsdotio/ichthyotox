@@ -22,6 +22,9 @@ cyanobacteria.o: cyanobacteria.f95 variables.o simulation.o lagrangian.o
 lagrangian.o: lagrangian.f95 simulation.o variables.o
 		$(FC) $(CFLAGS) lagrangian.f95
 
+random: random.f95 variables.o
+		$(FC) $(CFLAGS) random.f95
+
 simulation.o: simulation.f95 variables.o
 		$(FC) $(CFLAGS) simulation.f95
 

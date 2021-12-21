@@ -1,11 +1,12 @@
-module MOD_LAG
+module Lagrangian
   ! type and variables for lagrangian particle system
-  use variables, only : sp
+  use variables, only : sp, ZERO
   implicit none
   save
 
   private
-  type, public :: LAG_OBJ
+
+  type, public :: Agent
 
     character(len = 20) :: species ! string for identification
     logical :: F_DEPTH = .false. ! fixed particle depth option in cartesian
@@ -40,7 +41,6 @@ module MOD_LAG
     procedure, public :: zlocate => lag_getlayers ! update the sigma layer that particles are currently below
     procedure, public :: zinterp => lag_zinterp
     procedure, public :: find_host_element => find_host_element
-    procedure, public :: kinesis => kinesis
     procedure, public :: traject => traject
     procedure, public :: interp_elh => interp_elh
     procedure, public :: interp_fields => interp_fields
@@ -53,15 +53,15 @@ contains
 
   subroutine find_host_element(lag, x, y, inwater)
     !  Find host elements of particles by searching progressively further elements
-    use variables
+    use variables, only: N, NV, ISONB, VX, NV, VY, XC, YC, NTVE, NBVE
     implicit none
 
     integer :: ii, jj, kk, ind
     integer, dimension(2) :: nearest
 
-    class(LAG_OBJ), intent(inout) :: lag
+    class(Agent), intent(inout) :: lag
     real(sp), dimension(lag%ndrft), intent(in) :: x, y
-    integer, dimension(lag%ndrft), intent(out) ::  INWATER
+    logical, dimension(lag%ndrft), intent(out) ::  INWATER
 
     real(sp), dimension(1:N, 1) :: distance
     real(sp) :: previous
@@ -109,7 +109,7 @@ contains
     end do
 
     where ((lag%found(:) == 0) .and. (lag%SBOUND(:) == 0)) lag%INDOMAIN(:) = 0 ! moved outside domain
-    where ((lag%found(:) == 0) .and. (lag%SBOUND(:) == 1)) INWATER(:) = 0 ! no longer in water
+    where ((lag%found(:) == 0) .and. (lag%SBOUND(:) == 1)) INWATER(:) = .false. ! no longer in water
 
     return
   end subroutine
@@ -137,7 +137,7 @@ contains
 
     use variables, only: SP
     implicit none
-    class(LAG_OBJ), intent(inout) :: self
+    class(Agent), intent(inout) :: self
 
     allocate( self%XP( self%ndrft ), &
             & self%YP( self%ndrft ), &
@@ -179,7 +179,7 @@ contains
   subroutine lag_printStatistics(self)
 
     implicit none
-    class(LAG_OBJ), intent(inout) :: self
+    class(Agent), intent(inout) :: self
 
     ! Report status of particles
     write(*, *)
@@ -198,7 +198,7 @@ contains
     use variables, only : sp
     use variables, only : folderprefix
 
-    class(LAG_OBJ), intent(inout) :: self
+    class(Agent), intent(inout) :: self
 
     integer :: fid = 1, ii
     character(len = 50) :: filename
@@ -230,7 +230,7 @@ contains
   subroutine lag_writePosition(self, fid) ! OK
     ! write time and particle id/position to already open file
     use simulation, only : domain ! domain structure for current time only
-    class(LAG_OBJ), intent(inout) :: self ! lagrangian particle structure
+    class(Agent), intent(inout) :: self ! lagrangian particle structure
     integer, intent(in) :: fid ! unit number of open output file
     integer :: ii
 
@@ -241,8 +241,7 @@ contains
 
   function lag_cart2sig(self, cartesian)
     ! Calculate sigma vertical position from cartesian
-    use variables, only : sp
-    class(LAG_OBJ), intent(in) :: self
+    class(Agent), intent(in) :: self
     real(sp), dimension(self%ndrft), intent(in) :: cartesian
     real(sp), dimension(self%ndrft) :: lag_cart2sig
     lag_cart2sig(:) = -1.0_SP * abs(cartesian(:)-self%EP(:)) / abs(self%EP(:)-self%HP(:))
@@ -251,8 +250,7 @@ contains
 
   function lag_sig2cart(self, sigma)
     ! calculate cartesian vertical from sigma coordinate
-    use variables, only : sp
-    class(LAG_OBJ), intent(in) :: self
+    class(Agent), intent(in) :: self
     real(sp), dimension(self%ndrft), intent(in) :: sigma
     real(sp), dimension(self%ndrft) :: lag_sig2cart
     lag_sig2cart(:) = sigma(:)*(self%EP(:) - self%HP(:)) + self%EP(:)
@@ -262,8 +260,7 @@ contains
   function lag_getlayers(self, sigma) ! OK
     ! update current sigma layer of particles between moves
     use variables, only : KBM1
-    use variables, only : sp
-    class(LAG_OBJ), intent(in) :: self
+    class(Agent), intent(in) :: self
     real(sp), dimension(self%ndrft), intent(in) :: sigma
     integer, dimension(self%ndrft) :: lag_getlayers, layers
 
@@ -275,11 +272,9 @@ contains
 
 
   function lag_zinterp(self, verticalvar)
-
-    use variables, only : sp ! real precision
     use variables, only : KB ! sigma layers
     use simulation, only : domain ! domain structure
-    class(LAG_OBJ), intent(inout) :: self ! lagrangian particle swarm object
+    class(Agent), intent(inout) :: self ! lagrangian particle swarm object
     real(sp), dimension(0:KB+1), intent(in) :: verticalvar
     real(sp), dimension(self%ndrft) :: idz, lag_zinterp
 
@@ -294,7 +289,7 @@ contains
     ! integrate particle position from x0 to xn using velocity fields at time t0 and time tn
     use variables, only : N, M, KB, MSTAGE, A_RK, B_RK, C_RK ! runge-kutta parameters
 
-    class(LAG_OBJ), intent(inout) :: self ! lagrangian particle object
+    class(Agent), intent(inout) :: self ! lagrangian particle object
     real(SP), intent(in) :: dt ! time step, usually DTI
     real(SP), dimension(0:N, KB), intent(in) :: U1, U2, V1, V2, W1, W2 ! velocity fields at start and end of time step
     real(SP), dimension(0:M), intent(in) :: HL, EL1, EL2 ! bathymetry and free surface height
@@ -302,7 +297,7 @@ contains
 
     real(SP), dimension(self%ndrft) :: PDXT, PDYT, PDZT, PDX, PDY, PDZ ! RK stage positions
     logical, dimension(self%ndrft) :: inwater
-    integer :: ii
+    integer :: ii, NS
     real(SP), dimension(0:N, KB) :: UL, VL, WL ! ERK stage velocities
     real(SP), dimension(0:M) :: ELL ! ERK stage freesurface height
     real(SP), dimension(self%ndrft, 0:MSTAGE) :: CHIX, CHIY, CHIZ ! ERK stage function evaluation for velocities
@@ -317,7 +312,7 @@ contains
     PDYT(:) = self%yp(:)
     PDZT(:) = self%zp(:)
 
-    do ii = 1, MSTAGE ! Runge-Kutta integration stages
+    do NS = 1, MSTAGE ! Runge-Kutta integration stages
       ! New stage position updated from time zero position
       PDX(:) = self%yp(:) + A_RK(NS) * dt * CHIX(:, NS - 1)
       PDY(:) = self%yp(:) + A_RK(NS) * dt * CHIY(:, NS - 1)
@@ -338,7 +333,9 @@ contains
       CHIY(:, NS) = self%VP(:)
       CHIZ(:, NS) = self%WP(:) / (self%HP(:) - self%EP(:))    ! delta_sigma/deltaT = ww/D
 
-      where ((self%EP(:) - self%HP(:)) < EPS) CHIZ(:, NS) = zero ! Limit vertical motion in very shallow water
+      where ((self%EP(:) - self%HP(:)) < EPS) 
+        CHIZ(:, NS) = zero ! Limit vertical motion in very shallow water
+      end where
     end do
 
     do NS = 1, MSTAGE
@@ -348,9 +345,10 @@ contains
     end do
 
     self%FOUND = 0
-    inwater(:) = 1
+    inwater(:) = .true.
 
-    call self%find_host_element(PDXT, PDYT, inwater) ! Perform robust progressive-topology search
+    ! Perform robust progressive-topology search
+    call self%find_host_element(PDXT, PDYT, inwater) 
     where (inwater)
       self%xp(:) = PDXT(:) ! Update only particles still in water
       self%yp(:) = PDYT(:)
@@ -369,72 +367,26 @@ contains
 
   end subroutine
 
-
-  subroutine kinesis(self, random, deltat, salinity, temperature, density, HIN, EIN)
-
-    use variables
-    use simulation, only : LAG_RAND
-    implicit none
-
-    class(LAG_OBJ), intent(inout) :: self
-    class(LAG_RAND), intent(inout) :: random
-    real(sp), intent(in) :: deltat ! time step, usually DTI
-    real(sp), dimension(0:M, KB), intent(in) :: salinity, temperature, density ! grid based field for kinesis (usually salinity)
-    real(sp), dimension(0:M), intent(in) :: HIN, EIN ! grid based field for kinesis (usually salinity)
-
-    real(sp), dimension(self%ndrft) :: PDXT, PDYT
-    integer, dimension(self%ndrft) :: inwater
-    integer :: ii
-    real(sp) :: pp1, p1
-
-    do ii = 1, self%ndrft
-
-      pp1 = (self%sal(ii) - sal_opt) / sal_sigma
-      p1 = exp(-0.5_SP * (pp1 * pp1))
-
-      self%up(ii) = self%UP(ii) * h1h1 * p1 + (random%gaussian()*epsx_sigma + epsx) * (1.0_SP - h2h2 * p1) ! Update U and V velocities
-      self%up(ii) = self%VP(ii) * h1h1 * p1 + (random%gaussian()*epsx_sigma + epsx) * (1.0_SP - h2h2 * p1)
-      pdxt(ii) = self%xp(ii) + self%up(ii) * deltat * float(self%indomain(ii)) ! Update position
-      pdyt(ii) = self%yp(ii) + self%vp(ii) * deltat * float(self%indomain(ii))
-
-    end do
-
-    ! Evaluate Temporary Location
-    self%found(:) = 0
-    inwater(:) = 1
-
-    call self%find_host_element(pdxt, pdyt, inwater)
-
-    ! Update only particles still in water
-    self%xp(:) = self%xp(:) * (1.0_SP - float(inwater(:))) + PDXT(:) * float(inwater(:))
-    self%yp(:) = self%yp(:) * (1.0_SP - float(inwater(:))) + PDYT(:) * float(inwater(:))
-
-    call self%INTERP_ELH(self%xp, self%yp, HIN, EIN, 1) ! interpolate bathymetry and elevation
-    call self%INTERP_FIELDS(self%xp, self%yp, self%zp, salinity, temperature, density, 0) ! interpolate temperature and salinity at new position
-
-  end subroutine
-
-
   subroutine INTERP_V(lag, XP, YP, ZP, UIN, VIN, WIN) ! OK
     ! linear interpolation of velocity field at particle positions
     use variables, only : A1U, A2U, NBE, YC, XC, DZ, ZZ
     use variables, only : KBM1, N, KB
 
-    class(LAG_OBJ), intent(inout) :: lag
+    class(Agent), intent(inout) :: lag
     real(sp), intent(in), dimension(lag%ndrft) :: XP, YP, ZP ! ZP is sigma depth
     real(sp), intent(in), dimension(0:N, 1:KB) :: UIN, VIN, WIN
 
-    integer, dimension(lag%ndrft) ::  inwater
+    logical, dimension(lag%ndrft) ::  inwater
     integer :: ii, host, E1, E2, E3, K1, K2, K
     real(SP) :: DUDX, DUDY, DVDX, DVDY, DWDX, DWDY, UE01, UE02, VE01, VE02, WE01, WE02
     real(SP) :: ZF1, ZF2, X0C, Y0C
 
-    inwater(:) = 1
+    inwater(:) = .true.
     lag%FOUND(:) = 0
     call lag%find_host_element(XP, YP, inwater)
 
     particle_loop: do ii = 1, lag%ndrft
-      if ( (lag%INDOMAIN(ii) == 0) .or. (inwater(ii)) == 0) cycle ! skip particles outside domain
+      if ( (lag%INDOMAIN(ii) == 0) .or. (.not. inwater(ii))) cycle ! skip particles outside domain
       host = lag%HOST(ii)
       E1  = NBE(host,1)
       E2  = NBE(host,2)
@@ -501,13 +453,13 @@ contains
     use variables, only : AW0, AWX, AWY, NV, XC, YC
     use variables, only : M
 
-    class(LAG_OBJ), intent(inout) :: self
+    class(Agent), intent(inout) :: self
     real(sp), intent(in), dimension(self%ndrft) :: XP, YP ! position arrays, needed because subroutine is used between updates of LAG structure
     real(sp), intent(in), dimension(0:M) :: HIN, EIN ! baythmetry and elevation inputs
     integer, intent(in) :: FHE ! Find host elements: 0 if host has correct elements; 1 if host should be updated
 
     integer :: ii, host, N1, N2, N3
-    integer, dimension(self%ndrft) :: inwater
+    logical, dimension(self%ndrft) :: inwater
     real(sp) :: H0, HX, HY, E0, EX, EY, X0C, Y0C
 
     find_host: if (FHE == 1) then
@@ -540,12 +492,12 @@ contains
     ! Linearly interpolates salinity, temperature and density
     use variables, only : AW0, AWX, AWY, NV, XC, YC, sp, KB, M
 
-    class(LAG_OBJ), intent(inout) :: self
+    class(Agent), intent(inout) :: self
     real(sp), intent(in), dimension(self%ndrft) :: XP, YP, ZP
     real(sp), intent(in), dimension(0:M, KB) :: SAL, TEMP, RHO
     integer, intent(in) :: FHE ! Find host elements: 0 if host has correct elements; 1 if host should be updated
 
-    integer, dimension(self%ndrft) :: inwater
+    logical, dimension(self%ndrft) :: inwater
     integer :: ii, host, N1, N2, N3
     real(sp) :: S0, SX, SY, T0, TX, TY, D0, DX, DY, X0C, Y0C, ZTMP(self%ndrft)
 
@@ -553,7 +505,7 @@ contains
     find_host: if (FHE == 1) then
       inwater(:) = 1
       self%FOUND(:) = 0
-      call self%find_host_element(XP, YP, inwater) ! initiate progressive topology search
+      call self%find_host_element(XP, YP, inwater)
     end if find_host
 
     particle_loop: do ii = 1, self%ndrft
@@ -588,8 +540,8 @@ contains
     ! then linear interpolation on the horizontal
     !  RETURNS:   Both dkh/dz (DKHOUT) and kh (KHOUT)
 
-    use variables
-    class(LAG_OBJ), intent(inout) :: self
+    use variables, only: M, KB, NV, XC, Z, KBM1, YC, DTRW, AW0, AWX, AWY
+    class(Agent), intent(inout) :: self
     real(SP), intent(out), dimension(self%ndrft) :: DKHOUT, KHOUT
     real(SP), intent(in), dimension(0:M, KB) :: DZKH, ZKH
 

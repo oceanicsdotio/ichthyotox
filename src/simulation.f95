@@ -1,12 +1,14 @@
 module simulation
 
   use variables, only : ZERO, sp
+  use random, only : random_number_generator
+  
   implicit none
   save
 
   private
 
-  type, public :: LAG_SIM
+  type, public :: experiment
 
     character(len = 100), public :: simID
 
@@ -34,40 +36,14 @@ module simulation
     procedure, public :: read => readSimulation
     procedure, public :: diffuse => verticalDiffusion
 
-  end type LAG_SIM;
-  class(LAG_SIM), allocatable, public :: domain ! domain structure imported from this module
-
-
-  ! creating gaussian distributions, etc.
-  type, public :: LAG_RAND
-
-    real(sp), private :: rn1, rn2, ru1, ru2, sumMeanDiffSq, mean
-    logical, private  :: current, statistics
-    integer, private  :: samples
-
-  contains
-
-    procedure, public :: init => random_initialize ! subroutine initializes generator from system clock
-    procedure, private :: normal => random_normal ! subroutine generates two gaussian randoms which are stored in the object, also calculates statisitcs on the fly
-    procedure, public :: get => random_get ! function returns the value of one stored gaussian, and will trigger a new calculatlion when necessary
-    procedure, public :: gaussian => random_get
-    procedure, public :: array => random_array
-    procedure, public :: uniform => random_uniform
-    procedure, public :: clipped => random_clipped_normal
-    procedure, public :: stats => random_displayStatistics ! subroutine prints summary statistics to command line
-    procedure, private :: test => random_test ! subroutine iterates over N calls, then prints summary statistics
-
-  end type LAG_RAND
-
-  class(LAG_RAND), allocatable, public :: random
-
+  end type experiment;
+  class(experiment), allocatable, public :: domain ! domain structure imported from this module
 
 contains
 
   subroutine initSimulation(self, exp_type)
     ! allocate and initialize data structures
-    use variables, only : zero, sp
-    class(LAG_SIM), intent(inout) :: self
+    class(experiment), intent(inout) :: self
     integer, intent(in) :: exp_type
 
     allocate( self%verticaltox(0:self%nlayers+1), &
@@ -88,9 +64,9 @@ contains
 
   subroutine readSimulation(self, u_vel, v_vel, w_vel, diffusivity, elevation, salinity, temperature, density)
     ! read physical drivers from file
-    use variables, only : ZERO, sp, KB, M, N, iophys
+    use variables, only : KB, M, N, iophys
 
-    class(LAG_SIM), intent(inout) :: self
+    class(experiment), intent(inout) :: self
     real(sp), dimension(0:N, KB), intent(inout) :: u_vel, v_vel, w_vel
     real(sp), dimension(0:M, KB), intent(inout) :: diffusivity, salinity, temperature, density
     real(sp), dimension(0:M), intent(inout) :: elevation
@@ -120,9 +96,8 @@ contains
   subroutine verticalDiffusion(self)
     ! One-dimensional vertical diffusion
     ! TODO: Write a small explaination of this method
-    use variables, only : KB, KBM1, dti, zero, sp ! time interpolation step
-
-    class(LAG_SIM), intent(inout) :: self
+    use variables, only : KB, KBM1, dti ! time interpolation step
+    class(experiment), intent(inout) :: self
     integer :: ii, jj, stepsToStabilityCriteria
     real(sp) :: &
             & substep, & ! automatic time substep, only valid for dK/dt=0
@@ -186,13 +161,13 @@ contains
     !       2:  open boundary                                !
     !       3:  2 solid boundary edges                         !
 
-    use variables
-    implicit none
+    use variables, only : xc, yc, vx, vy, nv, M, isbce, nbe, isonb, awx, awy
+    use variables, only : n, a1u, NBVE, NBVT, vxmin, vxmax, vymin, VYMAX, aw0, a2u, MX_NBR_ELEM, NTVE
 
     integer, allocatable, dimension(:, :) :: NB_TMP, CELLS, NBET
     integer, allocatable, dimension(:) :: CELLCNT
     integer :: ii, jj, kk, ll, NTMP, NCNT, JJB, N1, N2, N3, J1, J2, J3, tri(3)
-    real(sp) :: X1, X2, X3, Y1, Y2, Y3, DELT, AI1, AI2, AI3, BI1, BI2, BI3, CI1, CI2, CI3, DELTX, DELTY, B1, B2, ART(N)
+    real(sp) :: X1, X2, X3, Y1, Y2, Y3, DELT, AI(3), BI(3), CI(3), DELTX, DELTY, B1, B2, ART(N)
 
     ! SET UP MESH (HORIZONTAL COORDINATES)
     ! CALCULATE GLOBAL MINIMUMS AND MAXIMUMS
@@ -251,7 +226,7 @@ contains
         end do
       end do
     end do
-    DEALLOCATE(CELLS, CELLCNT)
+    deallocate(CELLS, CELLCNT)
 
     ! Ensure all elements have at least one neighbor
     do ii = 1, N
@@ -473,13 +448,11 @@ contains
 
       end if
     end do
-
   end subroutine
 
   subroutine hunt(sigma_nodes, KB, sigma_particle, jlo) ! Z, KB, self%ZP(ii), NZR
     ! from numerical recipies vol 2
-    use variables
-
+    use variables, only : N
     integer, intent(inout) :: jlo ! sigma layer below particle?
     integer, intent(in) :: KB ! number of sigma layers
     real(sp), dimension(KB), intent(in) :: sigma_nodes ! sigma coordinate value
@@ -532,462 +505,42 @@ contains
   end subroutine hunt
 
 
-  subroutine spline(x, y, n2, yp1, ypn, y2)
+  subroutine spline(x, y, n, yp1, ypn, y2)
     ! from numerical recipies vol 2, but modfied so that nmax=50
-    use variables, only : sp
-    implicit none
-    integer  :: n2
-    real(sp), intent(in) :: x(n2), y(n2), yp1, ypn
-    real(sp), intent(out), dimension(n2) :: y2
+    integer, intent(in)  :: n
+    real(sp), intent(in) :: x(n), y(n), yp1, ypn
+    real(sp), intent(out), dimension(n) :: y2
 
-    integer  :: i, k
+    integer :: i, k
     integer, parameter :: nmax=50
     real(sp) :: p, qn, sig, un
     real(sp), dimension(nmax) :: u
 
     if (yp1 > 0.99e30) then ! force natural lower boundary
-      y2(1) = 0.0_SP
-      u(1) = 0.0_SP
+      y2(1) = ZERO
+      u(1) = ZERO
     else ! or set specific values
       y2(1) = -0.5_SP
       u(1) = (3.0_SP/(x(2)-x(1)))*((y(2)-y(1))/(x(2)-x(1))-yp1)
     end if
-    do i = 2, n2-1 ! tridiagonal algorithm decomp
+    do i = 2, n-1 ! tridiagonal algorithm decomp
       sig = (x(i) - x(i-1)) / (x(i+1) - x(i-1))
       p = sig * y2(i-1) + 2.0_SP
       y2(i) = (sig-1.) / p
       u(i) = (6.0*((y(i+1) - y(i)) / (x(i+1) - x(i)) - (y(i) - y(i-1))/(x(i) - x(i-1)))/(x(i+1) - x(i-1)) - (- sig*u(i-1)))/p
     end do
     if (ypn > 0.99e30) then ! force natural upper boundary
-      qn = 0.0_SP
-      un = 0.0_SP
+      qn = ZERO
+      un = ZERO
     else
       qn = 0.5_SP
-      un = (3.0_SP/(x(n2)-x(n2-1)))*(ypn-(y(n2)-y(n2-1))/(x(n2)-x(n2-1)))
+      un = (3.0_SP/(x(n)-x(n-1)))*(ypn-(y(n)-y(n-1))/(x(n)-x(n-1)))
     end if
-    y2(n2) = (un - qn * u(n2-1)) / (qn * y2(n2-1) + 1.0_SP)
-    do k = n2-1, 1, -1
+    y2(n) = (un - qn * u(n-1)) / (qn * y2(n-1) + 1.0_SP)
+    do k = n-1, 1, -1
       y2(k) = y2(k) * y2(k+1) + u(k)
     end do
 
   end subroutine spline
-
-
-  subroutine random_initialize(self)
-
-    ! init random seed from computer clock
-    class(LAG_RAND), intent(inout) :: self
-    integer :: uu, seed_size
-    integer(kind = 4) :: clock
-    integer, dimension(:), allocatable :: seed
-
-    call random_seed(size=seed_size)
-    allocate(seed(seed_size))
-    call system_clock(clock)
-    seed = clock + 37 * (/ (uu - 1, uu = 1, seed_size) /)
-    call random_seed(put=seed)
-    deallocate(seed)
-
-    self%current = .true.
-
-    self%samples = 0
-    self%rn = (/ zero, zero /)
-    self%ru = (/ zero, zero /)
-    self%mean = zero
-    self%sumMeanDiffSq = zero
-
-    call self%normal()
-
-  end subroutine
-
-
-  subroutine random_normal(self)
-    ! generate two random normal numbers using Box-Muller method
-    use variables, only : sp
-    class(LAG_RAND), intent(inout) :: self
-    real(sp) :: sq, values(0:1), residual
-
-    do
-      values(:) = (/ self%uniform(), self%uniform() /)
-      sq = sum(values*values) ! reject if outside range
-      if (sq <= 1.0_sp) exit
-    end do
-
-    self%rn(:) = sqrt(-2.0_SP*log(sq)/sq)*values(:) ! generate normal rands from uniform
-
-    self%samples = self%samples + 2
-    residual = sum(self%rn - self%mean)
-    self%mean = self%mean + residual / self%samples  ! TODO: make sure this is still correct
-    self%sumMeanDiffSq = self%sumMeanDiffSq + residual*(sum(self%rn - self%mean))
-
-  end subroutine
-
-
-  function random_array(self, nn)
-
-    use variables, only : sp
-    class(LAG_RAND), intent(inout) :: self
-    integer, intent(in) :: nn
-
-    real(sp), dimension(nn) :: random_array
-    real(sp), dimension(nn) :: temp_array
-    integer :: ii
-
-    do ii = 1, nn
-      temp_array(ii) = self%get()
-    end do
-
-    random_array(:) = temp_array(:)
-
-  end function
-
-
-  real(sp) function random_uniform(self) result(rand)
-
-    use variables, only : sp
-    class(LAG_RAND), intent(inout) :: self
-
-    call random_number(self%ru(1))
-    rand = 2.0_SP*self%ru(1) - 1.0_SP ! returns uniform pseudorandom in -1 to 1 range
-
-  end function
-
-
-  real(sp) function random_get(self)
-    ! returns one of stored gaussian random numbers and generates new ones when used
-    use variables, only : sp
-    class(LAG_RAND), intent(inout) :: self
-
-    random_get = merge(self%rn(1), self%rn(2), self%current)
-    if (self%current) call self%normal() ! generate new numbers
-    self%current = .not. self%current
-
-  end function
-
-
-  real(sp) function random_clipped_normal(self)
-    ! returns one of stored gaussian random numbers and generates new ones when used
-    use variables, only : sp
-    class(LAG_RAND), intent(inout) :: self
-
-    random_clipped_normal = self%get() ! get new random normal
-    do while (abs(random_clipped_normal) > 1.0_SP) ! check if -1,1
-      random_clipped_normal = self%get() ! reassign if out of range
-    end do
-
-  end function
-
-  subroutine random_displayStatistics(self)
-    ! calculate and display distribution statistics for the random number system
-    implicit none
-
-    class(LAG_RAND), intent(in) :: self
-    print *, "Statistics for random gaussian numbers.";
-    print *, "    Samples:       ", self%samples
-    print *, "    Mean:          ", self%mean
-    print *, "    Variance:      ", self%sumMeanDiffSq / float(self%samples - 1)
-    print *, "    Std Deviation: ", sqrt(self%sumMeanDiffSq / float(self%samples - 1))
-
-  end subroutine
-
-
-  subroutine getInteger(file, key, target, fid)
-
-    character(len = *), intent(in) :: key, file
-    integer, intent(out) :: target
-    integer, intent(in), optional :: fid
-    integer :: errorCode
-
-    errorCode = find_key(file, key, iscal=target)
-    if (errorCode /= 0) then
-      write(fid, *) 'Error reading '//key//': ', errorCode
-      stop
-    end if
-
-  end subroutine
-
-
-  subroutine getString(file, key, target, fid)
-
-    character(len = *), intent(in) :: key, file
-    character(len = 80), intent(out) :: target
-    integer, intent(in) :: fid
-    integer :: errorCode, ii
-
-    errorCode = find_key(file, key, cval=target)
-    if (errorCode /= 0) then
-      write(fid, *) 'Error reading '//key//': ', errorCode
-      stop
-    else
-      ! remove trailing directory '/'
-      ii = len_trim(target)
-      if (target(ii:ii) == "/") target(ii:ii) = " "
-    end if
-
-  end subroutine
-
-
-  integer function find_key(FNAME, VNAME, ISCAL, FSCAL, IVEC, FVEC, CVEC, NSZE, CVAL, LVAL)
-    !   Scan an Input File for a Variable
-    !   RETURN VALUE:
-    !        0 = FILE FOUND, VARIABLE VALUE FOUND
-    !       -1 = FILE DOES NOT EXIST OR PERMISSIONS ARE INCORRECT
-    !       -2 = VARIABLE NOT FOUND OR IMPROPERLY SET
-    !       -3 = VARIABLE IS OF DIFFERENT TYPE, CHECK INPUT FILE
-    !       -4 = VECTOR PROVIDED BUT DATA IS SCALAR TYPE
-    !       -5 = NO DATATYPE DESIRED, EXITING
-
-    !   REQUIRED INPUT:
-    !        FNAME = File Name
-    !        FSIZE = Length of Filename
-
-    !   optional (MUST PROVIDE ONE)
-    !        ISCAL = integer SCALAR
-    !        FSCAL = FLOAT SCALAR
-    !        CVAL = character VARIABLE
-    !        LVAL = LOGICAL VARIABLE
-    !        IVEC = integer VECTOR **
-    !        FVEC = FLOAT VECTOR **
-    !        CVEC = STRING VECTOR **
-    !      **NSZE = ARRAY SIZE (MUST BE PROVIDED WITH IVEC/FVEC)
-
-    use variables
-    implicit none
-    character(LEN = *) :: FNAME, VNAME
-    integer, intent(inout), optional :: ISCAL, IVEC(*)
-    REAL(SP), intent(inout), optional :: FSCAL, FVEC(*)
-    character(LEN=80), optional :: CVAL, CVEC(*)
-    LOGICAL, intent(inout), optional :: LVAL
-    integer, intent(inout), optional :: NSZE
-
-    REAL(SP) REALVAL(150)
-    integer  INTVAL(150)
-    character(LEN=20 ) :: key
-    character(LEN=80 ) :: STRINGVAL(150),TITLE
-    character(LEN=80 ) :: line
-    character(LEN=400) :: buffer
-    character(LEN=7  ) :: type_of
-    character(LEN=20 ), DIMENSION(200) :: SET
-    integer :: last, NVAL, lines, NREP
-    logical :: SETYES, ALLSET, CHECK, LOGVAL
-    character(len=*), parameter :: continue_line = "////"
-    character(len = len_trim(copy)) :: text
-    character(len = len_trim(copy)) :: value, TEMP, fragments(200)
-    character(len = 80) :: TSTRING
-    character(len = 6) :: ERRSTRING
-    character(len = 16) :: NUMCHARS = "0123456789+-Ee. "
-    integer :: EQLOC, length, ii, LOCEX, NP
-    logical :: flag
-
-    find_key = 0
-
-    ! OPEN THE INPUT FILE
-    inquire(file=TRIM(FNAME), exist=CHECK)
-    if (.not. CHECK) then
-      find_key = -1
-    end if
-
-    open(10, file=trim(FNAME))
-    rewind(10)
-
-    lines = 0
-    do while (.true.)
-
-      buffer(1:len(buffer)) = ' '
-      NREP  = 0
-      lines = lines + 1
-      read(10,'(a)', end=20) line
-      buffer(1:80) = line(1:80)
-
-      ! PROCESS LINE CONTINUATIONS
-      110 CONTINUE
-      last = len_trim(line)
-      if (last /= 0) then
-        if ( line(last-1:last) == '\\\\') then
-
-          NREP = NREP + 1
-          read(10, '(a)', end=20) line
-          lines = lines + 1
-          buffer( NREP*80 + 1 : NREP*80 +80) = line(1:80)
-          GOTO 110
-        end if
-      end if
-
-      ! REMOVE LINE CONTINUATION character \\
-      if (NREP > 0) then
-        do last = 2, LEN_TRIM(buffer)
-          if ( buffer(last-1:last) == '\\\\') then
-            buffer(last-1:last) = '  ' 
-          end if
-        end do
-      end if
-
-      fragments = " "
-      type_of = "error"
-      LOGVAL = .false.
-
-      write(ERRSTRING, "(I6)") lines
-
-      LOCEX = index(text, "!")
-      if (LOCEX /= 0) text = text(1:LOCEX-1)
-      length = len_trim(text)
-
-      if (length == 0) then
-        type_of = "none"
-        key = "none"
-        return
-      end if
-
-      ! Commas to spaces
-      where (text(:) == ",")
-        text(:) = " "
-      end where
-
-      ! Find assignment "="
-      EQLOC = index(text, "=")
-      if (EQLOC == 0) call raise(6,'DATA LINE '//ERRSTRING//' MUST CONTAIN "=" ')
-
-      ! split name and value substrings
-      key = text(1:EQLOC-1)
-      value  = adjustl(text(EQLOC+1:LENGTH))
-      length = len_trim(value)
-
-      if (length == 0) call raise(6,'IN DATA PARAMETER FILE', 'VARIABLE LINE'//ERRSTRING//' HAS NO ASSOCIATED VALUE')
-
-      ! check for logical
-      if ((value(1:1) == "T" .or. value(1:1) == "F") .and. length == 1) then
-        type_of = "logical"
-        if (value(1:1) == "T") LOGVAL = .true.
-        return
-      end if
-
-      ! is string if contains non-numeric characters
-      do ii = 1, length
-        if (index(NUMCHARS, value(ii:ii)) == 0) then
-
-          type_of = "string"
-          TSTRING = value
-          stringval(1) = TSTRING
-          NVAL = 1
-          flag = .true.
-
-          do ii = 1, length
-            if (value(ii:ii) /= " ") then
-              fragments(NVAL) = trim(fragments(NVAL)) // value(ii:ii)
-              flag = .true.
-            else
-              if (flag) NVAL = NVAL + 1
-              flag = .false.
-            end if
-          end do
-
-          do ii = 1, NVAL
-            stringval(ii + 1) = trim(fragments(ii))
-          end do
-          return
-
-        end if
-      end do
-
-      type_of = merge("float  ", "integer", index(value, ".") /= 0)
-
-      ! Split lines
-      NP = 1
-      flag = .true.
-      do ii = 1, length
-        if (value(ii:ii) /= " ") then
-          fragments(NP) = trim(fragments(NP)) // value(ii:ii)
-          flag = .true.
-        else
-          if (flag) NP = NP + 1
-          flag = .false.
-        end if
-      end do
-
-      ! numerical
-      NVAL = NP
-      do ii = 1, NP
-        if (type_of == "float") then
-          read(trim(fragments(ii)), *) realval(ii)
-        else
-          read(trim(fragments(ii)), *) intval(ii)
-        end if
-      end do
-
-
-      if (trim(name) == trim(VNAME)) then
-
-        if (PRESENT(ISCAL)) then
-          if (type_of == 'integer') then
-            ISCAL = INTVAL(1)
-            return
-          else
-            find_key = -3
-          end if
-        elseif(present(FSCAL)) then
-          if (type_of == 'float') then
-            FSCAL = REALVAL(1)
-            return
-          else
-            find_key = -3
-          end if
-        elseif(present(CVAL))THEN
-          if (type_of == 'string') then
-            CVAL = STRINGVAL(1)
-            return
-          else
-            find_key = -3
-          end if
-        elseif (present(LVAL)) THEN
-          if (type_of == 'logical') then
-            LVAL = LOGVAL
-            return
-          else
-            find_key = -3
-          end if
-        else if (present(IVEC)) then
-          if (NVAL > 1) then
-            if (type_of == 'integer') then
-              IVEC(1:NVAL) = INTVAL(1:NVAL)
-              NSZE = NVAL
-              return
-            else
-              find_key = -3
-            end if
-          else
-            find_key = -4
-          end if
-        elseif (present(FVEC)) then
-          if (NVAL > 1) then
-            IF (type_of == 'float') then
-              FVEC(1:NVAL) = REALVAL(1:NVAL)
-              NSZE = NVAL
-              return
-            else
-              find_key = -3
-            end if
-          else
-            find_key = -4
-          end if
-        elseif (present(CVEC)) then
-          if (NVAL > 0) then
-            if (type_of == 'string') then
-              CVEC(1:NVAL) = STRINGVAL(2:NVAL+1)
-              NSZE = NVAL
-              return
-            else
-              find_key = -3
-            end if
-          else
-            find_key = -4
-          end if
-        else
-          find_key = -5
-        end if
-      end if
-    end do
-    20 close(10)
-    find_key = -2
-  end function
 
 end module
