@@ -218,7 +218,7 @@ contains
 
   subroutine lag_writePosition(self, fid, time)
     ! write time and particle id/position to already open file
-    use simulation, only: finite_volume_mesh ! domain structure for current time only
+    use simulation, only: domain ! domain structure for current time only
     class(Agent), intent(inout) :: self ! lagrangian particle structure
     integer, intent(in) :: fid ! unit number of open output file
     real(sp), intent(in) :: time ! time to write
@@ -255,12 +255,12 @@ contains
 
   function lag_zinterp(self, verticalvar)
     use variables, only : KB ! sigma layers
-    use simulation, only : finite_volume_mesh ! domain structure
+    use simulation, only : domain ! domain structure
     class(Agent), intent(inout) :: self ! lagrangian particle swarm object
     real(sp), dimension(0:KB+1), intent(in) :: verticalvar
     real(sp), dimension(self%ndrft) :: idz, lag_zinterp
 
-    idz(:) = (finite_volume_mesh%layerSigma*(self%layer(:)-1) - self%zp(:))/finite_volume_mesh%layerSigma ! relative distance from layer above
+    idz(:) = (domain%layerSigma*(self%layer(:)-1) - self%zp(:))/domain%layerSigma ! relative distance from layer above
     lag_zinterp(:) = verticalvar(self%layer(:))*(1.0_SP - idz(:)) + verticalvar(self%layer(:)+1)*idz(:)
 
   end function

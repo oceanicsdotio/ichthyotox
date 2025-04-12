@@ -134,8 +134,9 @@ module simulation
       end do
   
     end subroutine
-  
-    subroutine TRIANGLE_GRID_EDGE
+
+    subroutine TRIANGLE_GRID_EDGE(self)
+      
   
       !  Define triangular mesh used for flux computations.
   
@@ -170,7 +171,7 @@ module simulation
   
       use variables, only : xc, yc, vx, vy, nv, M, isbce, nbe, isonb, awx, awy
       use variables, only : n, a1u, NBVE, NBVT, vxmin, vxmax, vymin, VYMAX, aw0, a2u, MX_NBR_ELEM, NTVE
-  
+      class(Mesh), intent(inout) :: self
       integer, allocatable, dimension(:, :) :: NB_TMP, CELLS, NBET
       integer, allocatable, dimension(:) :: CELLCNT
       integer :: ii, jj, kk, ll, NTMP, NCNT, JJB, N1, N2, N3, J1, J2, J3, tri(3)

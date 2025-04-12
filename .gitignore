@@ -1,3 +1,4 @@
 bin/*
+data/*
 src/*.o
 src/*.mod

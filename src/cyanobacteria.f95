@@ -10,46 +10,46 @@ module Cyanobacteria
     save
 
     real(sp), parameter :: &
-            & colonyBaseRadius = 75.0*10.0**(-6.0), & ! meters
-            & tempRef = 25.0, & ! reference temperature for limit fcn
-            & tempOpt = 28.0, & ! optimal growth temperature
-            & tempLethal = 35.0, & ! lethal temperature
-            & excretionFrac = 0.1, & ! unitless
-            & fixationMax = 11.4, & ! maximum carbon fixation, per hour rate
-            & fixationBeta = 0.02, & ! shape factor in fixation calculation
-            & respirationBasic = 0.004, & ! basic respiration rate, per hour
-            & respirationActive = 0.2, & ! active respiration rate, unitless
-            & densityMax = 1150.0, & ! maximum empirical density of algal cells, kg/m^3
-            & densityMin = 1037.0, & ! minimum empirical density of algal cells, kg/m^3
-            & vesicleDensity = 150.0, & ! density of gas filled vesicles, kg/m^3
-            & cellFrac = 0.25, & ! fraction of colony volume composed of cell material, unitless
-            & carbonRatioMax = 4.0, & ! maximum empirical ratio of carbon reservoirs in algal cells, unitless
-            & vesicleFrac = 0.08, & ! fraction of cell volume occupied by vesicles, unitless
-            & irradOpt = 250.0, & ! optimal irradiance W/M^-2
-            & synthesisMax = 0.05, & ! per hour rate
-            & tempFcnAlpha = 0.286, & ! shape factor, unitless
-            & tempFcnBeta = 0.05, &   ! shape coefficient, unitless
-            & cellDensityCoefficient = 0.7, & ! shape coefficient, unitless
-            & lightExtinctionBiomass = 14.0, & ! light extinction due to overlying biomass
-            & lightAttenuationWater = 0.15, & ! light extinction coefficient due to coastal waters
-            & shading_upscale = 1.0
+        & colonyBaseRadius = 75.0*10.0**(-6.0), & ! meters
+        & tempRef = 25.0, & ! reference temperature for limit fcn
+        & tempOpt = 28.0, & ! optimal growth temperature
+        & tempLethal = 35.0, & ! lethal temperature
+        & excretionFrac = 0.1, & ! unitless
+        & fixationMax = 11.4, & ! maximum carbon fixation, per hour rate
+        & fixationBeta = 0.02, & ! shape factor in fixation calculation
+        & respirationBasic = 0.004, & ! basic respiration rate, per hour
+        & respirationActive = 0.2, & ! active respiration rate, unitless
+        & densityMax = 1150.0, & ! maximum empirical density of algal cells, kg/m^3
+        & densityMin = 1037.0, & ! minimum empirical density of algal cells, kg/m^3
+        & vesicleDensity = 150.0, & ! density of gas filled vesicles, kg/m^3
+        & cellFrac = 0.25, & ! fraction of colony volume composed of cell material, unitless
+        & carbonRatioMax = 4.0, & ! maximum empirical ratio of carbon reservoirs in algal cells, unitless
+        & vesicleFrac = 0.08, & ! fraction of cell volume occupied by vesicles, unitless
+        & irradOpt = 250.0, & ! optimal irradiance W/M^-2
+        & synthesisMax = 0.05, & ! per hour rate
+        & tempFcnAlpha = 0.286, & ! shape factor, unitless
+        & tempFcnBeta = 0.05, &   ! shape coefficient, unitless
+        & cellDensityCoefficient = 0.7, & ! shape coefficient, unitless
+        & lightExtinctionBiomass = 14.0, & ! light extinction due to overlying biomass
+        & lightAttenuationWater = 0.15, & ! light extinction coefficient due to coastal waters
+        & shading_upscale = 1.0
 
     type, public, extends(Agent) :: CyanobacteriaAgent
         ! algal state inherited from lagrangian particle class
         real(sp) :: &
-                & mclrProductionRate = zero, &
-                & mclrExcretionRate = zero
+            & mclrProductionRate = zero, &
+            & mclrExcretionRate = zero
 
         real(sp), allocatable, dimension(:), private :: &
-                & radius, & ! radius for vertical movement of spherical colonies, meters
-                & irradiance, & ! irradiance at particle position, watts per sq meter
-                & biomass, & ! overlying biomass used for light attenuation calculations, gram
-                & delta_rho ! difference in density between water and colony
+            & radius, & ! radius for vertical movement of spherical colonies, meters
+            & irradiance, & ! irradiance at particle position, watts per sq meter
+            & biomass, & ! overlying biomass used for light attenuation calculations, gram
+            & delta_rho ! difference in density between water and colony
 
         real(sp), allocatable, dimension(:), public :: &
-                & carbohydrate, & ! mass of carbohydration ballast, grams
-                & protein, & ! mass of buoyant cellular material, grams
-                & microcystin ! mass of cellular toxins, grams
+            & carbohydrate, & ! mass of carbohydration ballast, grams
+            & protein, & ! mass of buoyant cellular material, grams
+            & microcystin ! mass of cellular toxins, grams
 
     contains
         ! user interface subroutines
@@ -376,7 +376,7 @@ colony_carbonExcretion(:) = excretionFrac*self%tempFunction()*(respirationBasic*
             mc_excretion(:) = self%release()
             mc_production(:) = self%production()
 
-            mcoef = merge(A_RK(ii + 1), 1.0, ii < mstage)
+            mcoef = merge(A_RK(ii + 1), 1.0_sp, ii < mstage)
 
             calc_array(:) = synthesis(:)/respiration(:)
             where (((synthesis(:) + respiration(:))*dti*mcoef) > (self%carbohydrate(:) + fixation(:)*dti*mcoef))
@@ -447,7 +447,7 @@ colony_carbonExcretion(:) = excretionFrac*self%tempFunction()*(respirationBasic*
             elsewhere
                 domain%verticaltox(self%layer(:)) = domain%verticaltox(self%layer(:)) + &
                     & B_RK(ii)*dti*chi_dissolved(:,ii)*(1.0 - idz(:))/domain%layerDepth ! add to sigma above
-                domain%verticaltox(self%layer(:)+1) = domain%verticaltox(self%layer(:)+1) + &
+                    domain%verticaltox(self%layer(:)+1) = domain%verticaltox(self%layer(:)+1) + &
                     & B_RK(ii)*dti*chi_dissolved(:,ii)*idz(:)/domain%layerDepth ! add to sigma below
             end where
 
@@ -504,10 +504,10 @@ colony_carbonExcretion(:) = excretionFrac*self%tempFunction()*(respirationBasic*
 
     end function
 
-    elemental function algae_density(carbohydrate, protein, water_density)
+    elemental real(sp) function algae_density(carbohydrate, protein, water_density)
         ! colony density including contibutions of mucus and gas vacuoles
-        real(sp) :: algae_density, carbohydrate, protein, water_density, cell_density
-        
+        real(sp), intent(in) :: carbohydrate, protein, water_density
+        real(sp) :: cell_density
         ! array of density without mucus and vacuoles
         cell_density = densityMin + (densityMax - densityMin) * &
             & (1.0 - exp(-cellDensityCoefficient * carbohydrate/protein))
