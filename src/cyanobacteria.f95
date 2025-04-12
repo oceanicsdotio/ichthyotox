@@ -143,13 +143,14 @@ contains
 
     end subroutine
 
-    subroutine colony_writeState(self, fid)
+    subroutine colony_writeState(self, fid, time)
         use simulation, only: domain ! domain structure for elapsed time
         class(CyanobacteriaAgent), intent(in) :: self ! cyanobacteria extended type
         integer, intent(in) :: fid ! persistent file unit number
+        real(sp), intent(in) :: time ! elapsed time in seconds
         integer :: ii
 
-    write(fid, "(1F10.2,9000(I6,3F20.3))") domain%time, & 
+        write(fid, "(1F10.2,9000(I6,3F20.3))") time, & 
             & (self%itag(ii), self%carbohydrate(ii), self%protein(ii), &
             & self%microcystin(ii), ii=1,self%ndrft)
 

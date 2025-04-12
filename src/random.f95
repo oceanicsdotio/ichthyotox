@@ -5,7 +5,7 @@ module random
     save
     private
 
-    ! Simple unform using system methods
+    ! Simple uniform using system methods
     type, public :: Uniform_Random_Number
       real(sp), private :: ru(2)
       logical, private  :: current
@@ -13,7 +13,7 @@ module random
       procedure, public :: uniform => random_uniform
     end type
   
-    ! Creating gaussian distributions, etc.
+    ! Creating gaussian distributions
     type, public, extends(Uniform_Random_Number) :: Gaussian_Random_Number
       real(sp), private :: rn(2), sumMeanDiffSq, mean
       logical, private  :: statistics
@@ -22,10 +22,10 @@ module random
       ! Initialize random number generator
       procedure, public :: init => random_initialize
 
-      ! Generates two gaussian randoms, stored in the struct, calculate statisitcs on the fly
+      ! Generates two gaussian randoms, stored in the struct, calculate statistics on the fly
       procedure, private :: normal => random_normal 
 
-      ! Returns value of one stored gaussian, and trigger new calculatlion if needed
+      ! Returns value of one stored gaussian, and trigger new calculation if needed
       procedure, public :: get => random_get 
 
       ! Prints summary statistics to logging output
@@ -112,7 +112,6 @@ module random
     real(sp) function random_get(self)
       ! returns one of stored gaussian random numbers and generates new ones when used
       class(Gaussian_Random_Number), intent(inout) :: self
-
       random_get = merge(self%rn(1), self%rn(2), self%current)
       if (self%current) call self%normal()
       self%current = .not. self%current
@@ -121,13 +120,12 @@ module random
     real(sp) function random_clipped_normal(self)
       ! get new random normal and reassign if out of range
       class(Gaussian_Random_Number), intent(inout) :: self
-
       random_clipped_normal = self%get() 
       do while (abs(random_clipped_normal) > 1.0_SP)
         random_clipped_normal = self%get() 
       end do
     end function
-  
+
     subroutine random_displayStatistics(self)
       ! calculate and display distribution statistics for the random number system
       class(Gaussian_Random_Number), intent(in) :: self

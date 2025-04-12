@@ -5,7 +5,6 @@ module simulation
   use variables, only : xc, yc, vx, vy, nv, M, isbce, nbe, isonb, awx, awy
   use variables, only : n, a1u, NBVE, NBVT, vxmin, vxmax, vymin, VYMAX, aw0, a2u, MX_NBR_ELEM, NTVE
 
-  
   implicit none
   save
 
@@ -27,14 +26,14 @@ module simulation
 
   contains
     procedure, public :: init => TRIANGLE_GRID_EDGE
+    procedure, private :: TRIANGLE_GRID_EDGE
   end type
 
   type(Mesh), allocatable, public :: finite_volume_mesh ! domain structure imported from this module
 
 contains
 
-
-  subroutine TRIANGLE_GRID_EDGE
+  subroutine TRIANGLE_GRID_EDGE(this)
 
     !  Define triangular mesh used for flux computations.
 
@@ -67,7 +66,7 @@ contains
     !       2:  open boundary                                !
     !       3:  2 solid boundary edges                         !
 
-
+    class(Mesh), intent(inout) :: this
     integer, allocatable, dimension(:, :) :: NB_TMP, CELLS, NBET
     integer, allocatable, dimension(:) :: CELLCNT
     integer :: ii, jj, kk, ll, NTMP, NCNT, JJB, N1, N2, N3, J1, J2, J3, tri(3)
@@ -353,5 +352,4 @@ contains
       end if
     end do
   end subroutine
-
 end module
