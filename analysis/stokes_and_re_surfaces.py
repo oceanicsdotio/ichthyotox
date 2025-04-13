@@ -1,11 +1,8 @@
 #!/usr/bin/python
 import matplotlib.pyplot as plt
-import matplotlib.ticker as mticker
 import numpy as np
 from matplotlib import rc
 from pylab import *
-from mpl_toolkits.mplot3d import Axes3D
-from matplotlib import cm, tri
 
 fontsize  = 10
 linewidth = 1
@@ -106,7 +103,7 @@ ax.xaxis.set_major_locator(LinearLocator(2))
 ax.xaxis.set_major_formatter(FormatStrFormatter('%.0f'))
 ax.xaxis.grid(False)
 ax.xaxis.set_rotate_label(False)
-ax.w_xaxis.set_pane_color(bg_color)
+ax.xaxis.set_pane_color(bg_color)
 
 ax.set_ylabel(r'ln(C/M)')
 ax.set_ylim()
@@ -114,14 +111,14 @@ ax.yaxis.set_major_locator(LinearLocator(2))
 ax.yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
 ax.yaxis.grid(False)
 ax.yaxis.set_rotate_label(False)
-ax.w_yaxis.set_pane_color(bg_color)
+ax.yaxis.set_pane_color(bg_color)
 
 ax.set_zlabel(r'|V|')
 ax.zaxis.set_major_locator(LinearLocator(2))
 #ax.zaxis.set_major_formatter(FormatStrFormatter('%.3e'))
 ax.zaxis.grid(False)
 ax.zaxis.set_rotate_label(False)
-ax.w_zaxis.set_pane_color(bg_color)
+ax.zaxis.set_pane_color(bg_color)
 
 title(r'(A)', fontsize=fontsize, color=label_color)
 ttl = ax.title
@@ -139,7 +136,7 @@ ax2.xaxis.set_major_locator(LinearLocator(2))
 ax2.xaxis.set_major_formatter(FormatStrFormatter('%.0f'))
 ax2.xaxis.grid(False)
 ax2.xaxis.set_rotate_label(False)
-ax2.w_xaxis.set_pane_color(bg_color)
+ax2.xaxis.set_pane_color(bg_color)
 
 ax2.set_ylabel(r'ln(C/M)')
 ax2.set_ylim()
@@ -147,18 +144,18 @@ ax2.yaxis.set_major_locator(LinearLocator(2))
 ax2.yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
 ax2.yaxis.grid(False)
 ax2.yaxis.set_rotate_label(False)
-ax2.w_yaxis.set_pane_color(bg_color)
+ax2.yaxis.set_pane_color(bg_color)
 
 ax2.set_zlabel(r'Re')
 ax2.zaxis.set_major_locator(LinearLocator(2))
 #ax2.zaxis.set_major_formatter(FormatStrFormatter('%.0e'))
 ax2.zaxis.grid(False)
 ax2.zaxis.set_rotate_label(False)
-ax2.w_zaxis.set_pane_color(bg_color)
+ax2.zaxis.set_pane_color(bg_color)
 
 title(r"(B)", fontsize=fontsize, color=label_color)
 ttl = ax2.title
 ttl.set_position([1.0, 1.0])
 
 
-plt.savefig('./stokes_and_re_surfaces.tiff', facecolor=bg_color, edgecolor='none', dpi=default_dpi)
+plt.savefig('./figures/stokes_and_re_surfaces.png', facecolor=bg_color, edgecolor='none', dpi=default_dpi)

@@ -5,3 +5,7 @@ src/*.mod
 # pixi environments
 .pixi
 *.egg-info
+**/*.tiff
+**/*.png
+**/*.jpg
+figures/*

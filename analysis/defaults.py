@@ -61,9 +61,7 @@ ax.xaxis.label.set_color(label_color)
 ax.yaxis.label.set_color(label_color)
 ax.tick_params(axis='x', colors=label_color)
 ax.tick_params(axis='y', colors=label_color)
-     
-   
-    
+
 
 def set_tick_sizes(ax, major, minor):
     for l in ax.get_xticklines() + ax.get_yticklines():

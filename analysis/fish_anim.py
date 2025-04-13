@@ -1,11 +1,8 @@
 #!/usr/bin/python
 from defaults import *
 from pylab import *
-from scipy.interpolate import UnivariateSpline
 import matplotlib.animation as animation
 from matplotlib.collections import LineCollection
-from matplotlib.colors import colorConverter
-
 
 # load data
 ini = open('../fish_ini.dat', 'r')
