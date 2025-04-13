@@ -2,3 +2,6 @@ bin/*
 data/*
 src/*.o
 src/*.mod
+# pixi environments
+.pixi
+*.egg-info

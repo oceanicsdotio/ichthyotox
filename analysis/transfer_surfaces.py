@@ -158,7 +158,7 @@ for ii in range(0,4):
     ax[ii].title.set_position([1.0, 1.0])
     
     ax[ii].set_frame_on(False)
-ax[0].set_xlim(0.0,650.0);
+ax[0].set_xlim(0.0,650.0)
 ax[1].set_xlim(20.,30.); ax[1].set_ylim()
 ax[2].set_xlim(20.,30.); ax[2].set_ylim()
 ax[3].set_xlim(20.,30.); ax[3].set_ylim()

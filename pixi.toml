@@ -1,0 +1,13 @@
+[workspace]
+authors = ["Keeney <nkeeney@oceanics.io>"]
+channels = ["conda-forge"]
+name = "ichthyotox"
+platforms = ["osx-arm64"]
+version = "0.1.0"
+
+[tasks]
+
+[dependencies]
+numpy = ">=2.2.4,<3"
+scipy = ">=1.15.2,<2"
+matplotlib = ">=3.10.1,<4"
