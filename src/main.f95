@@ -299,7 +299,7 @@ program main
   call agent%fish%init() !
   write(*, *) "Finished"
   write(*, "(A)", advance='no') "Allocating common variables... "
-  call agent%cyanobacteria%lag_alloc() ! allocate common variables other than position and itag
+  call agent%cyanobacteria%lag_alloc() ! allocate common variables other than position
   call agent%fish%lag_alloc()
 
   allocate( INWATER(agent%cyanobacteria%ndrft) ); INWATER(:) = 1 ! allocate inwater flag for only single species

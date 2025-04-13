@@ -1,5 +1,5 @@
 module simulation
-    use variables, only : ZERO, sp
+    use variables, only : sp
     use random, only : random_number_generator
     
     implicit none
@@ -8,7 +8,6 @@ module simulation
   
     type, public :: Mesh
     contains
-        procedure, public :: init => TRIANGLE_GRID_EDGE
     end type
   
     type, public :: Experiment
@@ -19,14 +18,14 @@ module simulation
             & nlayers=0, &
             & lines_read=0
         real(sp), public :: &
-            & globalIrradiance=ZERO, &
-            & meshArea=ZERO, &
-            & layerDepth=ZERO, &
-            & layerSigma=ZERO, &
-            & time=ZERO, & ! total time
-            & daytime=ZERO, & ! time in days
-            & clocktime=ZERO ! twenty four hour periodic
-        real(sp), allocatable, dimension(:), private :: elementSigmaVolume, elementArea ! mesh stats
+            & globalIrradiance=0.0_sp, &
+            & meshArea=0.0_sp, &
+            & layerDepth=0.0_sp, &
+            & layerSigma=0.0_sp, &
+            & time=0.0_sp, & ! total time
+            & daytime=0.0_sp, & ! time in days
+            & clocktime=0.0_sp ! twenty four hour periodic
+        real(sp), allocatable, dimension(:), public :: elementSigmaVolume, elementArea ! mesh stats
         real(sp), allocatable, dimension(:), public :: verticaltox, verticaldiff, verticaltemp, verticalrho ! uniform horizontal fields
     contains
         ! call in this order
@@ -36,8 +35,20 @@ module simulation
     end type
   
     type(Experiment), allocatable, public :: domain ! domain structure imported from this module
-
+    public :: TRIANGLE_GRID_EDGE, globalIrradiance
 contains
+    pure elemental function globalIrradiance(time, irradiance) result(light)
+        ! calculate light based on time and maximum value for region
+        real(sp) :: light, daytime, clock
+        real(sp), intent(in) :: time, irradiance
+        daytime = time / 24.0_sp
+        clock = time - 24.0_sp*floor(daytime)
+        light = 0.0_sp
+        if ((clock > 6.0_sp) .and. (clock < 18.0_sp)) then
+            light = 0.5_SP*irradiance*(1.0_SP + cos(4.0_SP*3.14159*daytime))
+        end if
+    end function
+
     subroutine initSimulation(self, toxin)
         ! allocate and initialize data structures
         class(Experiment), intent(inout) :: self
@@ -52,11 +63,11 @@ contains
             & self%verticalrho(0:self%nlayers+1))
 
         self%verticaltox(:) = toxin
-        self%elementArea = zero
-        self%elementSigmaVolume = zero
-        self%verticaldiff = zero
-        self%verticaltemp = zero
-        self%verticalrho = zero
+        self%elementArea = 0.0_sp
+        self%elementSigmaVolume = 0.0_sp
+        self%verticaldiff = 0.0_sp
+        self%verticaltemp = 0.0_sp
+        self%verticalrho = 0.0_sp
     end subroutine
   
     subroutine readSimulation(self, u_vel, v_vel, w_vel, diffusivity, elevation, salinity, temperature, density)
@@ -75,11 +86,11 @@ contains
         write(vert_format, "(A7,I6,A7)") "(F10.3,", 3*KB, "F20.10)"
         read(iophys, vert_format) time, self%verticaltemp(1:KB), self%verticalrho(1:KB), self%verticaldiff(1:KB)
     
-        u_vel(:, :) = zero
-        v_vel(:, :) = zero 
-        w_vel(:, :) = zero
-        elevation(:) = -abs(zero)
-        salinity(:,:) = zero
+        u_vel(:, :) = 0.0_sp
+        v_vel(:, :) = 0.0_sp 
+        w_vel(:, :) = 0.0_sp
+        elevation(:) = -abs(0.0_sp)
+        salinity(:,:) = 0.0_sp
         do ii = 1, self%nnodes
             temperature(ii, 1:KB) = self%verticaltemp(1:KB)
             diffusivity(ii, 1:KB) = self%verticaldiff(1:KB)
@@ -100,7 +111,7 @@ contains
             & diffusivity = 60.0*60.0*10.0**(-5.0), &  ! 0.1 cm^2/s
             & profile(0:self%nlayers+1); 
         
-        profile = zero
+        profile = 0.0_sp
         stable = 0.5 * self%layerDepth**2.0
         steps_to_stability = ceiling(dti/stable) ! min number of steps to achieve stability, cannot be less than one
         substep = dti / float(steps_to_stability)
@@ -122,7 +133,7 @@ contains
         end do
     end subroutine
 
-    subroutine TRIANGLE_GRID_EDGE(self)
+    subroutine TRIANGLE_GRID_EDGE
         !  Define triangular mesh used for flux computations.
     
         !     variable list:
@@ -156,7 +167,7 @@ contains
     
         use variables, only : xc, yc, vx, vy, nv, M, isbce, nbe, isonb, awx, awy
         use variables, only : n, a1u, NBVE, NBVT, vxmin, vxmax, vymin, VYMAX, aw0, a2u, MX_NBR_ELEM, NTVE
-        class(Mesh), intent(inout) :: self
+
         integer, allocatable, dimension(:, :) :: NB_TMP, CELLS, NBET
         integer, allocatable, dimension(:) :: CELLCNT
         integer :: ii, jj, kk, ll, NTMP, NCNT, JJB, N1, N2, N3, J1, J2, J3, tri(3)
@@ -170,8 +181,8 @@ contains
         VYMAX = MAXVAL(VY(1:M))
     
         ! CALCULATE GLOBAL ELEMENT CENTER GRID COORDINATES
-        xc = zero
-        yc = zero
+        xc = 0.0_sp
+        yc = 0.0_sp
         do ii = 1, N
             xc(ii) = sum(VX(NV(ii, :))) / 3.0_SP
             yc(ii) = sum(VY(NV(ii, :))) / 3.0_SP
@@ -411,8 +422,8 @@ contains
         do ii = 1, n
             if (isbce(ii) > 1) then
     
-            a1u(ii, 1:4) = zero
-            a2u(ii, 1:4) = zero
+            a1u(ii, 1:4) = 0.0_sp
+            a2u(ii, 1:4) = 0.0_sp
     
             else if (isbce(ii) == 1) then
             do jj = 1, 3
@@ -431,8 +442,8 @@ contains
             deltx = vx(nv(ii, j1)) - vx(nv(ii, j2))
             delty = vy(nv(ii, j1)) - vy(nv(ii, j2))
     
-            a1u(ii, (/ 0, ll, j1, j2 /) + 1) = zero
-            a2u(ii, (/ 0, ll, j1, j2 /) + 1) = zero
+            a1u(ii, (/ 0, ll, j1, j2 /) + 1) = 0.0_sp
+            a2u(ii, (/ 0, ll, j1, j2 /) + 1) = 0.0_sp
             end if
         end do
     end subroutine

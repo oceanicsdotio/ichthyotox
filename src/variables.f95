@@ -12,17 +12,14 @@ module variables
   
     ! physical and mathematical constants
     real(sp), parameter :: &
-        & GRAV = 9.81_sp, & ! note that this is positive
+        & GRAV = 9.81_sp, & ! note this is positive
         & ZERO = 0.0_sp, &
-        & ONE_THIRD = 1.0_sp/3.0_sp, &
-        & h1h1 = 0.75_sp, &
-        & h2h2 = 0.9_sp, &
         & irradSurf = 650.0_sp ! W/M^2
 
     ! Runge-Kutta integration coefficients
     real(sp), parameter, dimension(4) :: &
         & A_RK = (/ 0.0_sp, 0.5_sp, 0.5_sp, 1.0_sp/), &
-        & B_RK = (/ 1.0_sp/6.0_sp, ONE_THIRD, ONE_THIRD, 1.0_sp/6.0_sp /), &
+        & B_RK = (/ 1.0_sp/6.0_sp, 1.0_sp/3.0_sp, 1.0_sp/3.0_sp, 1.0_sp/6.0_sp /), &
         & C_RK = (/ 0.0_sp, 0.5_sp, 0.5_sp, 1.0_sp /)
 
     logical :: P_SIGMA, OUT_SIGMA, F_DEPTH ! I/O position coordinate systems
@@ -78,19 +75,19 @@ module variables
         & V, &  ! y-velocity
         & W, &  ! sigma-velocity
         & WW, & ! z-velocity
-        & UT, & ! x-velocity, previous timestep
-        & VT, & ! y-velocity, previous timestep
-        & WT, & ! sigma-velocity, previous timestep
-        & WWT   ! z-velocity, previous timesteps
+        & UT, & ! x-velocity, previous
+        & VT, & ! y-velocity, previous
+        & WT, & ! sigma-velocity, previous
+        & WWT   ! z-velocity, previous
 
     ! vertex-based arrays
     real(sp), allocatable, dimension(:, :) :: &
         & T1, &   ! temperature at nodes
         & S1, &   ! salinity at nodes
         & R1, &   ! density at nodes
-        & TT1, &  ! temperature, previous time
-        & ST1, &  ! salinity, previous time
-        & RT1, &  ! density, previous time
+        & TT1, &  ! temperature, previous
+        & ST1, &  ! salinity, previous
+        & RT1, &  ! density, previous
         & WTS, &  ! vertical velocity in sigma system
         & KH      ! turbulent diffusivity
 end module

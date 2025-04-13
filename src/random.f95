@@ -2,7 +2,7 @@ module random
     ! Module With Random Number Generator
     use variables, only : ZERO, sp
     implicit none
-    save
+    save random_number_generator
     private
 
     ! Simple uniform using system methods
@@ -105,7 +105,7 @@ module random
     subroutine random_displayStatistics(self)
         ! calculate and display distribution statistics for the random number system
         class(Gaussian_Random_Number), intent(in) :: self
-        print *, "Statistics for random gaussian numbers.";
+        print *, "Calculate statistics for random numbers:";
         print *, "    Samples:       ", self%samples
         print *, "    Mean:          ", self%mean
         print *, "    Variance:      ", self%sumMeanDiffSq / float(self%samples - 1)

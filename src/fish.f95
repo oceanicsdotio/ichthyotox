@@ -1,7 +1,7 @@
 module Fish
 
     use lagrangian, only: agent
-    use variables, only: ZERO, SP, h1h1, h2h2, M, KB
+    use variables, only: SP, M, KB
     
     implicit none
     save
@@ -10,7 +10,7 @@ module Fish
         & PI = 3.141592653, &
         & travel_distance = 0.5787, & ! m/s = 50 km/day, test @ 20 and 2
         & epsx = sqrt((travel_distance**2.0)*0.5), &
-        & epsx_sigma= 0.5*travel_distance, &
+        & epsx_sigma = 0.5*travel_distance, &
         & salinity_optimal = 30.0, & ! test @ 2.0
         & salinity_sigma_coef = 5.0, &
         & speedtable(0:4) = (/0.50, 1.00, 0.50, 0.25, 0.33/), &
@@ -26,6 +26,8 @@ module Fish
         & ingestionRate = 0.001*0.02, &
         & toxfrac = 0.015*10.0**(-6.0), &
         & speedimpair = 0.9 ! sensitivity analysis @ 0.5
+        & h1h1 = 0.75_sp, &
+        & h2h2 = 0.9_sp, &
 
     logical, parameter :: &
         & enforce_default = .false., &
@@ -96,12 +98,12 @@ contains
         self%effective_length = 1.0
         self%mass = 2.0*10.0**(-6.0)*(1000.0*self%length)**(3.38)
 
-        self%microcystin = zero
-        self%dissolved = zero
-        self%probability = zero
-        self%utility = zero
-        self%reverse = zero
-        self%suitability = zero
+        self%microcystin = 0.0_sp
+        self%dissolved = 0.0_sp
+        self%probability = 0.0_sp
+        self%utility = 0.0_sp
+        self%reverse = 0.0_sp
+        self%suitability = 0.0_sp
 
     end subroutine
 
@@ -110,8 +112,8 @@ contains
         class(FishAgent), intent(in) :: self ! cyanobacteria extended type
         integer, intent(in) :: fid ! persistent file unit number
         integer :: ii
-        write (fid, "(1F10.2,9000(I6,3F20.6))") time, &
-            & (self%itag(ii), self%mass(ii), 1000.0*self%microcystin(ii), zero, ii=1, self%ndrft)
+        write (fid, "(1F10.2,9000(3F20.6))") time, &
+            & (self%mass(ii), 1000.0*self%microcystin(ii), 0.0_sp, ii=1, self%ndrft)
     end subroutine
 
     subroutine kinesis(self, noise, deltat, salinity, temperature, density, HIN, EIN)
@@ -127,16 +129,14 @@ contains
         real(SP) :: pp1, p1
 
         do ii = 1, self%ndrft
-
             pp1 = (self%sal(ii) - salinity_optimal) / salinity_sigma_coef
             p1 = exp(-0.5 * (pp1 * pp1))
-
-            self%up(ii) = self%UP(ii) * h1h1 * p1 + (noise(ii,1)*epsx_sigma + epsx) * (1.0 - h2h2 * p1) ! Update U and V velocities
+            ! Update U and V velocities
+            self%up(ii) = self%UP(ii) * h1h1 * p1 + (noise(ii,1)*epsx_sigma + epsx) * (1.0 - h2h2 * p1) 
             self%up(ii) = self%VP(ii) * h1h1 * p1 + (noise(ii,2)*epsx_sigma + epsx) * (1.0 - h2h2 * p1)
-            
-            pdxt(ii) = self%xp(ii) + self%up(ii) * deltat * float(self%indomain(ii)) ! Update position
+            ! Update position
+            pdxt(ii) = self%xp(ii) + self%up(ii) * deltat * float(self%indomain(ii)) 
             pdyt(ii) = self%yp(ii) + self%vp(ii) * deltat * float(self%indomain(ii))
-
         end do
 
         ! Evaluate Temporary Location
@@ -167,8 +167,8 @@ contains
         real(SP) :: maxutil, speed
         real(SP), dimension(self%ndrft) :: absorption, depuration, ingestion, mass
 
-        maxutil = zero
-        speed = zero
+        maxutil = 0.0_sp
+        speed = 0.0_sp
         self%suitability = 0.5*(1.0 + sin(2.0*PI*(self%xp - vxmin - (vxmax/4.0))/(vxmax - vxmin)))
 
         where (self%microcystin/self%mass > toxfrac) ! induce impairment if toxin level above some threshold
@@ -179,7 +179,7 @@ contains
             self%effective_length = 1.0
         end where
 
-        self%event(:, :) = zero
+        self%event(:, :) = 0.0_sp
         where (self%microcystin > threshold(1)) self%event(:, 1) = 1.0 ! intoxication/mortality
         where (self%suitability > threshold(2)) self%event(:, 2) = 1.0 ! current suitability
 
@@ -193,8 +193,8 @@ contains
             self%utility(ii, 3:4) = weight(2)*self%probability(ii, 3:4)
 
             if (no_flight) then
-                self%utility(ii, 1) = zero
-                self%utility(ii, 2) = zero
+                self%utility(ii, 1) = 0.0_sp
+                self%utility(ii, 2) = 0.0_sp
             end if
 
             rule_index = 0 ! default behavior
@@ -209,7 +209,7 @@ contains
             end if
 
             self%last_rule(ii) = rule_index ! store last behavior
-            self%reverse(ii) = merge(1.0_SP, zero, ((rule_index == 1) .and. (self%reverse(ii) < 0.5))) ! reverse direction for avoidance
+            self%reverse(ii) = merge(1.0_sp, 0.0_sp, ((rule_index == 1) .and. (self%reverse(ii) < 0.5))) ! reverse direction for avoidance
             self%angle(ii) = self%angle(ii) + self%reverse(ii)*pi + &
                     & noise(ii)*pi*angletable(rule_index)
 

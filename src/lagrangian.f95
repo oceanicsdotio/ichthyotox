@@ -31,7 +31,7 @@ module Lagrangian
 
     procedure, public :: lag_alloc => lag_alloc
     procedure, public :: stats => lag_printStatistics ! print particle information if desired
-    procedure, public :: readPosition => readLocations ! read position and ndrft from file
+    procedure, public :: readPosition => readPositions ! read position and ndrft from file
     procedure, public :: writePosition => lag_writePosition ! write position to file
     procedure, public :: sigma => lag_cart2sig ! convert cartesian to sigma
     procedure, public :: cartesian => lag_sig2cart ! convert sigma to cartesian
@@ -48,12 +48,11 @@ module Lagrangian
 
 contains
 
-  subroutine find_host_element(lag, x, y, inwater)
+  subroutine find_host_element(lag, x, y)
     !  Find host elements of particles by searching progressively further elements
     use variables, only: N, NV, ISONB, VX, NV, VY, XC, YC, NTVE, NBVE
     class(Agent), intent(inout) :: lag
     real(sp), dimension(lag%ndrft), intent(in) :: x, y
-    logical, dimension(lag%ndrft), intent(out) :: INWATER
 
     real(sp), dimension(1:N, 1) :: distance
     real(sp) :: previous
@@ -165,7 +164,7 @@ contains
     write(*, *)
   end subroutine
 
-  subroutine readLocations(self)
+  subroutine readPositions(self)
     use variables, only : folderprefix
     class(Agent), intent(inout) :: self
     integer :: fid = 1, ii
@@ -185,9 +184,9 @@ contains
             & self%xpt(self%ndrft), &
             & self%ypt(self%ndrft), &
             & self%zpt(self%ndrft))
-
     do ii = 1, self%ndrft
-      read(fid, "(I6, 3F20.6)") self%itag(ii), self%XPT(ii), self%YPT(ii), self%ZPT(ii) ! read identifier and position for each particle
+      read(fid, "(3F20.6)") self%xpt(ii), self%ypt(ii), self%zpt(ii)
+      self%itag(ii) = ii
     end do
 
     close(fid)
@@ -195,12 +194,11 @@ contains
 
   subroutine lag_writePosition(self, fid, time)
     ! write time and particle id/position to already open file
-    use simulation, only: domain ! domain structure for current time only
     class(Agent), intent(inout) :: self ! lagrangian particle structure
     integer, intent(in) :: fid ! unit number of open output file
     real(sp), intent(in) :: time ! time to write
     integer :: ii
-    write(fid, "(1F10.2,9000(I6,3F20.3))") time, (self%ITAG(ii), self%XPT(ii), self%YPT(ii), self%ZPT(ii), ii=1,self%ndrft)
+    write(fid, "(1F10.2,9000(3F20.3))") time, (self%XPT(ii), self%YPT(ii), self%ZPT(ii), ii=1,self%ndrft)
   end subroutine
 
   pure function lag_cart2sig(self, cartesian) result(sigma)
@@ -307,7 +305,7 @@ contains
     inwater(:) = .true.
 
     ! Perform robust progressive-topology search
-    call self%find_host_element(PDXT, PDYT, inwater) 
+    call self%find_host_element(PDXT, PDYT)
     where (inwater)
       self%xp(:) = PDXT(:) ! Update only particles still in water
       self%yp(:) = PDYT(:)
@@ -328,7 +326,6 @@ contains
     use variables, only : A1U, A2U, NBE, YC, XC, DZ, ZZ, KBM1, N, KB
 
     real(sp), intent(in), dimension(0:N, 1:KB, 0:2) :: velocity
-    real(SP) :: delta(3, 2), interpolated(2, 3)
     class(Agent), intent(inout) :: lag
     real(sp), intent(in), dimension(lag%ndrft) :: XP, YP, ZP ! ZP is sigma depth
     real(sp), dimension(0:N, 1:KB) :: UIN, VIN, WIN
@@ -342,7 +339,7 @@ contains
     WIN = velocity(:, :, 2)
     INWATER(:) = .true.
     lag%FOUND(:) = 0
-    call lag%find_host_element(XP, YP, INWATER) ! determine host element
+    call lag%find_host_element(XP, YP) ! determine host element
 
     particle_loop: do ii = 1, lag%ndrft
       if ( (.not. lag%INDOMAIN(ii)) .or. (.not. INWATER(ii))) cycle ! skip particles outside domain
@@ -423,7 +420,7 @@ contains
     if (FHE == 1) then
       inwater(:) = .true.
       self%FOUND(:) = 0
-      call self%find_host_element(XP, YP, inwater)
+      call self%find_host_element(XP, YP)
     end if
 
     do ii = 1, self%ndrft
@@ -465,7 +462,7 @@ contains
     find_host: if (FHE == 1) then
       inwater(:) = .true.
       self%FOUND(:) = 0
-      call self%find_host_element(XP, YP, inwater)
+      call self%find_host_element(XP, YP)
     end if find_host
 
     host = self%host(ii) ! element containing particle

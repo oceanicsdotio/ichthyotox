@@ -1,4 +1,4 @@
 {
   "source_dirs": ["src"],
-  "include_dirs": ["bin"]
+  "include_dirs": ["bin", "src"]
 }
