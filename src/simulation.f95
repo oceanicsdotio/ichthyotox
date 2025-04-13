@@ -75,8 +75,11 @@ contains
         write(vert_format, "(A7,I6,A7)") "(F10.3,", 3*KB, "F20.10)"
         read(iophys, vert_format) time, self%verticaltemp(1:KB), self%verticalrho(1:KB), self%verticaldiff(1:KB)
     
-        u_vel(:, :)=ZERO; v_vel(:, :)=ZERO; w_vel(:, :)=ZERO
-        elevation(:)=-abs(ZERO); salinity(:,:)=ZERO
+        u_vel(:, :) = zero
+        v_vel(:, :) = zero 
+        w_vel(:, :) = zero
+        elevation(:) = -abs(zero)
+        salinity(:,:) = zero
         do ii = 1, self%nnodes
             temperature(ii, 1:KB) = self%verticaltemp(1:KB)
             diffusivity(ii, 1:KB) = self%verticaldiff(1:KB)

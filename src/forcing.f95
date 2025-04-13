@@ -190,6 +190,7 @@ program grid
     write(fid,"(A)") "INPDIR=/"
     write(fid,"(A)") "LAGINI=/"
     write(fid,"(A)") "OUTDIR=/"
+    write(fid,"(A)") "EXPTYPE = ", 1
     close(fid)
 
 end program
