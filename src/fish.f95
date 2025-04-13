@@ -7,54 +7,53 @@ module Fish
     save
 
     real(SP), parameter :: &
-            & PI = 3.141592653, &
-            & travel_distance = 0.5787, & ! m/s = 50 km/day, test @ 20 and 2
-            & epsx = sqrt((travel_distance**2.0)*0.5), &
-            & epsx_sigma= 0.5*travel_distance, &
-            & salinity_optimal = 30.0, & ! test @ 2.0
-            & salinity_sigma_coef = 5.0, &
-            & speedtable(0:4) = (/0.50, 1.00, 0.50, 0.25, 0.33/), &
-            & angletable(0:4) = (/2.00, 0.25, 0.25, 1.00, 0.50/), &
-            & memory(0:1) = (/0.5, 0.96/), & ! unitless, memory coefficients
-            & threshold(1:2) = (/0.005*10.0**(-6.0), 0.5/), & ! detection thresholds
-            & weight(1:2) = (/0.7, 1.0/), & ! sensitivity analyis @ (/0.1, 1.0/)
-            & initBodylength = 0.1, & ! meters
-            & growthMax = 0.0025*12.0*0.001, & ! conversion to meters per hour from mm per 5min
-            & util_cutoff = 0.01, & ! level at which default behavior is chosen
-            & absorptionRate = 0.01*10.0*0.046748, & ! grams of toxin / m^2 / hour / [toxin]
-            & depurationRate = 0.01, & ! sensitivity analysis @ 0.005
-            & ingestionRate = 0.001*0.02, &
-            & toxfrac = 0.015*10.0**(-6.0), &
-            & speedimpair = 0.9 ! sensitivity analysis @ 0.5
+        & PI = 3.141592653, &
+        & travel_distance = 0.5787, & ! m/s = 50 km/day, test @ 20 and 2
+        & epsx = sqrt((travel_distance**2.0)*0.5), &
+        & epsx_sigma= 0.5*travel_distance, &
+        & salinity_optimal = 30.0, & ! test @ 2.0
+        & salinity_sigma_coef = 5.0, &
+        & speedtable(0:4) = (/0.50, 1.00, 0.50, 0.25, 0.33/), &
+        & angletable(0:4) = (/2.00, 0.25, 0.25, 1.00, 0.50/), &
+        & memory(0:1) = (/0.5, 0.96/), & ! unitless, memory coefficients
+        & threshold(1:2) = (/0.005*10.0**(-6.0), 0.5/), & ! detection thresholds
+        & weight(1:2) = (/0.7, 1.0/), & ! sensitivity analyis @ (/0.1, 1.0/)
+        & initBodylength = 0.1, & ! meters
+        & growthMax = 0.0025*12.0*0.001, & ! conversion to meters per hour from mm per 5min
+        & util_cutoff = 0.01, & ! level at which default behavior is chosen
+        & absorptionRate = 0.01*10.0*0.046748, & ! grams of toxin / m^2 / hour / [toxin]
+        & depurationRate = 0.01, & ! sensitivity analysis @ 0.005
+        & ingestionRate = 0.001*0.02, &
+        & toxfrac = 0.015*10.0**(-6.0), &
+        & speedimpair = 0.9 ! sensitivity analysis @ 0.5
 
     logical, parameter :: &
-            & enforce_default = .false., &
-            & no_flight = .false., &
-            & ingestion_multiplier = .true.
+        & enforce_default = .false., &
+        & no_flight = .false., &
+        & ingestion_multiplier = .true.
 
     type, public, extends(Agent) :: FishAgent
 
         logical, allocatable, dimension(:), private :: &
-                & impaired
+            & impaired
 
         integer, allocatable, dimension(:), private :: &
-                & last_rule
+            & last_rule
 
         real(SP), allocatable, dimension(:), private :: &
-                & reverse, &
-                & suitability, & ! spatial varying growth rate
-                & length, &
-                & effective_length, & ! impairment scalar
-                & mass, &
-                & microcystin, & ! body toxin
-                & dissolved, & ! in situ toxin concentration
-                & angle, &
-                & pathway
+            & reverse, &
+            & suitability, & ! spatial varying growth rate
+            & length, &
+            & effective_length, & ! impairment scalar
+            & mass, &
+            & microcystin, & ! body toxin
+            & dissolved, & ! in situ toxin concentration
+            & angle
 
         real(SP), allocatable, dimension(:, :), private :: &
-                & event, & ! fish x agents
-                & probability, & ! fish x (agents x timescales)
-                & utility ! fish x (agents x timescales)
+            & event, & ! fish x agents
+            & probability, & ! fish x (agents x timescales)
+            & utility ! fish x (agents x timescales)
 
     contains
         ! Call in the order: dynamics, toxicity, movement
@@ -74,20 +73,19 @@ contains
         call self%readPosition() ! read particles counts and allocates position variables
 
         allocate (&
-                & self%suitability(self%ndrft), &
-                & self%impaired(self%ndrft), &
-                & self%microcystin(self%ndrft), &
-                & self%dissolved(self%ndrft), &
-                & self%angle(self%ndrft), &
-                & self%pathway(self%ndrft), &
-                & self%last_rule(self%ndrft), &
-                & self%reverse(self%ndrft), &
-                & self%mass(self%ndrft), &
-                & self%length(self%ndrft), &
-                & self%utility(self%ndrft, 0:4), &
-                & self%probability(self%ndrft, 1:4), &
-                & self%event(self%ndrft, 2), &
-                & self%effective_length(self%ndrft))
+            & self%suitability(self%ndrft), &
+            & self%impaired(self%ndrft), &
+            & self%microcystin(self%ndrft), &
+            & self%dissolved(self%ndrft), &
+            & self%angle(self%ndrft), &
+            & self%last_rule(self%ndrft), &
+            & self%reverse(self%ndrft), &
+            & self%mass(self%ndrft), &
+            & self%length(self%ndrft), &
+            & self%utility(self%ndrft, 0:4), &
+            & self%probability(self%ndrft, 1:4), &
+            & self%event(self%ndrft, 2), &
+            & self%effective_length(self%ndrft))
 
         self%impaired = .false.
         self%event = 0
@@ -100,7 +98,6 @@ contains
 
         self%microcystin = zero
         self%dissolved = zero
-        self%pathway = zero
         self%probability = zero
         self%utility = zero
         self%reverse = zero
@@ -113,16 +110,12 @@ contains
         class(FishAgent), intent(in) :: self ! cyanobacteria extended type
         integer, intent(in) :: fid ! persistent file unit number
         integer :: ii
-
         write (fid, "(1F10.2,9000(I6,3F20.6))") time, &
-                & (self%itag(ii), self%mass(ii), 1000.0*self%microcystin(ii), zero, ii=1, self%ndrft)
-
+            & (self%itag(ii), self%mass(ii), 1000.0*self%microcystin(ii), zero, ii=1, self%ndrft)
     end subroutine
 
-
     subroutine kinesis(self, noise, deltat, salinity, temperature, density, HIN, EIN)
-   
-        class(agent), intent(inout) :: self
+        class(FishAgent), intent(inout) :: self
         real(SP), intent(in) :: noise(self%ndrft, 2)
         real(SP), intent(in) :: deltat ! time step, usually DTI
         real(SP), dimension(0:M, KB), intent(in) :: salinity, temperature, density ! grid based field for kinesis (usually salinity)
@@ -140,6 +133,7 @@ contains
 
             self%up(ii) = self%UP(ii) * h1h1 * p1 + (noise(ii,1)*epsx_sigma + epsx) * (1.0 - h2h2 * p1) ! Update U and V velocities
             self%up(ii) = self%VP(ii) * h1h1 * p1 + (noise(ii,2)*epsx_sigma + epsx) * (1.0 - h2h2 * p1)
+            
             pdxt(ii) = self%xp(ii) + self%up(ii) * deltat * float(self%indomain(ii)) ! Update position
             pdyt(ii) = self%yp(ii) + self%vp(ii) * deltat * float(self%indomain(ii))
 
@@ -245,20 +239,15 @@ contains
         end where
 
         ! length growth of individuals in meters per hour based on small pelagic fish
-        self%length = self%length + growthMax*self%suitability*dti
+        self%length = self%length + growthMax * self%suitability * dti
 
         ! add consumed biomass to gut, and a portion of that to fish mass
         mass = 2.0*10.0**(-6.0)*(1000.0*self%length)**(3.38)
         ingestion = (self%mass - mass)*ingestionRate*merge(10.0, 1.0, ingestion_multiplier) * carbon_ratio
-
         depuration = depurationRate * self%microcystin
         absorption = self%zinterp(domain%verticaltox)/domain%meshArea/500.0*500.0* &
-                & absorptionRate*self%length
-
+            & absorptionRate*self%length
         self%microcystin = self%microcystin + ingestion + (absorption - depuration)*dti
         self%mass = mass
-        self%pathway = zero
-
     end subroutine
-
 end module

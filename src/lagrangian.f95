@@ -3,34 +3,29 @@ module Lagrangian
   use variables, only : sp, ZERO
   implicit none
   save
-
   private
 
   type, public :: Agent
-
-    character(len = 20) :: species ! string for identification
-    logical :: fixed_depth = .false. ! fixed particle depth option in cartesian
-    integer :: ndrft  ! total particles
-
+    character(len = 20) :: species    ! string for identification
+    logical :: fixed_depth = .false.  ! fixed particle depth option in cartesian
+    integer :: ndrft                  ! total particles
     logical, allocatable, dimension(:) :: &
-        & indomain ! Particle is in the domain
-
+        & indomain                    ! Particle is in the domain
     integer, allocatable, dimension(:) :: &
-        & ITAG, &     ! Label for the particle
-        & host, &     ! Element containing particle
-        & layer, &    ! sigma layer
-        & found, &    ! Host element is found
-        & SBOUND      ! Host element has a solid boundary node
-
+        & ITAG, &                     ! Label for the particle
+        & host, &                     ! Element containing particle
+        & layer, &                    ! sigma layer
+        & found, &                    ! Host element is found
+        & SBOUND                      ! Host element has a solid boundary node
     real(SP), allocatable, dimension(:) :: &
-        & XP, YP, ZP, &       ! position of particle
-        & XPT, YPT, ZPT, &    ! absolute position of particle
-        & HP, &               ! Bathymetry at particle position
-        & EP, &               ! Free surface height at particle
-        & UP, VP, WP, &       ! velocity of particle
-        & TEMP, &             ! temperature at particle position
-        & SAL, &              ! salinity at particle position
-        & RHO                 ! density at particle position
+        & XP, YP, ZP, &               ! position of particle
+        & XPT, YPT, ZPT, &            ! absolute position of particle
+        & HP, &                       ! Bathymetry at particle position
+        & EP, &                       ! Free surface height at particle
+        & UP, VP, WP, &               ! velocity of particle
+        & TEMP, &                     ! temperature at particle position
+        & SAL, &                      ! salinity at particle position
+        & RHO                         ! density at particle position
 
   contains
 
@@ -56,8 +51,6 @@ contains
   subroutine find_host_element(lag, x, y, inwater)
     !  Find host elements of particles by searching progressively further elements
     use variables, only: N, NV, ISONB, VX, NV, VY, XC, YC, NTVE, NBVE
-  
-
     class(Agent), intent(inout) :: lag
     real(sp), dimension(lag%ndrft), intent(in) :: x, y
     logical, dimension(lag%ndrft), intent(out) :: INWATER
@@ -110,24 +103,19 @@ contains
     end do
   end subroutine
 
-
   logical function isintriangle(XT, YT, X0, Y0)
     ! Determine if point is in triangle defined by nodes (XT(3),YT(3))
     real(sp), intent(in) :: X0, Y0
     real(sp), intent(in) :: XT(3), YT(3)
     real(sp) :: F1, F2, F3
-
     F1 = (Y0-YT(1))*(XT(2)-XT(1)) - (X0-XT(1))*(YT(2)-YT(1))
     F2 = (Y0-YT(3))*(XT(1)-XT(3)) - (X0-XT(3))*(YT(1)-YT(3))
     F3 = (Y0-YT(2))*(XT(3)-XT(2)) - (X0-XT(2))*(YT(3)-YT(2))
-
     isintriangle = ((F1*F3 >= 0.0_sp) .and. (F3*F2 >= 0.0_sp))
-
   end function
 
 
   subroutine lag_alloc(self)
-
     class(Agent), intent(inout) :: self
 
     allocate( self%XP( self%ndrft ), &
@@ -166,13 +154,8 @@ contains
 
   end subroutine
 
-
   subroutine lag_printStatistics(self)
-
-    implicit none
     class(Agent), intent(inout) :: self
-
-    ! Report status of particles
     write(*, *)
     write(*, *) '    Particle Class'
     write(*, *) '        Species       : ', self%species
@@ -180,15 +163,11 @@ contains
     write(*, *) '        Out of bounds : ', self%ndrft - count(self%INDOMAIN)
     write(*, *) '        Stopped       : ', self%ndrft - sum(self%FOUND)
     write(*, *)
-
   end subroutine
-
 
   subroutine readLocations(self)
     use variables, only : folderprefix
-
     class(Agent), intent(inout) :: self
-
     integer :: fid = 1, ii
     character(len = 50) :: filename
     logical :: fexist
@@ -212,9 +191,7 @@ contains
     end do
 
     close(fid)
-
   end subroutine
-
 
   subroutine lag_writePosition(self, fid, time)
     ! write time and particle id/position to already open file
@@ -226,42 +203,41 @@ contains
     write(fid, "(1F10.2,9000(I6,3F20.3))") time, (self%ITAG(ii), self%XPT(ii), self%YPT(ii), self%ZPT(ii), ii=1,self%ndrft)
   end subroutine
 
-  function lag_cart2sig(self, cartesian)
+  pure function lag_cart2sig(self, cartesian) result(sigma)
     ! Calculate sigma vertical position from cartesian
     class(Agent), intent(in) :: self
     real(sp), dimension(self%ndrft), intent(in) :: cartesian
-    real(sp), dimension(self%ndrft) :: lag_cart2sig
-    lag_cart2sig(:) = -1.0_SP * abs(cartesian(:)-self%EP(:)) / abs(self%EP(:)-self%HP(:))
+    real(sp), dimension(self%ndrft) :: sigma
+    sigma(:) = -1.0_SP * abs(cartesian(:) - self%EP(:)) / abs(self%EP(:) - self%HP(:))
   end function
 
-  function lag_sig2cart(self, sigma)
+  pure function lag_sig2cart(self, sigma) result(depth)
     ! calculate cartesian vertical from sigma coordinate
     class(Agent), intent(in) :: self
     real(sp), dimension(self%ndrft), intent(in) :: sigma
-    real(sp), dimension(self%ndrft) :: lag_sig2cart
-    lag_sig2cart(:) = sigma(:)*(self%EP(:) - self%HP(:)) + self%EP(:)
+    real(sp), dimension(self%ndrft) :: depth
+    depth(:) = sigma(:)*(self%EP(:) - self%HP(:)) + self%EP(:)
   end function
 
-  function lag_getlayers(self, sigma) ! OK
+  pure function lag_getlayers(self, sigma) result(layers)
     ! update current sigma layer of particles between moves
     use variables, only : KBM1
     class(Agent), intent(in) :: self
     real(sp), dimension(self%ndrft), intent(in) :: sigma
-    integer, dimension(self%ndrft) :: lag_getlayers, layers
+    integer, dimension(self%ndrft) :: layers
     layers(:) = ceiling(-KBM1*sigma(:))
     where (layers(:) < 1) layers(:) = 1
-    lag_getlayers(:) = layers(:)
   end function
 
-  function lag_zinterp(self, verticalvar)
+  pure function lag_zinterp(self, verticalvar) result(interpolated)
     use variables, only : KB ! sigma layers
     use simulation, only : domain ! domain structure
-    class(Agent), intent(inout) :: self ! lagrangian particle swarm object
+    class(Agent), intent(in) :: self ! lagrangian particle swarm object
     real(sp), dimension(0:KB+1), intent(in) :: verticalvar
-    real(sp), dimension(self%ndrft) :: idz, lag_zinterp
+    real(sp), dimension(self%ndrft) :: idz, interpolated
 
     idz(:) = (domain%layerSigma*(self%layer(:)-1) - self%zp(:))/domain%layerSigma ! relative distance from layer above
-    lag_zinterp(:) = verticalvar(self%layer(:))*(1.0_SP - idz(:)) + verticalvar(self%layer(:)+1)*idz(:)
+    interpolated(:) = verticalvar(self%layer(:))*(1.0_SP - idz(:)) + verticalvar(self%layer(:)+1)*idz(:)
 
   end function
 
@@ -352,14 +328,10 @@ contains
     use variables, only : A1U, A2U, NBE, YC, XC, DZ, ZZ, KBM1, N, KB
 
     real(sp), intent(in), dimension(0:N, 1:KB, 0:2) :: velocity
-
     real(SP) :: delta(3, 2), interpolated(2, 3)
-
-
     class(Agent), intent(inout) :: lag
     real(sp), intent(in), dimension(lag%ndrft) :: XP, YP, ZP ! ZP is sigma depth
     real(sp), dimension(0:N, 1:KB) :: UIN, VIN, WIN
-
     logical, dimension(lag%ndrft) ::  INWATER
     integer :: ii, host, E1, E2, E3, K1, K2, K
     real(SP) :: DUDX, DUDY, DVDX, DVDY, DWDX, DWDY, UE01, UE02, VE01, VE02, WE01, WE02
@@ -518,17 +490,16 @@ contains
     DY = AWY(host, 1)*RHO(N1, 1) + AWY(host, 2)*RHO(N2, 1) + AWY(host, 3)*RHO(N3, 1)
     self%RHO(ii) = abs(D0 + DX*offset(1) + DY*offset(2)) ! Linear interpolation of temperature field
 
-
   end subroutine INTERP_FIELDS
 
 
-  subroutine INTERP_KH(self, ZKH, DZKH, KHOUT, DKHOUT)
+  pure subroutine INTERP_KH(self, ZKH, DZKH, KHOUT, DKHOUT)
     ! Obtain a spline interpolation on the vertical with the provided eddy diffusivity (ZKH) and its derivative (DZKH) at grid point points
     ! then linear interpolation on the horizontal
     !  RETURNS:   Both dkh/dz (DKHOUT) and kh (KHOUT)
 
     use variables, only: M, KB, NV, XC, Z, KBM1, YC, DTRW, AW0, AWX, AWY
-    class(Agent), intent(inout) :: self
+    class(Agent), intent(in) :: self
     real(SP), intent(out), dimension(self%ndrft) :: DKHOUT, KHOUT
     real(SP), intent(in), dimension(0:M, KB) :: DZKH, ZKH
 
