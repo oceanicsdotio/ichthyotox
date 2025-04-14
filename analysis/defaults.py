@@ -1,7 +1,5 @@
 #!/usr/bin/python
 import matplotlib.pyplot as plt
-import matplotlib.ticker as mticker
-import numpy as np
 from matplotlib import rc
 
 fontsize  = 14

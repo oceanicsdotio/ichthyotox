@@ -4,10 +4,6 @@ import matplotlib.ticker as mticker
 import numpy as np
 from matplotlib import rc
 from pylab import *
-from mpl_toolkits.mplot3d import Axes3D
-from matplotlib import cm, tri
-from matplotlib.patches import Rectangle
-from matplotlib.patches import Polygon
 
 
 fontsize  = 10
@@ -87,34 +83,34 @@ ax[0].tick_params(axis='x', colors=label_color)
 ax[0].tick_params(axis='y', colors=label_color)
 
 
-print "Reading File 000" # random / 10^-5
+print ("Reading File 000") # random / 10^-5
 for ii in range(0, ncolony):
     ccol = ii*dwidth + 2
     pcol = ii*dwidth + 3
     carbohydrate[ii,:], protein[ii,:] = np.loadtxt('../000/cyanobacteria_state.dat', usecols=(ccol, pcol), unpack=True)
-print "Calculating Mean"
+print ("Calculating Mean")
 pro_avg = np.mean(protein, axis=0)
 carb_avg = np.mean(carbohydrate, axis=0)
 tot_carb = float(ncolony)*(pro_avg + carb_avg)
 ax[0].plot(time, tot_carb/volume, linestyle='-', color=overlay_color, aa=True)
 
-print "Reading File 003" # random / 10^-3
+print ("Reading File 003") # random / 10^-3
 for ii in range(0, ncolony):
     ccol = ii*dwidth + 2
     pcol = ii*dwidth + 3
     carbohydrate[ii,:], protein[ii,:] = np.loadtxt('../003/cyanobacteria_state.dat', usecols=(ccol, pcol), unpack=True)
-print "Calculating Mean"
+print ("Calculating Mean")
 pro_avg = np.mean(protein, axis=0)
 carb_avg = np.mean(carbohydrate, axis=0)
 tot_carb = float(ncolony)*(pro_avg + carb_avg)
 ax[0].plot(time, tot_carb/volume, linestyle='--', color=overlay_color, aa=True)
 
-print "Reading File 004" # random / 10^-1
+print ("Reading File 004") # random / 10^-1
 for ii in range(0, ncolony):
     ccol = ii*dwidth + 2
     pcol = ii*dwidth + 3
     carbohydrate[ii,:], protein[ii,:] = np.loadtxt('../004/cyanobacteria_state.dat', usecols=(ccol, pcol), unpack=True)
-print "Calculating Mean"
+print ("Calculating Mean")
 pro_avg = np.mean(protein, axis=0)
 carb_avg = np.mean(carbohydrate, axis=0)
 tot_carb = float(ncolony)*(pro_avg + carb_avg)
@@ -126,21 +122,20 @@ sublabels = [[r'Days', r'Biomass (g/m^3)'], [r'Days', r'Carbon Ratio (g/g)']]
 #subtitles = [r'(A)', r'(B)']
 for ii in range(0,1):
     # axis adjustment
-       
 
     ax[ii].set_xlabel(sublabels[ii][0])
-    ax[ii].xaxis.set_major_locator(mticker.MultipleLocator(5)); 
+    ax[ii].xaxis.set_major_locator(mticker.MultipleLocator(5))
     ax[ii].xaxis.set_major_formatter(FormatStrFormatter('%.0f'))
 
         
     ax[ii].set_xlim(time[start],time[end])
-    ax[ii].xaxis.grid(False); 
+    ax[ii].xaxis.grid(False)
     
-    ax[ii].set_ylabel(sublabels[ii][1], rotation=90); 
+    ax[ii].set_ylabel(sublabels[ii][1], rotation=90)
     ax[ii].set_ylim(0.0,15.0)
-    ax[ii].yaxis.set_major_locator(mticker.MultipleLocator(5)); 
+    ax[ii].yaxis.set_major_locator(mticker.MultipleLocator(5))
     ax[ii].yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
-    ax[ii].yaxis.grid(False);
+    ax[ii].yaxis.grid(False)
     
     #ax[ii].set_title(subtitles[ii], fontsize=fontsize, color=label_color)
     #ax[ii].title.set_position([0.5, 1.0])

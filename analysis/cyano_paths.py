@@ -144,7 +144,7 @@ for ii in range(0,nplots):
     ax[ii].set_ylabel(sublabels[ii][1], rotation=90)
     ax[ii].yaxis.set_major_locator(MultipleLocator(1))
     ax[ii].yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
-    ax[ii].yaxis.grid(False);
+    ax[ii].yaxis.grid(False)
     
     ax[ii].set_title(subtitles[ii], fontsize=fontsize, color=label_color)
     ax[ii].title.set_position([1.0, 1.0])

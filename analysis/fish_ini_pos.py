@@ -1,10 +1,6 @@
 #!/usr/bin/python
 from pylab import *
-from scipy.interpolate import UnivariateSpline
-from matplotlib import animation
-from matplotlib.collections import LineCollection
 import matplotlib.tri as tri
-import math
 
 nplots=1
 fontsize  = 10
@@ -59,7 +55,7 @@ ymax = max(vert_y[:])
 xmin = min(vert_x[:])
 ymin = min(vert_y[:])
 triang = tri.Triangulation(vert_x, vert_y) # Delauney triangulation
-suitability = 0.5*(1.0 + sin(2.0*pi*(vert_x-125.)/500. ) # calculate suitability
+suitability = 0.5*(1.0 + sin(2.0*pi*(vert_x-125.)/500. )) # calculate suitability
 
 # Figure and subplots
 fig = plt.figure(facecolor=bg_color, figsize=(marginWidth, fheight)) #Change this
@@ -82,14 +78,14 @@ ax[0].tick_params(axis='y', colors=label_color)
 #plt.colorbar()
 
 # Plot grid
-print "Drawing grid..."
+print("Drawing grid...")
 for ii in range(0,len(ind1)):
     plt.plot( (vert_x[ind1[ii]-1], vert_x[ind2[ii]-1]), (vert_y[ind1[ii]-1], vert_y[ind2[ii]-1]), color='grey', linewidth=0.5, aa=True, zorder=2)
     plt.plot( (vert_x[ind2[ii]-1], vert_x[ind3[ii]-1]), (vert_y[ind2[ii]-1], vert_y[ind3[ii]-1]), color='grey', linewidth=0.5, aa=True, zorder=2)
     plt.plot( (vert_x[ind3[ii]-1], vert_x[ind1[ii]-1]), (vert_y[ind3[ii]-1], vert_y[ind1[ii]-1]), color='grey', linewidth=0.5, aa=True, zorder=2)
 
 # Plot path and end markers
-print "Drawing paths..."
+print("Drawing paths...")
 for ii in range(0,nfish):
     if (fpsz[ii] < 2.5):
         plt.scatter(fpsx[ii], fpsy[ii], s=40, color='red', zorder=10, edgecolors='face') # ini markers
@@ -112,5 +108,3 @@ ttl = ax[0].title
 ttl.set_position([1.0, 1.0])
 #plt.savefig('./fish_paths.tiff', edgecolor='none', dpi=default_dpi)
 plt.show()
-
-
