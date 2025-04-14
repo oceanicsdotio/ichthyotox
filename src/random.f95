@@ -1,6 +1,6 @@
 module random
     ! Module With Random Number Generator
-    use variables, only : ZERO, sp
+    use variables, only : sp
     implicit none
     save random_number_generator
     private
@@ -52,10 +52,10 @@ module random
 
         self%current = .true.
         self%samples = 0
-        self%rn = (/ zero, zero /)
-        self%ru = (/ zero, zero /)
-        self%mean = zero
-        self%sumMeanDiffSq = zero
+        self%rn = (/ 0.0_sp, 0.0_sp /)
+        self%ru = (/ 0.0_sp, 0.0_sp /)
+        self%mean = 0.0_sp
+        self%sumMeanDiffSq = 0.0_sp
 
         call self%normal()
     end subroutine

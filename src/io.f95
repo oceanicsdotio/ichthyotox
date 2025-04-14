@@ -1,7 +1,6 @@
 module io
 
-    use variables, only : ZERO, sp
-    use random, only : random_number_generator
+    use variables, only : sp
     implicit none
 
 contains

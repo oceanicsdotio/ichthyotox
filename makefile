@@ -14,29 +14,18 @@ bin/bloom: src/bloom.f95 $(OBJ)
 	$(FC) -o $@ $^
 	chmod +x $@
 
+test.cpython-313-darwin.so: src/variables.o src/random.o
+	pixi run f2py -c src/variables.f95 src/random.f95 src/test.f95 -m test
+
 new: bin/forcing
 	mkdir -p data/test
 	bin/forcing test
 
-# setup.o: variables.o lagrangian.o behavior.o simulation.o main.o ichthyotox setup.f95
-# 	$(FC) $(CFLAGS) setup.f95
-
-# ichthyotox: main.o variables.o simulation.o lagrangian.o behavior.o cyanobacteria.o
-# 	$(FC) -o ichthyotox variables.o simulation.o lagrangian.o behavior.o cyanobacteria.o main.o
-
-# main.o: variables.o simulation.o lagrangian.o behavior.o cyanobacteria.o main.f95
-# 	$(FC) $(CFLAGS) main.f95
-
-# behavior.o: behavior.f95 variables.o cyanobacteria.o simulation.o lagrangian.o
-# 	$(FC) $(CFLAGS) behavior.f95
-
-# cyanobacteria.o: cyanobacteria.f95 variables.o simulation.o lagrangian.o
-# 	$(FC) $(CFLAGS) cyanobacteria.f95
-
 clean: 
-	rm src/*.mod
-	rm src/*.o
-	rm bin/*
-	rm -rf data/test
+	@ rm -f src/*.mod
+	@ rm -f src/*.o
+	@ rm -f bin/*
+	@ rm -rf data/test
+	@ rm -f test.cpython-313-darwin.so
 	
 .PHONY: clean
