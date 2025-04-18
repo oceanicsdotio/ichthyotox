@@ -2,13 +2,11 @@
 import matplotlib.pyplot as plt
 from matplotlib import rc
 
-fontsize  = 14
+fontsize = 14
 linewidth = 1
 uniformPadding = 0.1
 marginWidth = 7.0
-for_screen=False
-
-
+for_screen = False
 default_alpha = 0.25
 default_dpi = 150
 lineRGBA = [1.0, 0.0, 0.0, default_alpha]
@@ -16,9 +14,9 @@ style = ['-',':']
 
 
 rc('text', usetex=False)
-rc('font', **{'family':'sans-serif', 'sans-serif':['Avant Garde']})
-#rc('font', weight='bold')
-#rc('mathtext', default='sf')
+rc('font', **{'family':'sans-serif', 'sans-serif':['Arial']})
+rc('font', weight='bold')
+rc('mathtext', default='sf')
 rc('lines', markeredgewidth=1)
 rc('lines', linewidth=linewidth)
 rc('axes', labelsize=fontsize)
