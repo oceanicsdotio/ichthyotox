@@ -4,8 +4,6 @@ import matplotlib.ticker as mticker
 import numpy as np
 from matplotlib import rc
 from pylab import *
-from mpl_toolkits.mplot3d import Axes3D
-from matplotlib import cm, tri
 
 fontsize  = 10
 linewidth = 1
