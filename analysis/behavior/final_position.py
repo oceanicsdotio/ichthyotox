@@ -1,8 +1,5 @@
 #!/usr/bin/python
 from pylab import *
-from scipy.interpolate import UnivariateSpline
-from matplotlib import animation
-from matplotlib.collections import LineCollection
 import matplotlib.tri as tri
 import math
 
@@ -42,20 +39,6 @@ rc('xtick.major', pad=5)
 rc('ytick.major', pad=5)
 
 
-# Load fish initial positions
-# load data
-ini = open('../100/fish_ini.dat', 'r')
-nfish = int(str.strip(ini.readline()))
-time = np.loadtxt('../100/fish_state.dat', usecols=[0], unpack=True)
-start = 0
-end = len(time) - 1
-mid = 22*10*24
-dwidth = 4
-
-
-data = zeros((nfish*dwidth+1,end-start+1))
-xpos = zeros((nfish,end-start+1))
-ypos = zeros((nfish,end-start+1))
 
 # Calculate Domain Data
 vert_x, vert_y = np.loadtxt('../100/mesh_node.dat', skiprows=1, usecols=(1,2), unpack=True)
@@ -84,15 +67,6 @@ ax[0].tick_params(axis='x', colors=label_color)
 ax[0].tick_params(axis='y', colors=label_color)
 
 
-# Plot grid
-# print "Drawing grid..."
-# for ii in range(0,len(ind1)):
-#     plt.plot( (vert_x[ind1[ii]-1], vert_x[ind2[ii]-1]), (vert_y[ind1[ii]-1], vert_y[ind2[ii]-1]), color='grey', linewidth=0.5, aa=True, zorder=2)
-#     plt.plot( (vert_x[ind2[ii]-1], vert_x[ind3[ii]-1]), (vert_y[ind2[ii]-1], vert_y[ind3[ii]-1]), color='grey', linewidth=0.5, aa=True, zorder=2)
-#     plt.plot( (vert_x[ind3[ii]-1], vert_x[ind1[ii]-1]), (vert_y[ind3[ii]-1], vert_y[ind1[ii]-1]), color='grey', linewidth=0.5, aa=True, zorder=2)
-
-
-
 
 #######################################
 print "(A) Reading Position" # experiment A
@@ -102,10 +76,9 @@ for ii in range(0, nfish):
     ycol = ii*dwidth + 3
     xpos[ii,:] = data[xcol,:]
     ypos[ii,:] = data[ycol,:]
-print "(A) Plotting Mid-experiment Positions"
+
 ax[0].scatter(xpos[0:24,mid], ypos[0:24,mid], s=25, color='black', zorder=10, edgecolors='black') # mid markers
 ax[0].scatter(xpos[100:124,mid], ypos[100:124,mid], s=25, color='black', zorder=10, edgecolors='black') # mid markers
-print "(A) Plotting Final Positions"
 ax[1].scatter(xpos[0:24,end], ypos[0:24,end], s=25, color='black', zorder=10, edgecolors='black') # final markers
 ax[1].scatter(xpos[100:124,end], ypos[100:124,end], s=25, color='black', zorder=10, edgecolors='black') # final markers
 

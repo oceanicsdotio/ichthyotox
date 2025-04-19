@@ -1,9 +1,9 @@
 #!/usr/bin/python
-import matplotlib.pyplot as plt
-import numpy as np
-from matplotlib import rc
-from pylab import *
+"""Draw fish environmental suitability over time"""
 from sys import argv
+from matplotlib.pyplot import MultipleLocator, FormatStrFormatter, figure, savefig
+from numpy import zeros, loadtxt, sin, pi, mean
+from analysis.defaults import label_color, bg_color, overlay_color, default_dpi
 
 nplots = 1
 fontsize = 10
@@ -14,39 +14,15 @@ marginWidth = 6.5
 fheight = 3.0
 default_alpha = 1.0
 
-for_screen = False
-if for_screen:
-    bg_color = [0.0, 0.0, 0.0, default_alpha]
-    overlay_color = [1.0, 1.0, 1.0, default_alpha]
-    label_color = [1.0, 1.0, 1.0, default_alpha]
-    default_dpi = 150
-else:
-    bg_color = [1.0, 1.0, 1.0, default_alpha]
-    overlay_color = [0.0, 0.0, 0.0, default_alpha]
-    label_color = [0.0, 0.0, 0.0, default_alpha]
-    default_dpi = 300
 
 if __name__ == "__main__":
 
     data_dir = argv[1]
 
-    rc("text", usetex=False)
-    rc("font", **{"family": "serif", "serif": ["Times New Roman"]})
-    rc("mathtext", default="sf")
-    rc("lines", markeredgewidth=1)
-    rc("lines", linewidth=linewidth)
-    rc("axes", labelsize=fontsize)
-    rc("axes", linewidth=(linewidth + 1) // 2)
-    rc("xtick", labelsize=fontsize)
-    rc("ytick", labelsize=fontsize)
-    rc("legend", fontsize=fontsize)
-    rc("xtick.major", pad=5)
-    rc("ytick.major", pad=5)
-
     # load data
     with open(f"{data_dir}/100/fish_ini.dat", "r", encoding="utf8") as ini:
         nfish = int(str.strip(ini.readline()))
-    time = np.loadtxt(f"{data_dir}/100/fish_state.dat", usecols=[0], unpack=True)
+    time = loadtxt(f"{data_dir}/100/fish_state.dat", usecols=[0], unpack=True)
     start = 0
     end = len(time) - 1
     dwidth = 4
@@ -70,7 +46,7 @@ if __name__ == "__main__":
     window = 10  # in both directions, 2 is therefore 5
 
     # figure and subplots
-    fig = plt.figure(facecolor=bg_color, figsize=(marginWidth, fheight))  # Change this
+    fig = figure(facecolor=bg_color, figsize=(marginWidth, fheight))  # Change this
     fig.subplots_adjust(
         top=1.0 - vpadding,
         bottom=vpadding + 0.1,
@@ -90,12 +66,12 @@ if __name__ == "__main__":
     ax[0].tick_params(axis="x", colors=label_color)
     ax[0].tick_params(axis="y", colors=label_color)
 
-    data = np.loadtxt(f"{data_dir}/100/fish_position.dat", unpack=True)
+    data = loadtxt(f"{data_dir}/100/fish_position.dat", unpack=True)
     for ii in range(0, nfish):
         xcol = ii * dwidth + 2
         xpos[ii, :] = data[xcol, :]
     suitability = 0.5 * (1.0 + sin(2.0 * pi * (xpos[:, :] - 125.0) / 500.0))
-    suit_avg = np.mean(suitability[:, :], axis=0)
+    suit_avg = mean(suitability[:, :], axis=0)
     for ii in range(0, 2 * window + 1):
         suit_smoothed[start + window : end - window] = suit_smoothed[
             start + window : end - window
@@ -111,12 +87,12 @@ if __name__ == "__main__":
         zorder=3,
     )
 
-    data = np.loadtxt(f"{data_dir}/101/fish_position.dat", unpack=True)
+    data = loadtxt(f"{data_dir}/101/fish_position.dat", unpack=True)
     for ii in range(0, nfish):
         xcol = ii * dwidth + 2
         xpos[ii, :] = data[xcol, :]
     suitability = 0.5 * (1.0 + sin(2.0 * pi * (xpos[:, :] - 125.0) / 500.0))
-    suit_avg = np.mean(suitability[:, :], axis=0)
+    suit_avg = mean(suitability[:, :], axis=0)
     suit_smoothed = zeros(end - start + 1)
     for ii in range(0, 2 * window + 1):
         suit_smoothed[start + window : end - window] = suit_smoothed[
@@ -133,20 +109,20 @@ if __name__ == "__main__":
         zorder=4,
     )
 
-    data = np.loadtxt(f"{data_dir}/102/fish_position.dat", unpack=True)
+    data = loadtxt(f"{data_dir}/102/fish_position.dat", unpack=True)
     for ii in range(0, nfish):
         xcol = ii * dwidth + 2
         xpos[ii, :] = data[xcol, :]
     suitability = 0.5 * (1.0 + sin(2.0 * pi * (xpos[:, :] - 125.0) / 500.0))
     suit_smoothed = zeros(end - start + 1)
 
-    suit_avg_surface = np.mean(suitability[0 : nfish // 2 - 1, :], axis=0)
+    suit_avg_surface = mean(suitability[0 : nfish // 2 - 1, :], axis=0)
     for ii in range(0, 2 * window + 1):
         suit_smoothed_s[start + window : end - window] = suit_smoothed_s[
             start + window : end - window
         ] + suit_avg_surface[start + ii : end + ii - 2 * window] / (2.0 * window + 1.0)
 
-    suit_avg_bottom = np.mean(suitability[nfish // 2 : nfish - 1, :], axis=0)
+    suit_avg_bottom = mean(suitability[nfish // 2 : nfish - 1, :], axis=0)
     for ii in range(0, 2 * window + 1):
         suit_smoothed_b[start + window : end - window] = suit_smoothed_b[
             start + window : end - window
@@ -170,7 +146,7 @@ if __name__ == "__main__":
         label="Intensification (C)",
     )
 
-    data = np.loadtxt(f"{data_dir}/103/fish_position.dat", unpack=True)
+    data = loadtxt(f"{data_dir}/103/fish_position.dat", unpack=True)
     for ii in range(0, nfish):
         xcol = ii * dwidth + 2
         xpos[ii, :] = data[xcol, :]
@@ -179,13 +155,13 @@ if __name__ == "__main__":
     suit_smoothed_s = zeros(end - start + 1)
     suit_smoothed_b = zeros(end - start + 1)
 
-    suit_avg_surface = np.mean(suitability[0 : nfish // 2 - 1, :], axis=0)
+    suit_avg_surface = mean(suitability[0 : nfish // 2 - 1, :], axis=0)
     for ii in range(0, 2 * window + 1):
         suit_smoothed_s[start + window : end - window] = suit_smoothed_s[
             start + window : end - window
         ] + suit_avg_surface[start + ii : end + ii - 2 * window] / (2.0 * window + 1.0)
 
-    suit_avg_bottom = np.mean(suitability[nfish // 2 : nfish - 1, :], axis=0)
+    suit_avg_bottom = mean(suitability[nfish // 2 : nfish - 1, :], axis=0)
     for ii in range(0, 2 * window + 1):
         suit_smoothed_b[start + window : end - window] = suit_smoothed_b[
             start + window : end - window
@@ -244,9 +220,8 @@ if __name__ == "__main__":
     text[2].set_color("green")
     text[3].set_color("blue")
 
-    # plt.show()
-    plt.savefig(
-        "./figures/behavior/suitabililty.png",
+    savefig(
+        "./figures/behavior/suitability.png",
         facecolor=bg_color,
         edgecolor="none",
         dpi=default_dpi,

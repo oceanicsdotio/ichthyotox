@@ -5,14 +5,6 @@ import numpy as np
 from matplotlib import rc
 from pylab import *
 
-def ugrow(id):
-	print("Reading State of "+id)
-	data = np.loadtxt('../'+id+'/fish_state.dat', unpack=True)
-	for ii in range(0, nfish):
-		masscol = ii*dwidth + 2
-		mass[ii,:] = data[masscol, :]
-	return np.mean(mass[:,end])
-
 
 # load data
 ini = open('../100/fish_ini.dat', 'r')
@@ -22,10 +14,16 @@ start = 0
 end = len(time) - 1
 dwidth = 4
 
-data = zeros((nfish*dwidth+1,end-start+1))
-mass = zeros((nfish,end-start+1))
-time = time / 24.
 
+def ugrow(id):
+    print("Reading State of "+id)
+    data = zeros((nfish*dwidth+1,end-start+1))
+    mass = zeros((nfish,end-start+1))
+    data = np.loadtxt('../'+id+'/fish_state.dat', unpack=True)
+    for ii in range(0, nfish):
+        masscol = ii*dwidth + 2
+        mass[ii,:] = data[masscol, :]
+    return np.mean(mass[:,end])
 
 print(ugrow('100'))
 print(ugrow('101'))

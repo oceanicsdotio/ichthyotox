@@ -1,9 +1,7 @@
 #!/usr/bin/python
 import matplotlib.pyplot as plt
-import matplotlib.ticker as mticker
-import numpy as np
-from matplotlib import rc
-from pylab import *
+from numpy import zeros, loadtxt, sqrt
+from analysis.defaults import bg_color, overlay_color, label_color, default_dpi
 
 nplots=1
 fontsize  = 10
@@ -14,37 +12,11 @@ marginWidth = 8.5
 fheight = 6
 default_alpha = 1.0
 
-for_screen=True
-if for_screen:
-    bg_color = [0.0,0.0,0.0,default_alpha]
-    overlay_color = [1.0,1.0,1.0,default_alpha]
-    label_color = [1.0,1.0,1.0,default_alpha]
-    default_dpi = 150
-else:
-    bg_color = [1.0,1.0,1.0,default_alpha]
-    overlay_color = [0.0,0.0,0.0,default_alpha]
-    label_color = [0.0,0.0,0.0,default_alpha]
-    default_dpi = 300
-
-
-rc('text', usetex=False)
-rc('font', **{'family':'sans-serif', 'sans-serif':['Arial']})
-rc('mathtext', default='sf')
-rc('lines', markeredgewidth=1)
-rc('lines', linewidth=linewidth)
-rc('axes', labelsize=fontsize)
-rc('axes', linewidth=(linewidth+1)//2)
-rc('xtick', labelsize=fontsize)
-rc('ytick', labelsize=fontsize)
-rc('legend', fontsize=fontsize)
-rc('xtick.major', pad=5)
-rc('ytick.major', pad=5)
-
 
 # load data
 ini = open('../100/fish_ini.dat', 'r')
 nfish = int(str.strip(ini.readline()))
-time = np.loadtxt('../100/fish_state.dat', usecols=[0], unpack=True)
+time = loadtxt('../100/fish_state.dat', usecols=[0], unpack=True)
 start = 0
 end = len(time) - 1
 dwidth = 4
@@ -95,14 +67,14 @@ ax[0].tick_params(axis='y', colors=label_color)
 # ax[1].tick_params(axis='y', colors=label_color)
 
 #######################################
-print "Reading State" # experiment A
+print ("Reading State") # experiment A
 event_start = 19.5
-data = np.loadtxt('../100/fish_position.dat', unpack=True)
+data = loadtxt('../100/fish_position.dat', unpack=True)
 xcol = ii*dwidth + 2
 ycol = ii*dwidth + 3
 xpos[ii,:] = data[xcol,:]
 ypos[ii,:] = data[ycol,:]
-print "Calculating Mean Tox Load and Pathway Partitioning"
+print ("Calculating Mean Tox Load and Pathway Partitioning")
 
 
 for jj in range(start,end):
@@ -124,14 +96,14 @@ for jj in range(start,end):
     residence[ii,jj] = residence[ii,jj] + (time[jj] - time[next_crossing])
 ax[0].plot(time[240*event_start:240*(event_start+duration)]-event_start, residence[ii,240*event_start:240*(event_start+duration)], color='white', aa=True, linewidth=1)
 #######################################
-print "Reading State" # experiment B
+print ("Reading State") # experiment B
 event_start = 28
-data = np.loadtxt('../101/fish_position.dat', unpack=True)
+data = loadtxt('../101/fish_position.dat', unpack=True)
 xcol = ii*dwidth + 2
 ycol = ii*dwidth + 3
 xpos[ii,:] = data[xcol,:]
 ypos[ii,:] = data[ycol,:]
-print "Calculating Mean Tox Load and Pathway Partitioning"
+print ("Calculating Mean Tox Load and Pathway Partitioning")
 for jj in range(start,end):
     for kk in range(jj+1,end):
         distance = sqrt((ypos[ii,jj] - ypos[ii,kk])**2 + (xpos[ii,jj] - xpos[ii,kk])**2)
@@ -151,17 +123,14 @@ for jj in range(start,end):
     residence[ii,jj] = residence[ii,jj] + (time[jj] - time[next_crossing])
 ax[0].plot(time[240*event_start:240*(event_start+duration)]-event_start, residence[ii,240*event_start:240*(event_start+duration)], color='red')
 
-#######################################
-
-#######################################
-print "Reading State" # experiment C
+print ("Reading State") # experiment C
 event_start = 3
-data = np.loadtxt('../102/fish_position.dat', unpack=True)
+data = loadtxt('../102/fish_position.dat', unpack=True)
 xcol = ii*dwidth + 2
 ycol = ii*dwidth + 3
 xpos[ii,:] = data[xcol,:]
 ypos[ii,:] = data[ycol,:]
-print "Calculating Mean Tox Load and Pathway Partitioning"
+print ("Calculating Mean Tox Load and Pathway Partitioning")
 
 for jj in range(start,end):
     for kk in range(jj+1,end):
@@ -183,17 +152,15 @@ for jj in range(start,end):
 
 ax[0].plot(time[240*event_start:240*(event_start+duration)]-event_start, residence[ii,240*event_start:240*(event_start+duration)], color='green')
 
-#######################################
 
-#######################################
-print "Reading State" # experiment D
+print ("Reading State") # experiment D
 event_start = 10
-data = np.loadtxt('../103/fish_position.dat', unpack=True)
+data = loadtxt('../103/fish_position.dat', unpack=True)
 xcol = ii*dwidth + 2
 ycol = ii*dwidth + 3
 xpos[ii,:] = data[xcol,:]
 ypos[ii,:] = data[ycol,:]
-print "Calculating Mean Tox Load and Pathway Partitioning"
+print ("Calculating Mean Tox Load and Pathway Partitioning")
 
 
 for jj in range(start,end):
@@ -215,7 +182,6 @@ for jj in range(start,end):
     residence[ii,jj] = residence[ii,jj] + (time[jj] - time[next_crossing])
 ax[0].plot(time[240*event_start:240*(event_start+duration)]-event_start, residence[ii,240*event_start:240*(event_start+duration)], color='blue')
 
-#######################################
 
 ax[0].set_xlabel(r'Days')
 ax[0].xaxis.set_major_locator(LinearLocator(5))
@@ -224,17 +190,9 @@ ax[0].set_xlim(0,)
 ax[0].xaxis.grid(False); 
 ax[0].set_ylabel('Residence time, days (with 20 meter threshold)', rotation=90)
 ax[0].yaxis.set_major_locator(LinearLocator(5))
-ax[0].yaxis.grid(False);
+ax[0].yaxis.grid(False)
 ax[0].set_frame_on(True)
 ax[0].set_ylim()
-
-# legend = ax[0].legend(loc='upper left')
-# legend.get_frame().set_facecolor('none')
-# text = legend.get_texts()
-# text[0].set_color('white')
-# text[1].set_color('red')
-# text[2].set_color('green')
-# text[3].set_color('blue')
 
 
 plt.savefig('./fish_singlesuit_screen.tiff', facecolor=bg_color, edgecolor='none', dpi=default_dpi)

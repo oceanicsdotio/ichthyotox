@@ -4,6 +4,7 @@ import matplotlib.ticker as mticker
 import numpy as np
 from matplotlib import rc
 from pylab import *
+from analysis.defaults import bg_color, overlay_color, label_color, default_dpi
 
 nplots=1
 fontsize  = 10
@@ -13,32 +14,6 @@ vpadding = 0.05
 marginWidth = 6.5
 fheight = 7.0
 default_alpha = 1.0
-
-for_screen=False
-if for_screen:
-    bg_color = [0.0,0.0,0.0,default_alpha]
-    overlay_color = [1.0,1.0,1.0,default_alpha]
-    label_color = [1.0,1.0,1.0,default_alpha]
-    default_dpi = 150
-else:
-    bg_color = [1.0,1.0,1.0,default_alpha]
-    overlay_color = [0.0,0.0,0.0,default_alpha]
-    label_color = [0.0,0.0,0.0,default_alpha]
-    default_dpi = 300
-
-
-rc('text', usetex=False)
-rc('font', **{'family':'serif', 'serif':['Times New Roman']})
-rc('mathtext', default='sf')
-rc('lines', markeredgewidth=1)
-rc('lines', linewidth=linewidth)
-rc('axes', labelsize=fontsize)
-rc('axes', linewidth=(linewidth+1)//2)
-rc('xtick', labelsize=fontsize)
-rc('ytick', labelsize=fontsize)
-rc('legend', fontsize=fontsize)
-rc('xtick.major', pad=5)
-rc('ytick.major', pad=5)
 
 
 # load data
@@ -52,14 +27,9 @@ dwidth = 4
 data = zeros((nfish*dwidth+1,end-start+1))
 mass = zeros((nfish,end-start+1))
 tox = zeros((nfish,end-start+1))
-path = zeros((nfish,end-start+1))
 xpos = zeros((nfish,end-start+1))
 suitability = zeros((nfish,end-start+1))
 ratio = zeros((nfish,end-start+1))
-ratio_avg = zeros(end-start+1)
-ratio_avg1 = zeros(end-start+1)
-ratio_avg2 = zeros(end-start+1)
-ratio_std = zeros(end-start+1)
 ratio_sum = zeros(end-start+1)
 suit_sum = zeros(end-start+1)
 time = time / 24.
@@ -222,7 +192,7 @@ ax[0].xaxis.set_major_locator(MultipleLocator(5))
 ax[0].xaxis.set_major_formatter(FormatStrFormatter('%.0f'))
 ax[0].xaxis.set_minor_locator(MultipleLocator(1))
 ax[0].set_xlim(0,30)
-ax[0].xaxis.grid(False); 
+ax[0].xaxis.grid(False)
 ax[0].set_ylabel('Behavioral Cues', rotation=90)
 ax[0].yaxis.set_major_locator(LinearLocator(0))
 ax[0].yaxis.grid(False)
@@ -233,8 +203,6 @@ ax[0].text(x=0.05*30, y=21.25, s='Control (A)', color='black', fontsize=fontsize
 ax[0].text(x=0.05*30, y=15.75, s='Formation (B)', color='red', fontsize=fontsize)
 ax[0].text(x=0.05*30, y=10.25, s='Intensification (C)', color='green', fontsize=fontsize)
 ax[0].text(x=0.05*30, y=4.75, s='Decline (D)', color='blue', fontsize=fontsize)
-
-
 
 
 if __name__ == "__main__":

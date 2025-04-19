@@ -1,9 +1,9 @@
 #!/usr/bin/python
-import matplotlib.pyplot as plt
-import numpy as np
+from matplotlib.pyplot import MultipleLocator, FormatStrFormatter, figure, savefig
+from numpy import zeros, loadtxt, mean, std
 from matplotlib import rc
-from pylab import *
 from sys import argv
+from analysis.defaults import bg_color, overlay_color, label_color, default_dpi
 
 nplots = 1
 fontsize = 10
@@ -14,17 +14,6 @@ marginWidth = 6.5
 fheight = 3
 default_alpha = 1.0
 
-for_screen = False
-if for_screen:
-    bg_color = [0.0, 0.0, 0.0, default_alpha]
-    overlay_color = [1.0, 1.0, 1.0, default_alpha]
-    label_color = [1.0, 1.0, 1.0, default_alpha]
-    default_dpi = 150
-else:
-    bg_color = [1.0, 1.0, 1.0, default_alpha]
-    overlay_color = [0.0, 0.0, 0.0, default_alpha]
-    label_color = [0.0, 0.0, 0.0, default_alpha]
-    default_dpi = 300
 
 if __name__ == "__main__":
 
@@ -46,7 +35,7 @@ if __name__ == "__main__":
     # load data
     with open(f"{data_dir}/100/fish_ini.dat", "r", encoding="utf8") as ini:
         nfish = int(str.strip(ini.readline()))
-    time = np.loadtxt(f"{data_dir}/100/fish_state.dat", usecols=[0], unpack=True)
+    time = loadtxt(f"{data_dir}/100/fish_state.dat", usecols=[0], unpack=True)
     start = 0
     end = len(time) - 1
     dwidth = 4
@@ -63,7 +52,7 @@ if __name__ == "__main__":
     time = time / 24.0
 
     # figure and subplots
-    fig = plt.figure(facecolor=bg_color, figsize=(marginWidth, fheight))  # Change this
+    fig = figure(facecolor=bg_color, figsize=(marginWidth, fheight))  # Change this
     fig.subplots_adjust(
         top=1.0 - vpadding,
         bottom=vpadding + 0.1,
@@ -84,7 +73,7 @@ if __name__ == "__main__":
     ax[0].tick_params(axis="y", colors=label_color)
 
     print("Reading State")  # experiment B
-    data = np.loadtxt(f"{data_dir}/101/fish_state.dat", unpack=True)
+    data = loadtxt(f"{data_dir}/101/fish_state.dat", unpack=True)
     for ii in range(0, nfish):
         masscol = ii * dwidth + 2
         toxcol = ii * dwidth + 3
@@ -94,8 +83,8 @@ if __name__ == "__main__":
         path[ii, :] = data[pathcol, :]
     print("Calculating Mean Tox Load and Pathway Partitioning")
     ratio = tox / mass
-    ratio_avg = np.mean(ratio[:, :], axis=0)
-    ratio_std = np.std(ratio[:, :], axis=0)
+    ratio_avg = mean(ratio[:, :], axis=0)
+    ratio_std = std(ratio[:, :], axis=0)
     ax[0].plot(
         time,
         1000 * ratio_avg,
@@ -116,7 +105,7 @@ if __name__ == "__main__":
     )
 
     print("Reading State")  # experiment C
-    data = np.loadtxt(f"{data_dir}/102/fish_state.dat", unpack=True)
+    data = loadtxt(f"{data_dir}/102/fish_state.dat", unpack=True)
     for ii in range(0, nfish):
         masscol = ii * dwidth + 2
         toxcol = ii * dwidth + 3
@@ -126,10 +115,10 @@ if __name__ == "__main__":
         path[ii, :] = data[pathcol, :]
     print("Calculating Mean Tox Load and Pathway Partitioning")
     ratio = tox / mass
-    ratio_avg = np.mean(ratio[:, :], axis=0)
-    ratio_std = np.std(ratio[:, :], axis=0)
-    ratio_avg1 = np.mean(ratio[0 : nfish // 2 - 1, :], axis=0)
-    ratio_avg2 = np.mean(ratio[nfish // 2 : nfish - 1, :], axis=0)
+    ratio_avg = mean(ratio[:, :], axis=0)
+    ratio_std = std(ratio[:, :], axis=0)
+    ratio_avg1 = mean(ratio[0 : nfish // 2 - 1, :], axis=0)
+    ratio_avg2 = mean(ratio[nfish // 2 : nfish - 1, :], axis=0)
     ax[0].fill_between(
         time,
         1000 * (ratio_avg - ratio_std),
@@ -159,7 +148,7 @@ if __name__ == "__main__":
     )
 
     print("Reading State")  # experiment D
-    data = np.loadtxt(f"{data_dir}/103/fish_state.dat", unpack=True)
+    data = loadtxt(f"{data_dir}/103/fish_state.dat", unpack=True)
     for ii in range(0, nfish):
         masscol = ii * dwidth + 2
         toxcol = ii * dwidth + 3
@@ -169,10 +158,10 @@ if __name__ == "__main__":
         path[ii, :] = data[pathcol, :]
     print("Calculating Mean Tox Load and Pathway Partitioning")
     ratio = tox / mass
-    ratio_avg = np.mean(ratio[:, :], axis=0)
-    ratio_std = np.std(ratio[:, :], axis=0)
-    ratio_avg1 = np.mean(ratio[0 : nfish // 2 - 1, :], axis=0)
-    ratio_avg2 = np.mean(ratio[nfish // 2 : nfish - 1, :], axis=0)
+    ratio_avg = mean(ratio[:, :], axis=0)
+    ratio_std = std(ratio[:, :], axis=0)
+    ratio_avg1 = mean(ratio[0 : nfish // 2 - 1, :], axis=0)
+    ratio_avg2 = mean(ratio[nfish // 2 : nfish - 1, :], axis=0)
     ax[0].fill_between(
         time,
         1000 * (ratio_avg - ratio_std),
@@ -245,7 +234,7 @@ if __name__ == "__main__":
     text[1].set_color("green")
     text[2].set_color("blue")
 
-    plt.savefig(
+    savefig(
         "./figures/behavior/intoxication.png",
         facecolor=bg_color,
         edgecolor="none",
