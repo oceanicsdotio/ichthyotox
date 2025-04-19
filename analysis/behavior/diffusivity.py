@@ -4,6 +4,7 @@ import numpy as np
 from matplotlib import rc
 from pylab import *
 from sys import argv
+from analysis.defaults import bg_color, overlay_color, label_color, default_dpi
 
 nplots=1
 fontsize  = 10
@@ -13,18 +14,6 @@ vpadding = 0.05
 marginWidth = 6.5
 fheight = 4.5
 default_alpha=1.0
-
-for_screen=False
-if for_screen:
-    bg_color = [0.0,0.0,0.0,default_alpha]
-    overlay_color = [1.0,1.0,1.0,default_alpha]
-    label_color = [1.0,1.0,1.0,default_alpha]
-    default_dpi = 150
-else:
-    bg_color = [1.0,1.0,1.0,default_alpha]
-    overlay_color = [0.0,0.0,0.0,default_alpha]
-    label_color = [0.0,0.0,0.0,default_alpha]
-    default_dpi = 300
 
 if __name__ == "__main__":
     data_dir = argv[1]

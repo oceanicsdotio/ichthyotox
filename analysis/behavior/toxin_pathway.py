@@ -2,8 +2,8 @@
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import numpy as np
-from matplotlib import rc
 from pylab import *
+from analysis.defaults import bg_color, overlay_color, label_color, default_dpi
 
 nplots=1
 fontsize  = 10
@@ -13,32 +13,6 @@ vpadding = 0.05
 marginWidth = 8.5
 fheight = 6
 default_alpha = 1.0
-
-for_screen=True
-if for_screen:
-    bg_color = [0.0,0.0,0.0,default_alpha]
-    overlay_color = [1.0,1.0,1.0,default_alpha]
-    label_color = [1.0,1.0,1.0,default_alpha]
-    default_dpi = 150
-else:
-    bg_color = [1.0,1.0,1.0,default_alpha]
-    overlay_color = [0.0,0.0,0.0,default_alpha]
-    label_color = [0.0,0.0,0.0,default_alpha]
-    default_dpi = 300
-
-
-rc('text', usetex=False)
-rc('font', **{'family':'sans-serif', 'sans-serif':['Arial']})
-rc('mathtext', default='sf')
-rc('lines', markeredgewidth=1)
-rc('lines', linewidth=linewidth)
-rc('axes', labelsize=fontsize)
-rc('axes', linewidth=(linewidth+1)//2)
-rc('xtick', labelsize=fontsize)
-rc('ytick', labelsize=fontsize)
-rc('legend', fontsize=fontsize)
-rc('xtick.major', pad=5)
-rc('ytick.major', pad=5)
 
 
 # load data
@@ -71,46 +45,38 @@ ax[0].yaxis.label.set_color(label_color)
 ax[0].tick_params(axis='x', colors=label_color)
 ax[0].tick_params(axis='y', colors=label_color)
 
-print "Reading State" # experiment A
+
 data = np.loadtxt('../100/fish_state.dat', unpack=True)
 for ii in range(0, nfish):
     pathcol = ii*dwidth + 4
     path[ii,:] = data[pathcol,:]
-print "Calculating Mean Tox Load and Pathway Partitioning"
 path_avg1 = np.mean(path[:,:], axis=0)
 ax[0].plot(time, log10(path_avg1), linestyle='-', linewidth=1, color='white', aa=True, label='Control (A)')
-#######################################
-print "Reading State" # experiment B
+
 data = np.loadtxt('../101/fish_state.dat', unpack=True)
 for ii in range(0, nfish):
     pathcol = ii*dwidth + 4
     path[ii,:] = data[pathcol,:]
-print "Calculating Mean Tox Load and Pathway Partitioning"
 path_avg1 = np.mean(path[:,:], axis=0)
 ax[0].plot(time, log10(path_avg1), linestyle='-', linewidth=1, color='red', aa=True, label='Formation (B)')
-#######################################
-print "Reading State" # experiment C
+
 data = np.loadtxt('../102/fish_state.dat', unpack=True)
 for ii in range(0, nfish):
     pathcol = ii*dwidth + 4
     path[ii,:] = data[pathcol,:]
-print "Calculating Mean Tox Load and Pathway Partitioning"
 path_avg1 = np.mean(path[0:nfish/2-1,:], axis=0)
 path_avg2 = np.mean(path[nfish/2:nfish-1,:], axis=0)
 ax[0].plot(time, log10(path_avg1), linestyle='--', linewidth=1, color='green', aa=True)
 ax[0].plot(time, log10(path_avg2), linestyle='-', linewidth=1, color='green', aa=True, label='Intensification (C)')
-#######################################
-print "Reading State" # experiment D
+
 data = np.loadtxt('../103/fish_state.dat', unpack=True)
 for ii in range(0, nfish):
     pathcol = ii*dwidth + 4
     path[ii,:] = data[pathcol,:]
-print "Calculating Mean Tox Load and Pathway Partitioning"
 path_avg1 = np.mean(path[0:nfish/2-1,:], axis=0)
 path_avg2 = np.mean(path[nfish/2:nfish-1,:], axis=0)
 ax[0].plot(time, log10(path_avg1), linestyle='--', linewidth=1, color='blue', aa=True)
 ax[0].plot(time, log10(path_avg2), linestyle='-', linewidth=1, color='blue', aa=True, label='Decline (D)')
-#######################################
 
 
 ax[0].set_xlabel(r'Days')
@@ -123,7 +89,7 @@ ax[0].set_ylabel('Mean pathway partitioning ratio', rotation=90)
 
 #ax[0].yaxis.set_major_locator(MultipleLocator(1))
 #ax[0].yaxis.set_major_formatter(FormatStrFormatter('%.2f'))
-ax[0].yaxis.grid(False);
+ax[0].yaxis.grid(False)
 ax[0].set_frame_on(True)
 ax[0].set_ylim(0.0,10.0)
 

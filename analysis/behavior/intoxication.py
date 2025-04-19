@@ -19,19 +19,6 @@ if __name__ == "__main__":
 
     data_dir = argv[1]
 
-    rc("text", usetex=False)
-    rc("font", **{"family": "serif", "serif": ["Times New Roman"]})
-    rc("mathtext", default="sf")
-    rc("lines", markeredgewidth=1)
-    rc("lines", linewidth=linewidth)
-    rc("axes", labelsize=fontsize)
-    rc("axes", linewidth=(linewidth + 1) // 2)
-    rc("xtick", labelsize=fontsize)
-    rc("ytick", labelsize=fontsize)
-    rc("legend", fontsize=fontsize)
-    rc("xtick.major", pad=5)
-    rc("ytick.major", pad=5)
-
     # load data
     with open(f"{data_dir}/100/fish_ini.dat", "r", encoding="utf8") as ini:
         nfish = int(str.strip(ini.readline()))

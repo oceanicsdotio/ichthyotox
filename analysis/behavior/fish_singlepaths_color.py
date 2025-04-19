@@ -4,8 +4,7 @@ import matplotlib.ticker as mticker
 import numpy as np
 from matplotlib import rc
 from pylab import *
-import matplotlib.tri as tri
-import math
+from analysis.defaults import bg_color, overlay_color, label_color, default_dpi
 
 nplots=1
 fontsize  = 10
@@ -16,17 +15,6 @@ marginWidth = 3.5
 fheight = 3.5
 default_alpha = 1.0
 
-for_screen=False
-if for_screen:
-    bg_color = [0.0,0.0,0.0,default_alpha]
-    overlay_color = [1.0,1.0,1.0,default_alpha]
-    label_color = [1.0,1.0,1.0,default_alpha]
-    default_dpi = 150
-else:
-    bg_color = [1.0,1.0,1.0,default_alpha]
-    overlay_color = [0.0,0.0,0.0,default_alpha]
-    label_color = [0.0,0.0,0.0,default_alpha]
-    default_dpi = 300
 
 rc('text', usetex=False)
 rc('font', **{'family':'serif', 'serif':['Times New Roman']})
@@ -81,7 +69,6 @@ ycol = ii*dwidth + 3
 fpsx[ii,:] = data[xcol,:] 
 fpsy[ii,:] = data[ycol,:] 
 # plot path and end markers
-print "(A) Drawing paths..."
 plt.scatter(fpsx[ii,int(240*(event_start+1))], fpsy[ii,int(240*(event_start+1))], s=80, color='black', zorder=10, edgecolors='black', label='Control (A)') # end markers
 for jj in range (int(240*event_start), int(240*(event_start+1))):
     if (sqrt( (fpsx[ii,jj+1] - fpsx[ii,jj])**2 + (fpsy[ii,jj+1] - fpsy[ii,jj])**2 ) < 200.0):
@@ -96,7 +83,6 @@ ycol = ii*dwidth + 3
 fpsx[ii,:] = data[xcol,:] 
 fpsy[ii,:] = data[ycol,:] 
 # plot path and end markers
-print "(B) Drawing paths..."
 plt.scatter(fpsx[ii,int(240*(event_start+1))], fpsy[ii,int(240*(event_start+1))], s=80, color='red', zorder=10, edgecolors='red', label='Formation (B)') # end markers
 for jj in range (int(240*event_start), int(240*(event_start+1))):
     if (sqrt( (fpsx[ii,jj+1] - fpsx[ii,jj])**2 + (fpsy[ii,jj+1] - fpsy[ii,jj])**2 ) < 200.0):
@@ -111,7 +97,6 @@ ycol = ii*dwidth + 3
 fpsx[ii,:] = data[xcol,:] 
 fpsy[ii,:] = data[ycol,:] 
 # plot path and end markers
-print "(C) Drawing paths..."
 plt.scatter(fpsx[ii,int(240*(event_start+1))], fpsy[ii,int(240*(event_start+1))], s=80, color='green', zorder=10, edgecolors='green', label='Intensification (C)') # end markers
 for jj in range (int(240*event_start), int(240*(event_start+1))):
     if (sqrt( (fpsx[ii,jj+1] - fpsx[ii,jj])**2 + (fpsy[ii,jj+1] - fpsy[ii,jj])**2 ) < 200.0):
@@ -127,7 +112,6 @@ ycol = ii*dwidth + 3
 fpsx[ii,:] = data[xcol,:] 
 fpsy[ii,:] = data[ycol,:] 
 # plot path and end markers
-print "(D) Drawing paths..."
 plt.scatter(fpsx[ii,240*(event_start+1)], fpsy[ii,240*(event_start+1)], s=80, color='blue', zorder=10, edgecolors='blue', label='Decline (D)') # end markers
 for jj in range (int(240*event_start), int(240*(event_start+1))):
     if (sqrt( (fpsx[ii,jj+1] - fpsx[ii,jj])**2 + (fpsy[ii,jj+1] - fpsy[ii,jj])**2 ) < 200.0):

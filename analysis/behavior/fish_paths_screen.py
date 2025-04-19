@@ -1,10 +1,8 @@
 #!/usr/bin/python
 import matplotlib.pyplot as plt
-import matplotlib.ticker as mticker
 import numpy as np
-from matplotlib import rc
 from pylab import *
-from matplotlib import cm, tri
+from analysis.defaults import bg_color, overlay_color, label_color, default_dpi
 
 nplots=1
 fontsize  = 10
@@ -15,29 +13,7 @@ marginWidth = 8.5
 fheight = 6.0
 default_alpha=1.0
 
-for_screen=True
-if for_screen:
-    bg_color = [0.0,0.0,0.0,default_alpha]
-    overlay_color = [1.0,1.0,1.0,default_alpha]
-    label_color = [1.0,1.0,1.0,default_alpha]
-    default_dpi = 150
-else:
-    bg_color = [1.0,1.0,1.0,default_alpha]
-    overlay_color = [0.0,0.0,0.0,default_alpha]
-    label_color = [0.0,0.0,0.0,default_alpha]
-    default_dpi = 300
 
-rc('text', usetex=False)
-rc('font', **{'family':'sans-serif', 'sans-serif':['Arial']})
-rc('mathtext', default='sf')
-rc('lines', markeredgewidth=1)
-rc('lines', linewidth=linewidth)
-rc('axes', labelsize=fontsize)
-rc('axes', linewidth=(linewidth+1)//2)
-rc('xtick', labelsize=fontsize)
-rc('ytick', labelsize=fontsize)
-rc('xtick.major', pad=5)
-rc('ytick.major', pad=5)
 
 # load data
 ini = open('../100/fish_ini.dat', 'r')
