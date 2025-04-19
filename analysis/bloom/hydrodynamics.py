@@ -158,4 +158,4 @@ ttl = ax2.title
 ttl.set_position([1.0, 1.0])
 
 
-plt.savefig('./figures/stokes_and_re_surfaces.png', facecolor=bg_color, edgecolor='none', dpi=default_dpi)
+plt.savefig('./figures/bloom/hydrodynamics.png', facecolor=bg_color, edgecolor='none', dpi=default_dpi)

@@ -25,11 +25,9 @@ if __name__ == "__main__":
 
     rc('text', usetex=False)
     rc('font', **{'family':'sans-serif', 'sans-serif':['Arial']})
-    #rc('font', weight='bold')
     rc('mathtext', default='sf')
     rc('lines', markeredgewidth=1)
     rc('lines', linewidth=linewidth)
-    #rc('axes', labelsize=fontsize)
     rc('axes', labelsize=fontsize)
     rc('axes', linewidth=(linewidth+1)//2)
     rc('xtick', labelsize=fontsize)
