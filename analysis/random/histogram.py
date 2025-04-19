@@ -34,20 +34,7 @@ ax.xaxis.label.set_color(label_color)
 ax.yaxis.label.set_color(label_color)
 ax.tick_params(axis='x', colors=label_color)
 ax.tick_params(axis='y', colors=label_color)
-     
-   
-def set_tick_sizes(ax, major, minor):
-    for l in ax.get_xticklines() + ax.get_yticklines() + + ax.get_zticklines():
-        l.set_markersize(major)
-    for tick in ax.xaxis.get_minor_ticks() + ax.yaxis.get_minor_ticks() + ax.zaxis.get_minor_ticks():
-        tick.tick1line.set_markersize(minor); tick.tick2line.set_markersize(minor); tick.tick3line.set_markersize(minor)
-    ax.xaxis.LABELPAD      = 10.
-    ax.xaxis.OFFSETTEXTPAD = 10.
-    ax.yaxis.LABELPAD      = 10.
-    ax.yaxis.OFFSETTEXTPAD = 10.
-    ax.zaxis.LABELPAD      = 10.
-    ax.zaxis.OFFSETTEXTPAD = 10.
-    
+
 
 # variable declarations
 gaussian = loadtxt('../random.dat')

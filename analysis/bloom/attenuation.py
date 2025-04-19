@@ -1,9 +1,8 @@
 #!/usr/bin/python
 import matplotlib.pyplot as plt
-import matplotlib.ticker as mticker
 import numpy as np
-from matplotlib import rc
 from pylab import *
+from analysis.defaults import bg_color, overlay_color, label_color, default_dpi
 
 fontsize  = 10
 linewidth = 1
@@ -15,37 +14,9 @@ default_alpha = 1.0
 lineRGBA = [1.0, 0.0, 0.0, default_alpha]
 style = ['-',':']
 
-for_screen=False
-if for_screen:
-    bg_color = [0.0,0.0,0.0,default_alpha]
-    overlay_color = [1.0,1.0,1.0,default_alpha]
-    label_color = [0.5,0.5,0.5,default_alpha]
-    default_dpi = 150
-else:
-    bg_color = [1.0,1.0,1.0,default_alpha]
-    overlay_color = [0.0,0.0,0.0,default_alpha]
-    label_color = [0.0,0.0,0.0,default_alpha]
-    default_dpi = 300
-
-
-rc('text', usetex=False)
-rc('font', **{'family':'serif', 'serif':['Times New Roman']})
-rc('mathtext', default='sf')
-rc('lines', markeredgewidth=1)
-rc('lines', linewidth=linewidth)
-rc('axes', labelsize=fontsize)
-rc('axes', linewidth=(linewidth+1)//2)
-rc('xtick', labelsize=fontsize)
-rc('ytick', labelsize=fontsize)
-#rc('legend', fontsize=2*fontsize/3)
-rc('xtick.major', pad=5)
-rc('ytick.major', pad=5)
-
-    
 fig = plt.figure(facecolor=bg_color, figsize=(marginWidth, marginWidth/3.)) #Change this
 fig.subplots_adjust(top=1.0-vpad, bottom=vpad, left=hpad/2., right=1.0-hpad/2.)
-   
-# set color scheme
+
 ax = fig.add_subplot(1,2,1,projection='3d')
 
 ax.patch.set_facecolor(bg_color)
@@ -57,21 +28,6 @@ ax.xaxis.label.set_color(label_color)
 ax.yaxis.label.set_color(label_color)
 ax.tick_params(axis='x', colors=label_color)
 ax.tick_params(axis='y', colors=label_color)
-     
-   
-def set_tick_sizes(ax, major, minor):
-    for l in ax.get_xticklines() + ax.get_yticklines() + + ax.get_zticklines():
-        l.set_markersize(major)
-    for tick in ax.xaxis.get_minor_ticks() + ax.yaxis.get_minor_ticks() + ax.zaxis.get_minor_ticks():
-        tick.tick1line.set_markersize(minor); tick.tick2line.set_markersize(minor); tick.tick3line.set_markersize(minor)
-    ax.xaxis.LABELPAD      = 10.
-    ax.xaxis.OFFSETTEXTPAD = 10.
-    ax.yaxis.LABELPAD      = 10.
-    ax.yaxis.OFFSETTEXTPAD = 10.
-    ax.zaxis.LABELPAD      = 10.
-    ax.zaxis.OFFSETTEXTPAD = 10.
-    
-
 
 # variable declarations
 biomass = linspace(0.01,0.25,100)
@@ -130,7 +86,6 @@ ax2.view_init(elev = 2.*45./3., azim=(225.+180.))
 surf2 = ax2.plot_surface(log(biomass), depth2, irradiance2, rstride=5, cstride=5, color='white', edgecolors='black', linewidth=1.0, shade=False, antialiased=True)
 cont2 = ax2.contour(log(biomass), depth2, irradiance2, colors=overlay_color, extend3D=False, linewidth=2, zdir='z')
 
-# axis adjustment
 ax2.set_xlabel(r'ln B')
 ax2.set_xlim()
 ax2.xaxis.set_major_locator(LinearLocator(2))
@@ -159,5 +114,4 @@ title(r'(B)', fontsize=fontsize, color=label_color)
 ttl = ax2.title
 ttl.set_position([1.0, 1.0])
 
-#plt.show()
 plt.savefig('./forcing_surfaces.tiff', facecolor=bg_color, edgecolor='none', dpi=default_dpi)

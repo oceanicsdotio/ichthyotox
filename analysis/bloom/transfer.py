@@ -1,9 +1,9 @@
 #!/usr/bin/python
 from matplotlib.pyplot import figure, savefig
 import numpy as np
-from matplotlib import rc
 from mpl_toolkits.mplot3d import Axes3D
 from pylab import LinearLocator, FormatStrFormatter, linspace
+from analysis.defaults import bg_color, overlay_color, label_color, default_dpi
 
 if __name__ == "__main__":
     fontsize  = 10
@@ -17,25 +17,6 @@ if __name__ == "__main__":
     style = ['-',':']
     div=150
 
-    bg_color = [1.0,1.0,1.0,default_alpha]
-    overlay_color = [0.0,0.0,0.0,default_alpha]
-    label_color = [0.0,0.0,0.0,default_alpha]
-    default_dpi = 300
-
-
-    rc('text', usetex=False)
-    rc('font', **{'family':'sans-serif', 'sans-serif':['Arial']})
-    rc('mathtext', default='sf')
-    rc('lines', markeredgewidth=1)
-    rc('lines', linewidth=linewidth)
-    rc('axes', labelsize=fontsize)
-    rc('axes', linewidth=(linewidth+1)//2)
-    rc('xtick', labelsize=fontsize)
-    rc('ytick', labelsize=fontsize)
-    rc('xtick.major', pad=5)
-    rc('ytick.major', pad=5)
-
-        
     fig = figure(facecolor=bg_color, figsize=(marginWidth, 2.*marginWidth/3.)) #Change this
     fig.subplots_adjust(top=1.0-uniformPadding, bottom=uniformPadding, left=uniformPadding, right=1.0-uniformPadding/2.)
     
@@ -55,20 +36,7 @@ if __name__ == "__main__":
     ax[0].yaxis.label.set_color(label_color)
     ax[0].tick_params(axis='x', colors=label_color)
     ax[0].tick_params(axis='y', colors=label_color)
-        
-    
-    def set_tick_sizes(ax, major, minor):
-        for l in ax.get_xticklines() + ax[0].get_yticklines() + + ax.get_zticklines():
-            l.set_markersize(major)
-        for tick in ax.xaxis.get_minor_ticks() + ax[0].yaxis.get_minor_ticks() + ax[0].zaxis.get_minor_ticks():
-            tick.tick1line.set_markersize(minor); tick.tick2line.set_markersize(minor); tick.tick3line.set_markersize(minor)
-        ax[0].xaxis.LABELPAD      = 10.
-        ax[0].xaxis.OFFSETTEXTPAD = 10.
-        ax[0].yaxis.LABELPAD      = 10.
-        ax[0].yaxis.OFFSETTEXTPAD = 10.
-        ax[0].zaxis.LABELPAD      = 10.
-        ax[0].zaxis.OFFSETTEXTPAD = 10.
-        
+
     protein = 1.0
     irradiance = linspace(0.,650.,div)
     temperature = linspace(20.0,30.0,div)

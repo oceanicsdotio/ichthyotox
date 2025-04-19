@@ -1,7 +1,7 @@
 #!/usr/bin/python
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib import rc
+from analysis.defaults import bg_color, overlay_color, label_color, default_dpi
 from pylab import *
 
 fontsize  = 10
@@ -13,35 +13,7 @@ lineRGBA = [1.0, 0.0, 0.0, default_alpha]
 style = ['-',':']
 div=100
 
-for_screen=False
-if for_screen:
-    bg_color = [0.0,0.0,0.0,default_alpha]
-    overlay_color = [1.0,1.0,1.0,default_alpha]
-    label_color = [0.5,0.5,0.5,default_alpha]
-    default_dpi = 150
-else:
-    bg_color = [1.0,1.0,1.0,default_alpha]
-    overlay_color = [0.0,0.0,0.0,default_alpha]
-    label_color = [0.0,0.0,0.0,default_alpha]
-    default_dpi = 300
 
-
-rc('text', usetex=False)
-#rc('font', **{'family':'sans-serif', 'sans-serif':['Arial']})
-#rc('font', weight='bold')
-rc('mathtext', default='sf')
-rc('lines', markeredgewidth=1)
-rc('lines', linewidth=linewidth)
-#rc('axes', labelsize=fontsize)
-rc('axes', labelsize=fontsize)
-rc('axes', linewidth=(linewidth+1)//2)
-rc('xtick', labelsize=fontsize)
-rc('ytick', labelsize=fontsize)
-#rc('legend', fontsize=2*fontsize/3)
-rc('xtick.major', pad=5)
-rc('ytick.major', pad=5)
-
-    
 fig = plt.figure(facecolor=bg_color, figsize=(marginWidth, marginWidth/3.)) #Change this
 fig.subplots_adjust(top=1.0-uniformPadding, bottom=uniformPadding, left=uniformPadding, right=1.0-uniformPadding)
    
@@ -148,7 +120,6 @@ ax2.yaxis.set_pane_color(bg_color)
 
 ax2.set_zlabel(r'Re')
 ax2.zaxis.set_major_locator(LinearLocator(2))
-#ax2.zaxis.set_major_formatter(FormatStrFormatter('%.0e'))
 ax2.zaxis.grid(False)
 ax2.zaxis.set_rotate_label(False)
 ax2.zaxis.set_pane_color(bg_color)
