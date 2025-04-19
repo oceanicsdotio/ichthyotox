@@ -1,10 +1,7 @@
 #!/usr/bin/python
 from pylab import *
-from scipy.interpolate import UnivariateSpline
-from matplotlib import animation
-from matplotlib.collections import LineCollection
 import matplotlib.tri as tri
-import math
+
 
 nplots=4
 fontsize  = 10
@@ -99,7 +96,7 @@ plt.colorbar()
 #     plt.plot( (vert_x[ind3[ii]-1], vert_x[ind1[ii]-1]), (vert_y[ind3[ii]-1], vert_y[ind1[ii]-1]), color='black', linewidth=0.5, aa=True, zorder=2)
 
 # plot path and end markers
-print "Drawing paths..."
+
 for ii in range(0,nfish):
     plt.scatter(fpsx[ii,end], fpsy[ii,end], s=40, color='black', zorder=10, edgecolors='face') # end markers
 
