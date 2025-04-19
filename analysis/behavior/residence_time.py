@@ -1,5 +1,6 @@
 #!/usr/bin/python
-import matplotlib.pyplot as plt
+"""Plot residence time of fish in a given area"""
+from matplotlib.pyplot import figure, savefig, LinearLocator, FormatStrFormatter
 from numpy import zeros, loadtxt, sqrt
 from analysis.defaults import bg_color, overlay_color, label_color, default_dpi
 
@@ -46,27 +47,21 @@ duration=1
 
 
 # figure and subplots
-fig = plt.figure(facecolor=bg_color, figsize=(marginWidth, fheight)) #Change this
+fig = figure(facecolor=bg_color, figsize=(marginWidth, fheight)) #Change this
 fig.subplots_adjust(top=1.0-vpadding, bottom=vpadding+0.05, left=hpadding, right=1.0-(hpadding))
-ax = []
-ax.append(fig.add_subplot(1,1,1))
-#ax.append(ax[0].twinx())
+ax = fig.add_subplot(1,1,1)
 
-ax[0].patch.set_facecolor(bg_color)
-ax[0].spines['top'].set_color(overlay_color)
-ax[0].spines['bottom'].set_color(overlay_color)
-ax[0].spines['left'].set_color(overlay_color)
-ax[0].spines['right'].set_color(overlay_color)
-ax[0].xaxis.label.set_color(label_color)
-ax[0].yaxis.label.set_color(label_color)
-ax[0].tick_params(axis='x', colors=label_color)
-ax[0].tick_params(axis='y', colors=label_color)
+ax.patch.set_facecolor(bg_color)
+ax.spines['top'].set_color(overlay_color)
+ax.spines['bottom'].set_color(overlay_color)
+ax.spines['left'].set_color(overlay_color)
+ax.spines['right'].set_color(overlay_color)
+ax.xaxis.label.set_color(label_color)
+ax.yaxis.label.set_color(label_color)
+ax.tick_params(axis='x', colors=label_color)
+ax.tick_params(axis='y', colors=label_color)
 
-# ax[1].xaxis.label.set_color(label_color)
-# ax[1].yaxis.label.set_color(label_color)
-# ax[1].tick_params(axis='y', colors=label_color)
 
-#######################################
 print ("Reading State") # experiment A
 event_start = 19.5
 data = loadtxt('../100/fish_position.dat', unpack=True)
@@ -94,7 +89,7 @@ for jj in range(start,end):
         if (kk==start):
             next_crossing = kk
     residence[ii,jj] = residence[ii,jj] + (time[jj] - time[next_crossing])
-ax[0].plot(time[240*event_start:240*(event_start+duration)]-event_start, residence[ii,240*event_start:240*(event_start+duration)], color='white', aa=True, linewidth=1)
+ax.plot(time[240*event_start:240*(event_start+duration)]-event_start, residence[ii,240*event_start:240*(event_start+duration)], color='white', aa=True, linewidth=1)
 #######################################
 print ("Reading State") # experiment B
 event_start = 28
@@ -121,7 +116,7 @@ for jj in range(start,end):
         if (kk==start):
             next_crossing = kk
     residence[ii,jj] = residence[ii,jj] + (time[jj] - time[next_crossing])
-ax[0].plot(time[240*event_start:240*(event_start+duration)]-event_start, residence[ii,240*event_start:240*(event_start+duration)], color='red')
+ax.plot(time[240*event_start:240*(event_start+duration)]-event_start, residence[ii,240*event_start:240*(event_start+duration)], color='red')
 
 print ("Reading State") # experiment C
 event_start = 3
@@ -150,7 +145,7 @@ for jj in range(start,end):
             next_crossing = kk
     residence[ii,jj] = residence[ii,jj] + (time[jj] - time[next_crossing])
 
-ax[0].plot(time[240*event_start:240*(event_start+duration)]-event_start, residence[ii,240*event_start:240*(event_start+duration)], color='green')
+ax.plot(time[240*event_start:240*(event_start+duration)]-event_start, residence[ii,240*event_start:240*(event_start+duration)], color='green')
 
 
 print ("Reading State") # experiment D
@@ -180,19 +175,19 @@ for jj in range(start,end):
         if (kk==start):
             next_crossing = kk
     residence[ii,jj] = residence[ii,jj] + (time[jj] - time[next_crossing])
-ax[0].plot(time[240*event_start:240*(event_start+duration)]-event_start, residence[ii,240*event_start:240*(event_start+duration)], color='blue')
+ax.plot(time[240*event_start:240*(event_start+duration)]-event_start, residence[ii,240*event_start:240*(event_start+duration)], color='blue')
 
 
-ax[0].set_xlabel(r'Days')
-ax[0].xaxis.set_major_locator(LinearLocator(5))
-ax[0].xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
-ax[0].set_xlim(0,)
-ax[0].xaxis.grid(False); 
-ax[0].set_ylabel('Residence time, days (with 20 meter threshold)', rotation=90)
-ax[0].yaxis.set_major_locator(LinearLocator(5))
-ax[0].yaxis.grid(False)
-ax[0].set_frame_on(True)
-ax[0].set_ylim()
+ax.set_xlabel(r'Days')
+ax.xaxis.set_major_locator(LinearLocator(5))
+ax.xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
+ax.set_xlim(0,)
+ax.xaxis.grid(False)
+ax.set_ylabel('Residence time, days (with 20 meter threshold)', rotation=90)
+ax.yaxis.set_major_locator(LinearLocator(5))
+ax.yaxis.grid(False)
+ax.set_frame_on(True)
+ax.set_ylim()
 
 
-plt.savefig('./fish_singlesuit_screen.tiff', facecolor=bg_color, edgecolor='none', dpi=default_dpi)
+savefig('./fish_singlesuit_screen.tiff', facecolor=bg_color, edgecolor='none', dpi=default_dpi)

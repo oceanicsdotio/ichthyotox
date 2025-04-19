@@ -1,9 +1,8 @@
 #!/usr/bin/python
-from matplotlib.pyplot import MultipleLocator, FormatStrFormatter, figure, savefig
+from matplotlib.pyplot import MultipleLocator, figure, savefig
 from numpy import zeros, loadtxt, std, mean, arange
 from sys import argv
 from analysis.defaults import bg_color, overlay_color, label_color, default_dpi
-
 
 hpadding = 0.1
 vpadding = 0.05
@@ -34,18 +33,17 @@ if __name__ == "__main__":
     # Figure and subplots
     fig = figure(facecolor=bg_color, figsize=(marginWidth, fheight)) #Change this
     fig.subplots_adjust(top=1.0-vpadding, bottom=vpadding+0.1, left=hpadding, right=1.0-hpadding/3., hspace=0.20)
-    ax = []
-    ax.append(fig.add_subplot(1,1,1))
+    ax = fig.add_subplot(1,1,1)
 
-    ax[0].patch.set_facecolor(bg_color)
-    ax[0].spines['top'].set_color(overlay_color)
-    ax[0].spines['bottom'].set_color(overlay_color)
-    ax[0].spines['left'].set_color(overlay_color)
-    ax[0].spines['right'].set_color(overlay_color)
-    ax[0].xaxis.label.set_color(label_color)
-    ax[0].yaxis.label.set_color(label_color)
-    ax[0].tick_params(axis='x', colors=label_color)
-    ax[0].tick_params(axis='y', colors=label_color)
+    ax.patch.set_facecolor(bg_color)
+    ax.spines['top'].set_color(overlay_color)
+    ax.spines['bottom'].set_color(overlay_color)
+    ax.spines['left'].set_color(overlay_color)
+    ax.spines['right'].set_color(overlay_color)
+    ax.xaxis.label.set_color(label_color)
+    ax.yaxis.label.set_color(label_color)
+    ax.tick_params(axis='x', colors=label_color)
+    ax.tick_params(axis='y', colors=label_color)
 
 
     # experiment phases (days)
@@ -94,8 +92,8 @@ if __name__ == "__main__":
     for ii in range(0, nphases):
         msd_value_a[ii,0] = mean(mean(displacement[:,phase_start[ii]*240:phase_end[ii]*240], axis=0))
         msd_std_a[ii,0] = std(mean(displacement[:,phase_start[ii]*240:phase_end[ii]*240], axis=0))
-    #rects_a = ax[0].bar(arange(nphases), msd_value_a[:,0], width, color='black', edgecolor='none', yerr=msd_std_a[:,0], ecolor='black')
-    rects_a = ax[0].bar(arange(nphases), msd_value_a[:,0], width, color='black', edgecolor='none', label='Control (A)')
+    #rects_a = ax.bar(arange(nphases), msd_value_a[:,0], width, color='black', edgecolor='none', yerr=msd_std_a[:,0], ecolor='black')
+    rects_a = ax.bar(arange(nphases), msd_value_a[:,0], width, color='black', edgecolor='none', label='Control (A)')
     print ("A:", msd_value_a[:,0])
     print ("A:", msd_std_a[:,0])
 
@@ -128,8 +126,8 @@ if __name__ == "__main__":
     for ii in range(0, nphases):
         msd_std_b[ii,0] = std(mean(displacement[:,phase_start[ii]*240:phase_end[ii]*240], axis=0))
         msd_value_b[ii,0] = mean(mean(displacement[:,phase_start[ii]*240:phase_end[ii]*240], axis=0))
-    #rects_b = ax[0].bar(arange(nphases)+width, msd_value_b[:,0], width, color='red', edgecolor='none', yerr=msd_std_b[:,0], ecolor='red')
-    rects_b = ax[0].bar(arange(nphases)+width, msd_value_b[:,0], width, color='red', edgecolor='none', label='Formation (B)')
+    #rects_b = ax.bar(arange(nphases)+width, msd_value_b[:,0], width, color='red', edgecolor='none', yerr=msd_std_b[:,0], ecolor='red')
+    rects_b = ax.bar(arange(nphases)+width, msd_value_b[:,0], width, color='red', edgecolor='none', label='Formation (B)')
     print ("B:", msd_value_b[:,0])
     print ("B:", msd_std_b[:,0])
 
@@ -162,11 +160,11 @@ if __name__ == "__main__":
         msd_value_c[ii,0] = mean(mean(displacement[0:99,phase_start[ii]*240:phase_end[ii]*240], axis=0))
         msd_std_c[ii,1] = std(mean(displacement[100:199,phase_start[ii]*240:phase_end[ii]*240], axis=0))
         msd_value_c[ii,1] = mean(mean(displacement[100:199,phase_start[ii]*240:phase_end[ii]*240], axis=0))
-    #rects_c = ax[0].bar(arange(nphases)+2*width, msd_value_c[:,0], width/2, color='green', edgecolor='none', yerr=msd_std_c[:,0], ecolor='green')
-    #rects_c = ax[0].bar(arange(nphases)+2.5*width, msd_value_c[:,1], width/2, color='green', edgecolor='none', yerr=msd_std_c[:,1], ecolor='green')
+    #rects_c = ax.bar(arange(nphases)+2*width, msd_value_c[:,0], width/2, color='green', edgecolor='none', yerr=msd_std_c[:,0], ecolor='green')
+    #rects_c = ax.bar(arange(nphases)+2.5*width, msd_value_c[:,1], width/2, color='green', edgecolor='none', yerr=msd_std_c[:,1], ecolor='green')
 
-    rects_c = ax[0].bar(arange(nphases)+2*width, msd_value_c[:,0], width/2, color='green', edgecolor='none', label='Intensification, surface (C)')
-    rects_c = ax[0].bar(arange(nphases)+2.5*width, msd_value_c[:,1], width/2, color=[0.0,1.0,0.0,0.5], edgecolor='none', label='Intensification, demersal')
+    rects_c = ax.bar(arange(nphases)+2*width, msd_value_c[:,0], width/2, color='green', edgecolor='none', label='Intensification, surface (C)')
+    rects_c = ax.bar(arange(nphases)+2.5*width, msd_value_c[:,1], width/2, color=[0.0,1.0,0.0,0.5], edgecolor='none', label='Intensification, demersal')
     print ("C1:", msd_value_c[:,0])
     print ("C1:", msd_std_c[:,0])
     print ("C2:", msd_value_c[:,1])
@@ -202,28 +200,28 @@ if __name__ == "__main__":
         msd_value_d[ii,0] = mean(mean(displacement[0:100,phase_start[ii]*240:phase_end[ii]*240], axis=0))
         msd_std_d[ii,1] = std(mean(displacement[100:199,phase_start[ii]*240:phase_end[ii]*240],axis=0))
         msd_value_d[ii,1] = mean(mean(displacement[100:199,phase_start[ii]*240:phase_end[ii]*240],axis=0))
-    #rects_d = ax[0].bar(arange(nphases)+3*width, msd_value_d[:,0], width/2, color='blue', edgecolor='none', yerr=msd_std_d[:,0], ecolor='blue')
-    #rects_d = ax[0].bar(arange(nphases)+3.5*width, msd_value_d[:,1], width/2, color='blue', edgecolor='none', yerr=msd_std_d[:,1], ecolor='blue')
+    #rects_d = ax.bar(arange(nphases)+3*width, msd_value_d[:,0], width/2, color='blue', edgecolor='none', yerr=msd_std_d[:,0], ecolor='blue')
+    #rects_d = ax.bar(arange(nphases)+3.5*width, msd_value_d[:,1], width/2, color='blue', edgecolor='none', yerr=msd_std_d[:,1], ecolor='blue')
 
-    rects_d = ax[0].bar(arange(nphases)+3*width, msd_value_d[:,0], width/2, color='blue', edgecolor='none', label='Decline, surface (D)')
-    rects_d = ax[0].bar(arange(nphases)+3.5*width, msd_value_d[:,1], width/2, color=[0.0,0.0,1.0,0.5], edgecolor='none', label='Decline, demersal')
+    rects_d = ax.bar(arange(nphases)+3*width, msd_value_d[:,0], width/2, color='blue', edgecolor='none', label='Decline, surface (D)')
+    rects_d = ax.bar(arange(nphases)+3.5*width, msd_value_d[:,1], width/2, color=[0.0,0.0,1.0,0.5], edgecolor='none', label='Decline, demersal')
     print ("D1:", msd_value_d[:,0])
     print ("D1:", msd_std_d[:,0])
     print ("D2:", msd_value_d[:,1])
     print( "D2:", msd_std_d[:,1])
 
     # plot path and end markers
-    ax[0].set_xlabel(r'Phase')
-    ax[0].set_xlim()
-    #ax[0].xaxis.set_major_locator(MultipleLocator())
-    ax[0].xaxis.grid(False)
+    ax.set_xlabel(r'Phase')
+    ax.set_xlim()
+    #ax.xaxis.set_major_locator(MultipleLocator())
+    ax.xaxis.grid(False)
 
-    ax[0].set_ylabel(r'Diffusivity (m^2/hr)')
-    ax[0].set_ylim(0,800)
-    ax[0].yaxis.set_major_locator(MultipleLocator(100))
-    ax[0].yaxis.grid(False)
+    ax.set_ylabel(r'Diffusivity (m^2/hr)')
+    ax.set_ylim(0,800)
+    ax.yaxis.set_major_locator(MultipleLocator(100))
+    ax.yaxis.grid(False)
 
-    legend = ax[0].legend(loc='upper left')
+    legend = ax.legend(loc='upper left')
     legend.get_frame().set_facecolor('none')
     legend.get_frame().set_edgecolor('none')
     text = legend.get_texts()
@@ -233,6 +231,5 @@ if __name__ == "__main__":
     text[3].set_color([0.0,1.0,0.0,0.5])
     text[4].set_color('blue')
     text[5].set_color([0.0,0.0,1.0,0.5])
-
 
     savefig('./figures/behavior/diffusivity.png', facecolor=bg_color, edgecolor='none', dpi=default_dpi)

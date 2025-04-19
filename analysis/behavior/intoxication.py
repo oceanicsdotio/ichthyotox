@@ -1,7 +1,6 @@
 #!/usr/bin/python
 from matplotlib.pyplot import MultipleLocator, FormatStrFormatter, figure, savefig
 from numpy import zeros, loadtxt, mean, std
-from matplotlib import rc
 from sys import argv
 from analysis.defaults import bg_color, overlay_color, label_color, default_dpi
 
@@ -46,18 +45,17 @@ if __name__ == "__main__":
         left=hpadding,
         right=1.0 - (hpadding / 2.0),
     )
-    ax = []
-    ax.append(fig.add_subplot(1, 1, 1))
+    ax = fig.add_subplot(1, 1, 1)
 
-    ax[0].patch.set_facecolor(bg_color)
-    ax[0].spines["top"].set_color(overlay_color)
-    ax[0].spines["bottom"].set_color(overlay_color)
-    ax[0].spines["left"].set_color(overlay_color)
-    ax[0].spines["right"].set_color(overlay_color)
-    ax[0].xaxis.label.set_color(label_color)
-    ax[0].yaxis.label.set_color(label_color)
-    ax[0].tick_params(axis="x", colors=label_color)
-    ax[0].tick_params(axis="y", colors=label_color)
+    ax.patch.set_facecolor(bg_color)
+    ax.spines["top"].set_color(overlay_color)
+    ax.spines["bottom"].set_color(overlay_color)
+    ax.spines["left"].set_color(overlay_color)
+    ax.spines["right"].set_color(overlay_color)
+    ax.xaxis.label.set_color(label_color)
+    ax.yaxis.label.set_color(label_color)
+    ax.tick_params(axis="x", colors=label_color)
+    ax.tick_params(axis="y", colors=label_color)
 
     print("Reading State")  # experiment B
     data = loadtxt(f"{data_dir}/101/fish_state.dat", unpack=True)
@@ -72,7 +70,7 @@ if __name__ == "__main__":
     ratio = tox / mass
     ratio_avg = mean(ratio[:, :], axis=0)
     ratio_std = std(ratio[:, :], axis=0)
-    ax[0].plot(
+    ax.plot(
         time,
         1000 * ratio_avg,
         linestyle="-",
@@ -82,7 +80,7 @@ if __name__ == "__main__":
         label="Formation (B)",
         zorder=2,
     )
-    ax[0].fill_between(
+    ax.fill_between(
         time,
         1000 * (ratio_avg - ratio_std),
         1000 * (ratio_avg + ratio_std),
@@ -106,7 +104,7 @@ if __name__ == "__main__":
     ratio_std = std(ratio[:, :], axis=0)
     ratio_avg1 = mean(ratio[0 : nfish // 2 - 1, :], axis=0)
     ratio_avg2 = mean(ratio[nfish // 2 : nfish - 1, :], axis=0)
-    ax[0].fill_between(
+    ax.fill_between(
         time,
         1000 * (ratio_avg - ratio_std),
         1000 * (ratio_avg + ratio_std),
@@ -114,7 +112,7 @@ if __name__ == "__main__":
         edgecolor="none",
         zorder=1,
     )
-    ax[0].plot(
+    ax.plot(
         time,
         1000 * ratio_avg1,
         linestyle=":",
@@ -123,7 +121,7 @@ if __name__ == "__main__":
         aa=True,
         zorder=1,
     )
-    ax[0].plot(
+    ax.plot(
         time,
         1000 * ratio_avg2,
         linestyle="-",
@@ -149,7 +147,7 @@ if __name__ == "__main__":
     ratio_std = std(ratio[:, :], axis=0)
     ratio_avg1 = mean(ratio[0 : nfish // 2 - 1, :], axis=0)
     ratio_avg2 = mean(ratio[nfish // 2 : nfish - 1, :], axis=0)
-    ax[0].fill_between(
+    ax.fill_between(
         time,
         1000 * (ratio_avg - ratio_std),
         1000 * (ratio_avg + ratio_std),
@@ -157,7 +155,7 @@ if __name__ == "__main__":
         edgecolor="none",
         zorder=3,
     )
-    ax[0].plot(
+    ax.plot(
         time,
         1000 * ratio_avg1,
         linestyle=":",
@@ -166,7 +164,7 @@ if __name__ == "__main__":
         aa=True,
         zorder=3,
     )
-    ax[0].plot(
+    ax.plot(
         time,
         1000 * ratio_avg2,
         linestyle="-",
@@ -178,7 +176,7 @@ if __name__ == "__main__":
     )
 
     # intoxication threshold
-    ax[0].plot(
+    ax.plot(
         (time[start], time[end]),
         (0.005, 0.005),
         linestyle="--",
@@ -187,7 +185,7 @@ if __name__ == "__main__":
         aa=True,
         zorder=5,
     )
-    ax[0].plot(
+    ax.plot(
         (time[start], time[end]),
         (0.015, 0.015),
         linestyle="--",
@@ -197,23 +195,23 @@ if __name__ == "__main__":
         zorder=5,
     )
 
-    ax[0].set_xlabel(r"Days")
-    ax[0].xaxis.set_major_locator(MultipleLocator(5))
-    ax[0].xaxis.set_major_formatter(FormatStrFormatter("%.0f"))
-    ax[0].set_xlim(0, 30)
-    ax[0].xaxis.grid(False)
+    ax.set_xlabel(r"Days")
+    ax.xaxis.set_major_locator(MultipleLocator(5))
+    ax.xaxis.set_major_formatter(FormatStrFormatter("%.0f"))
+    ax.set_xlim(0, 30)
+    ax.xaxis.grid(False)
 
-    ax[0].set_ylabel("Intoxication (ug/g)", rotation=90)
+    ax.set_ylabel("Intoxication (ug/g)", rotation=90)
 
-    ax[0].yaxis.set_major_locator(MultipleLocator(0.01))
-    ax[0].yaxis.set_major_formatter(FormatStrFormatter("%.2f"))
-    ax[0].yaxis.grid(False)
-    ax[0].set_frame_on(True)
-    ax[0].set_ylim(
+    ax.yaxis.set_major_locator(MultipleLocator(0.01))
+    ax.yaxis.set_major_formatter(FormatStrFormatter("%.2f"))
+    ax.yaxis.grid(False)
+    ax.set_frame_on(True)
+    ax.set_ylim(
         0,
     )
 
-    legend = ax[0].legend(loc="upper left")
+    legend = ax.legend(loc="upper left")
     legend.get_frame().set_facecolor("none")
     legend.get_frame().set_edgecolor("none")
     text = legend.get_texts()

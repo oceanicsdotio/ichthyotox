@@ -5,7 +5,6 @@ from matplotlib.pyplot import figure, savefig, title, MultipleLocator
 from analysis.defaults import bg_color, overlay_color, label_color, default_dpi
 from analysis.behavior import Domain, Positions
 
-
 fontsize  = 10
 uniformPadding = 0.15
 hpadding = 0.1
