@@ -114,8 +114,7 @@ class Envelope:
             linestyle="-",
             linewidth=linewidth,
             color=color,
-            aa=True,
-            label="Control (A)",
+            aa=True
         )
         if with_bounds:
             subplot.fill_between(
@@ -128,6 +127,39 @@ class Envelope:
             )
         return line[0]
 
+class Position:
+    """
+    Movement and position data of bloom particle system
+    """
+
+    def __init__(self, experiment, file_format="dat", columns=4):
+        ini_file = f"{experiment}/cyanobacteria_ini.{file_format}"
+        filename = f"{experiment}/cyanobacteria_position.{file_format}"
+        with open(ini_file, "r", encoding="utf-8") as initial_conditions:
+            count = int(str.strip(initial_conditions.readline()))
+        hours = loadtxt(
+            filename,
+            usecols=[0],
+            unpack=True,
+        )
+        steps = len(hours)
+        shape = (count, steps)
+        data = zeros((count * columns + 1, steps))
+        data = loadtxt(filename, unpack=True)
+
+        self.count = count
+        self.days = hours / 24.0
+        self.z = zeros(shape)
+
+        for ii in range(0, count):
+            depth_column = ii * columns + 4
+            self.z[ii, :] = data[depth_column, :]
+
+    def vertical(self):
+        """
+        Vertical position envelope
+        """
+        return Envelope(self.days, self.z)
 
 class State:
     """
