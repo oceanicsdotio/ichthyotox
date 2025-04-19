@@ -10,3 +10,5 @@ src/*.mod
 **/*.png
 **/*.jpg
 figures/*
+__pycache__/
+.DS_Store
