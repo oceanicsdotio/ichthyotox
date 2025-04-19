@@ -1,40 +1,22 @@
 #!/usr/bin/python
-import matplotlib.pyplot as plt
-import numpy as np
-from matplotlib import rc
-from pylab import *
+from matplotlib.pyplot import MultipleLocator, FormatStrFormatter, figure, savefig
+from numpy import zeros, loadtxt, std, mean, arange
 from sys import argv
 from analysis.defaults import bg_color, overlay_color, label_color, default_dpi
 
-nplots=1
-fontsize  = 10
-linewidth = 1
+
 hpadding = 0.1
 vpadding = 0.05
 marginWidth = 6.5
 fheight = 4.5
-default_alpha=1.0
 
 if __name__ == "__main__":
     data_dir = argv[1]
-    rc('text', usetex=False)
-    rc('font', **{'family':'serif', 'serif':['Times New Roman']})
-    rc('mathtext', default='sf')
-    rc('lines', markeredgewidth=1)
-    rc('lines', linewidth=linewidth)
-    rc('axes', labelsize=fontsize)
-    rc('axes', linewidth=(linewidth+1)//2)
-    rc('xtick', labelsize=fontsize)
-    rc('ytick', labelsize=fontsize)
-
-    rc('legend', fontsize=fontsize)
-    rc('xtick.major', pad=5)
-    rc('ytick.major', pad=5)
 
     # load data
     with open(f'{data_dir}/100/fish_ini.dat', 'r', encoding="utf8") as ini:
         nfish = int(str.strip(ini.readline()))
-    time = np.loadtxt(f'{data_dir}/100/fish_position.dat', usecols=[0], unpack=True)
+    time = loadtxt(f'{data_dir}/100/fish_position.dat', usecols=[0], unpack=True)
     time = time/24.0
     start = 0
     end = len(time) - 1
@@ -50,7 +32,7 @@ if __name__ == "__main__":
     residence = zeros((nfish,end-start+1))
 
     # Figure and subplots
-    fig = plt.figure(facecolor=bg_color, figsize=(marginWidth, fheight)) #Change this
+    fig = figure(facecolor=bg_color, figsize=(marginWidth, fheight)) #Change this
     fig.subplots_adjust(top=1.0-vpadding, bottom=vpadding+0.1, left=hpadding, right=1.0-hpadding/3., hspace=0.20)
     ax = []
     ax.append(fig.add_subplot(1,1,1))
@@ -86,7 +68,7 @@ if __name__ == "__main__":
     msd_value_d = zeros((nphases,2))
 
     # load experiment data
-    data = np.loadtxt(f'{data_dir}/100/fish_position.dat', unpack=True) # Experiment A
+    data = loadtxt(f'{data_dir}/100/fish_position.dat', unpack=True) # Experiment A
     for ii in range(0, nfish):
         xcol = ii*dwidth + 2
         ycol = ii*dwidth + 3
@@ -110,17 +92,17 @@ if __name__ == "__main__":
         displacement[:,tt] = 0.25*displacement[:,tt] # average square displacement per hour
     # calculate summary stats
     for ii in range(0, nphases):
-        msd_value_a[ii,0] = np.mean(np.mean(displacement[:,phase_start[ii]*240:phase_end[ii]*240], axis=0))
-        msd_std_a[ii,0] = np.std(np.mean(displacement[:,phase_start[ii]*240:phase_end[ii]*240], axis=0))
-    #rects_a = ax[0].bar(np.arange(nphases), msd_value_a[:,0], width, color='black', edgecolor='none', yerr=msd_std_a[:,0], ecolor='black')
-    rects_a = ax[0].bar(np.arange(nphases), msd_value_a[:,0], width, color='black', edgecolor='none', label='Control (A)')
+        msd_value_a[ii,0] = mean(mean(displacement[:,phase_start[ii]*240:phase_end[ii]*240], axis=0))
+        msd_std_a[ii,0] = std(mean(displacement[:,phase_start[ii]*240:phase_end[ii]*240], axis=0))
+    #rects_a = ax[0].bar(arange(nphases), msd_value_a[:,0], width, color='black', edgecolor='none', yerr=msd_std_a[:,0], ecolor='black')
+    rects_a = ax[0].bar(arange(nphases), msd_value_a[:,0], width, color='black', edgecolor='none', label='Control (A)')
     print ("A:", msd_value_a[:,0])
     print ("A:", msd_std_a[:,0])
 
 
 
     ############################# load experiment data #######################################
-    data = np.loadtxt(f'{data_dir}/101/fish_position.dat', unpack=True) # experiment B
+    data = loadtxt(f'{data_dir}/101/fish_position.dat', unpack=True) # experiment B
     for ii in range(0, nfish):
         xcol = ii*dwidth + 2
         ycol = ii*dwidth + 3
@@ -144,15 +126,15 @@ if __name__ == "__main__":
         displacement[:,tt] = 0.25*displacement[:,tt] # average square displacement per hour
     # calculate summary stats
     for ii in range(0, nphases):
-        msd_std_b[ii,0] = np.std(np.mean(displacement[:,phase_start[ii]*240:phase_end[ii]*240], axis=0))
-        msd_value_b[ii,0] = np.mean(np.mean(displacement[:,phase_start[ii]*240:phase_end[ii]*240], axis=0))
-    #rects_b = ax[0].bar(np.arange(nphases)+width, msd_value_b[:,0], width, color='red', edgecolor='none', yerr=msd_std_b[:,0], ecolor='red')
-    rects_b = ax[0].bar(np.arange(nphases)+width, msd_value_b[:,0], width, color='red', edgecolor='none', label='Formation (B)')
+        msd_std_b[ii,0] = std(mean(displacement[:,phase_start[ii]*240:phase_end[ii]*240], axis=0))
+        msd_value_b[ii,0] = mean(mean(displacement[:,phase_start[ii]*240:phase_end[ii]*240], axis=0))
+    #rects_b = ax[0].bar(arange(nphases)+width, msd_value_b[:,0], width, color='red', edgecolor='none', yerr=msd_std_b[:,0], ecolor='red')
+    rects_b = ax[0].bar(arange(nphases)+width, msd_value_b[:,0], width, color='red', edgecolor='none', label='Formation (B)')
     print ("B:", msd_value_b[:,0])
     print ("B:", msd_std_b[:,0])
 
     # load experiment data
-    data = np.loadtxt(f'{data_dir}/102/fish_position.dat', unpack=True) # experiment C
+    data = loadtxt(f'{data_dir}/102/fish_position.dat', unpack=True) # experiment C
     for ii in range(0, nfish):
         xcol = ii*dwidth + 2
         ycol = ii*dwidth + 3
@@ -176,15 +158,15 @@ if __name__ == "__main__":
         displacement[:,tt] = 0.25*displacement[:,tt]# average square displacement per hour
     # calculate summary stats
     for ii in range(0, nphases):
-        msd_std_c[ii,0] = np.std(np.mean(displacement[0:99,phase_start[ii]*240:phase_end[ii]*240], axis=0))
-        msd_value_c[ii,0] = np.mean(np.mean(displacement[0:99,phase_start[ii]*240:phase_end[ii]*240], axis=0))
-        msd_std_c[ii,1] = np.std(np.mean(displacement[100:199,phase_start[ii]*240:phase_end[ii]*240], axis=0))
-        msd_value_c[ii,1] = np.mean(np.mean(displacement[100:199,phase_start[ii]*240:phase_end[ii]*240], axis=0))
-    #rects_c = ax[0].bar(np.arange(nphases)+2*width, msd_value_c[:,0], width/2, color='green', edgecolor='none', yerr=msd_std_c[:,0], ecolor='green')
-    #rects_c = ax[0].bar(np.arange(nphases)+2.5*width, msd_value_c[:,1], width/2, color='green', edgecolor='none', yerr=msd_std_c[:,1], ecolor='green')
+        msd_std_c[ii,0] = std(mean(displacement[0:99,phase_start[ii]*240:phase_end[ii]*240], axis=0))
+        msd_value_c[ii,0] = mean(mean(displacement[0:99,phase_start[ii]*240:phase_end[ii]*240], axis=0))
+        msd_std_c[ii,1] = std(mean(displacement[100:199,phase_start[ii]*240:phase_end[ii]*240], axis=0))
+        msd_value_c[ii,1] = mean(mean(displacement[100:199,phase_start[ii]*240:phase_end[ii]*240], axis=0))
+    #rects_c = ax[0].bar(arange(nphases)+2*width, msd_value_c[:,0], width/2, color='green', edgecolor='none', yerr=msd_std_c[:,0], ecolor='green')
+    #rects_c = ax[0].bar(arange(nphases)+2.5*width, msd_value_c[:,1], width/2, color='green', edgecolor='none', yerr=msd_std_c[:,1], ecolor='green')
 
-    rects_c = ax[0].bar(np.arange(nphases)+2*width, msd_value_c[:,0], width/2, color='green', edgecolor='none', label='Intensification, surface (C)')
-    rects_c = ax[0].bar(np.arange(nphases)+2.5*width, msd_value_c[:,1], width/2, color=[0.0,1.0,0.0,0.5], edgecolor='none', label='Intensification, demersal')
+    rects_c = ax[0].bar(arange(nphases)+2*width, msd_value_c[:,0], width/2, color='green', edgecolor='none', label='Intensification, surface (C)')
+    rects_c = ax[0].bar(arange(nphases)+2.5*width, msd_value_c[:,1], width/2, color=[0.0,1.0,0.0,0.5], edgecolor='none', label='Intensification, demersal')
     print ("C1:", msd_value_c[:,0])
     print ("C1:", msd_std_c[:,0])
     print ("C2:", msd_value_c[:,1])
@@ -192,7 +174,7 @@ if __name__ == "__main__":
 
 
     # load experiment data
-    data = np.loadtxt(f'{data_dir}/103/fish_position.dat', unpack=True) # experiment D
+    data = loadtxt(f'{data_dir}/103/fish_position.dat', unpack=True) # experiment D
     for ii in range(0, nfish):
         xcol = ii*dwidth + 2
         ycol = ii*dwidth + 3
@@ -216,15 +198,15 @@ if __name__ == "__main__":
         displacement[:,tt] = 0.25*displacement[:,tt] # average square displacement per hour
     # calculate summary stats
     for ii in range(0, nphases):
-        msd_std_d[ii,0] = np.std(np.mean(displacement[0:100,phase_start[ii]*240:phase_end[ii]*240], axis=0))
-        msd_value_d[ii,0] = np.mean(np.mean(displacement[0:100,phase_start[ii]*240:phase_end[ii]*240], axis=0))
-        msd_std_d[ii,1] = np.std(np.mean(displacement[100:199,phase_start[ii]*240:phase_end[ii]*240],axis=0))
-        msd_value_d[ii,1] = np.mean(np.mean(displacement[100:199,phase_start[ii]*240:phase_end[ii]*240],axis=0))
-    #rects_d = ax[0].bar(np.arange(nphases)+3*width, msd_value_d[:,0], width/2, color='blue', edgecolor='none', yerr=msd_std_d[:,0], ecolor='blue')
-    #rects_d = ax[0].bar(np.arange(nphases)+3.5*width, msd_value_d[:,1], width/2, color='blue', edgecolor='none', yerr=msd_std_d[:,1], ecolor='blue')
+        msd_std_d[ii,0] = std(mean(displacement[0:100,phase_start[ii]*240:phase_end[ii]*240], axis=0))
+        msd_value_d[ii,0] = mean(mean(displacement[0:100,phase_start[ii]*240:phase_end[ii]*240], axis=0))
+        msd_std_d[ii,1] = std(mean(displacement[100:199,phase_start[ii]*240:phase_end[ii]*240],axis=0))
+        msd_value_d[ii,1] = mean(mean(displacement[100:199,phase_start[ii]*240:phase_end[ii]*240],axis=0))
+    #rects_d = ax[0].bar(arange(nphases)+3*width, msd_value_d[:,0], width/2, color='blue', edgecolor='none', yerr=msd_std_d[:,0], ecolor='blue')
+    #rects_d = ax[0].bar(arange(nphases)+3.5*width, msd_value_d[:,1], width/2, color='blue', edgecolor='none', yerr=msd_std_d[:,1], ecolor='blue')
 
-    rects_d = ax[0].bar(np.arange(nphases)+3*width, msd_value_d[:,0], width/2, color='blue', edgecolor='none', label='Decline, surface (D)')
-    rects_d = ax[0].bar(np.arange(nphases)+3.5*width, msd_value_d[:,1], width/2, color=[0.0,0.0,1.0,0.5], edgecolor='none', label='Decline, demersal')
+    rects_d = ax[0].bar(arange(nphases)+3*width, msd_value_d[:,0], width/2, color='blue', edgecolor='none', label='Decline, surface (D)')
+    rects_d = ax[0].bar(arange(nphases)+3.5*width, msd_value_d[:,1], width/2, color=[0.0,0.0,1.0,0.5], edgecolor='none', label='Decline, demersal')
     print ("D1:", msd_value_d[:,0])
     print ("D1:", msd_std_d[:,0])
     print ("D2:", msd_value_d[:,1])
@@ -253,4 +235,4 @@ if __name__ == "__main__":
     text[5].set_color([0.0,0.0,1.0,0.5])
 
 
-    plt.savefig('./figures/behavior/diffusivity.png', facecolor=bg_color, edgecolor='none', dpi=default_dpi)
+    savefig('./figures/behavior/diffusivity.png', facecolor=bg_color, edgecolor='none', dpi=default_dpi)

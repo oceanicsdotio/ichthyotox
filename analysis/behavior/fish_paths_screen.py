@@ -4,15 +4,10 @@ import numpy as np
 from pylab import *
 from analysis.defaults import bg_color, overlay_color, label_color, default_dpi
 
-nplots=1
-fontsize  = 10
-linewidth = 1
 hpadding = 0.1
 vpadding = 0.05
 marginWidth = 8.5
 fheight = 6.0
-default_alpha=1.0
-
 
 
 # load data

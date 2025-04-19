@@ -31,8 +31,6 @@ if __name__ == "__main__":
     mass = zeros((nfish, end - start + 1))
     suitability = zeros((nfish, end - start + 1))
     xpos = zeros((nfish, end - start + 1))
-    mass_avg1 = zeros(end - start + 1)
-    mass_avg2 = zeros(end - start + 1)
 
     suit_avg = zeros(end - start + 1)
     suit_smoothed = zeros(end - start + 1)
@@ -40,8 +38,6 @@ if __name__ == "__main__":
     suit_smoothed_b = zeros(end - start + 1)
     suit_avg_surface = zeros(end - start + 1)
     suit_avg_bottom = zeros(end - start + 1)
-    mass_std = zeros(end - start + 1)
-    suit_std = zeros(end - start + 1)
     time = time / 24.0
     window = 10  # in both directions, 2 is therefore 5
 

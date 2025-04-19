@@ -1,10 +1,8 @@
 #!/usr/bin/python
-import matplotlib.pyplot as plt
-import matplotlib.ticker as mticker
-import numpy as np
-from matplotlib import rc
-from pylab import *
-from matplotlib import cm, tri
+from matplotlib.pyplot import hist, title, savefig, figure, setp, LinearLocator, FormatStrFormatter
+from numpy import mean, var, linspace, loadtxt
+from scipy.stats import norm
+from analysis.defaults import bg_color, overlay_color, label_color, default_dpi
 
 fontsize  = 10
 linewidth = 1
@@ -21,24 +19,7 @@ overlay_color = [0.0,0.0,0.0,default_alpha]
 label_color = [0.0,0.0,0.0,default_alpha]
 default_dpi = 300
 
-
-rc('text', usetex=False)
-#rc('font', **{'family':'sans-serif', 'sans-serif':['Arial']})
-#rc('font', weight='bold')
-rc('mathtext', default='sf')
-rc('lines', markeredgewidth=1)
-rc('lines', linewidth=linewidth)
-#rc('axes', labelsize=fontsize)
-rc('axes', labelsize=fontsize)
-rc('axes', linewidth=(linewidth+1)//2)
-rc('xtick', labelsize=fontsize)
-rc('ytick', labelsize=fontsize)
-#rc('legend', fontsize=2*fontsize/3)
-rc('xtick.major', pad=5)
-rc('ytick.major', pad=5)
-
-    
-fig = plt.figure(facecolor=bg_color, figsize=(marginWidth, marginWidth/3.)) #Change this
+fig = figure(facecolor=bg_color, figsize=(marginWidth, marginWidth/3.)) #Change this
 fig.subplots_adjust(top=1.0-vpad/2., bottom=vpad, left=hpad, right=1.0-hpad/2.)
    
 # set color scheme
@@ -69,17 +50,17 @@ def set_tick_sizes(ax, major, minor):
     
 
 # variable declarations
-gaussian = np.loadtxt('../random.dat')
+gaussian = loadtxt('../random.dat')
 
 
 
-print "N=50: ", np.mean(gaussian[0:49])
-print "N=500: ", np.mean(gaussian[0:499])
-print "N=5000: ", np.mean(gaussian[0:4999])
+print( "N=50: ", mean(gaussian[0:49]))
+print( "N=500: ", mean(gaussian[0:499]))
+print( "N=5000: ", mean(gaussian[0:4999]))
 
-print "N=50: ", np.var(gaussian[0:49])
-print "N=500: ", np.var(gaussian[0:499])
-print "N=5000: ", np.var(gaussian[0:4999])
+print( "N=50: ", var(gaussian[0:49]))
+print( "N=500: ", var(gaussian[0:499]))
+print( "N=5000: ", var(gaussian[0:4999]))
 
 
 
@@ -91,7 +72,7 @@ n, bins, patches = hist(gaussian[0:49], 20, normed=1, histtype='stepfilled')
 setp(patches, 'facecolor', 'white')
 
 # add a line showing the expected distribution
-y = normpdf(linspace(-4.0, 4.0, 100), 0.0, 1.0)
+y = norm.pdf(linspace(-4.0, 4.0, 100), 0.0, 1.0)
 l = ax.plot(linspace(-4.0, 4.0, 100), y, 'k--', linewidth=1.0)
 
 
@@ -123,7 +104,7 @@ n2, bins2, patches2 = hist(gaussian[0:499], 20, normed=1, histtype='stepfilled')
 setp(patches2, 'facecolor', 'white')
 
 # add a line showing the expected distribution
-y = normpdf(linspace(-4.0, 4.0, 100), 0.0, 1.0)
+y = norm.pdf(linspace(-4.0, 4.0, 100), 0.0, 1.0)
 l = ax2.plot(linspace(-4.0, 4.0, 100), y, 'k--', linewidth=1.0)
 
 
@@ -150,7 +131,7 @@ n3, bins3, patches3 = hist(gaussian[0:4999], 20, normed=1, histtype='stepfilled'
 setp(patches3, 'facecolor', 'white')
 
 # add a line showing the expected distribution
-y = normpdf(linspace(-4.0, 4.0, 100), 0.0, 1.0)
+y = norm.pdf(linspace(-4.0, 4.0, 100), 0.0, 1.0)
 l = ax3.plot(linspace(-4.0, 4.0, 100), y, 'k--', linewidth=1.0)
 
 
@@ -171,6 +152,4 @@ title(r'(C)', fontsize=fontsize, color=label_color)
 ttl = ax3.title
 ttl.set_position([1.0, 1.0])
 
-
-#plt.show()
-plt.savefig('./random_histogram.tiff', facecolor=bg_color, edgecolor='none', dpi=default_dpi)
+savefig('./random_histogram.tiff', facecolor=bg_color, edgecolor='none', dpi=default_dpi)
