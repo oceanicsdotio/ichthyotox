@@ -21,6 +21,13 @@ new: bin/forcing
 	mkdir -p data/test
 	bin/forcing test
 
+carbon:
+	@ pixi run python -m analysis.bloom.carbon_ratio $(data)
+	@ pixi run python -m analysis.bloom.carbon $(data)
+	@ pixi run python -m analysis.bloom.depth $(data)
+	@ pixi run python -m analysis.bloom.protein $(data)
+	@ pixi run python -m analysis.bloom.toxicity $(data)
+
 clean: 
 	@ rm -f src/*.mod
 	@ rm -f src/*.o
@@ -28,4 +35,4 @@ clean:
 	@ rm -rf data/test
 	@ rm -f test.cpython-313-darwin.so
 	
-.PHONY: clean
+.PHONY: clean carbon

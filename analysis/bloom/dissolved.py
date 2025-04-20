@@ -1,14 +1,11 @@
 #!/usr/bin/python
-from matplotlib.pyplot import figure, savefig
-from matplotlib.ticker import MultipleLocator, LinearLocator, FormatStrFormatter
-import numpy as np
-from matplotlib import rc
-from pylab import linspace
+from matplotlib.pyplot import figure, savefig, MultipleLocator, LinearLocator, FormatStrFormatter
+from numpy import loadtxt, mean, zeros, linspace
+from analysis.defaults import bg_color, overlay_color, label_color, default_dpi
 
 nplots = 2
 fontsize = 10
 linewidth = 1
-uniformPadding = 0.15
 hpadding = 0.1
 vpadding = 0.05
 marginWidth = 6.5
@@ -17,27 +14,6 @@ default_alpha = 1.0
 lineRGBA = [1.0, 0.0, 0.0, default_alpha]
 style = ["-", ":"]
 div = 150
-show_grid = True
-
-bg_color = [1.0, 1.0, 1.0, default_alpha]
-overlay_color = [0.0, 0.0, 0.0, default_alpha]
-label_color = [0.0, 0.0, 0.0, default_alpha]
-default_dpi = 300
-
-
-rc("text", usetex=False)
-rc("font", **{"family": "san-serif", "san-serif": ["Arial"]})
-rc("mathtext", default="sf")
-rc("lines", markeredgewidth=1)
-rc("lines", linewidth=linewidth)
-rc("axes", labelsize=fontsize)
-rc("axes", linewidth=(linewidth + 1) // 2)
-rc("xtick", labelsize=fontsize)
-rc("ytick", labelsize=fontsize)
-# rc('legend', fontsize=2*fontsize/3)
-rc("xtick.major", pad=5)
-rc("ytick.major", pad=5)
-
 
 
 # figure and subplots
@@ -68,22 +44,22 @@ class Profile:
     def __init__(self, experiment: str):
         # load data
         nlayers = 26
-        time = np.loadtxt(f"{experiment}/dissolved_toxin.dat", usecols=[0], unpack=True)
+        time = loadtxt(f"{experiment}/dissolved_toxin.dat", usecols=[0], unpack=True)
         start = 0
         end = len(time) - 1
         shape = (nlayers, len(time))
 
-        dissolved = np.zeros(shape)
-        avg_dissolved = np.zeros(len(time))
+        dissolved = zeros(shape)
+        avg_dissolved = zeros(len(time))
         time = time / 24.0
         volume = 500.0 * 500.0 * 5.0
         self.depth = linspace(0.0, -5.0, nlayers)
 
-        data = np.loadtxt(f"{experiment}/dissolved_toxin.dat", unpack=True)
+        data = loadtxt(f"{experiment}/dissolved_toxin.dat", unpack=True)
         dissolved[:, :] = data[1:, :]
         dissolved = dissolved / (500.0 * 500.0)
 
-        self.mean = np.mean(dissolved, axis=0)
+        self.mean = mean(dissolved, axis=0)
 
     def plot(self):
         ax[0].plot(
@@ -110,11 +86,11 @@ if __name__ == "__main__":
 
     #######################################
     print("Reading File 013")  # experiment D
-    data = np.loadtxt("../013/dissolved_toxin.dat", unpack=True)
+    data = loadtxt("../013/dissolved_toxin.dat", unpack=True)
     for ii in range(0, nlayers):
         dissolved[ii, :] = data[ii + 1, :]
     dissolved = dissolved / (500.0 * 500.0)
-    avg_dissolved = np.mean(dissolved, axis=0)
+    avg_dissolved = mean(dissolved, axis=0)
     ax[1].plot(
         (dissolved[:, 240 * 3]),
         depth,

@@ -13,6 +13,8 @@ def merge_range(previous: tuple, current: tuple) -> tuple:
     upper = max(previous[1], current[1])
     return lower, upper
 
+def surface_plot():
+    pass
 
 def single_time_series_plot(
     size: tuple[float, float], padding: tuple[float, float], ylabel: str, yloc: float
@@ -114,16 +116,32 @@ class Envelope:
             linestyle="-",
             linewidth=linewidth,
             color=color,
-            aa=True
+            aa=True,
         )
         if with_bounds:
-            subplot.fill_between(
+            # subplot.fill_between(
+            #     self.time,
+            #     self.upper,
+            #     self.lower,
+            #     facecolor=fill,
+            #     edgecolor="none",
+            #     zorder=3,
+            # )
+            _ = subplot.plot(
                 self.time,
                 self.upper,
+                linestyle="--",
+                linewidth=linewidth,
+                color=color,
+                aa=True
+            )
+            _ = subplot.plot(
+                self.time,
                 self.lower,
-                facecolor=fill,
-                edgecolor="none",
-                zorder=3,
+                linestyle="--",
+                linewidth=linewidth,
+                color=color,
+                aa=True
             )
         return line[0]
 

@@ -1,14 +1,21 @@
 #!/usr/bin/python
 """Plot Carbohydrate/Protein Ratio Analysis"""
+from sys import argv
 from analysis.bloom import State, plot_and_save_experiments, single_time_series_plot
+from analysis.defaults import IMAGE_FORMAT, SOURCE
+
+DEST = "./figures/bloom"
 
 if __name__ == "__main__":
-    DATA_DIR = "/Users/keeney/Documents/Projects/2020_2017_Ichthyotox/data/"
-    experiments = ["100", "101", "102", "103"]
+    DATA_DIR = argv[1] if len(argv) > 1 else SOURCE
+    if len(argv) > 2:
+        experiments = argv[2].split(",")
+    else:
+        experiments = ["100", "101", "102", "103"]
     axes = single_time_series_plot(
         size=(6.5, 3.0),
-        padding=(0.1, 0.05),
-        ylabel="Carbon Ratio (g/g)",
+        padding=(0.15, 0.1),
+        ylabel=r"carbon ratio",
         yloc=1.0,
     )
     plot_and_save_experiments(
@@ -16,5 +23,5 @@ if __name__ == "__main__":
         directory=DATA_DIR,
         experiments=experiments,
         callback=lambda source: State(source).carbon_ratio(),
-        save_to="./figures/bloom/carbon_ratio.png",
+        save_to=f"{DEST}/carbon_ratio.{IMAGE_FORMAT}",
     )

@@ -124,6 +124,16 @@ class Positions:
         """Calculate suitability of fish positions"""
         return suitability(self.x) > threshold
     
+    def diffusivity(self):
+        """Calculate diffusivity of fish positions"""
+        dx = self.x[:, 1:] - self.x[:, :-1]
+        dy = self.y[:, 1:] - self.y[:, :-1]
+        dx = dx - 500.0*(dx > 200)
+        dx = dx + 500.0*(dx < -200)
+        dy = dy - 500.0*(dy > 200)
+        dy = dy + 500.0*(dy < -200)
+        return sqrt(dx**2 + dy**2)
+    
     def plot_suitability_cue(self, ax: Axes, samples: list[int], lindex: int, pad=0.1):
         value = self.suitability_cue()
         handles = []
