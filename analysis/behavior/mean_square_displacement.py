@@ -1,10 +1,8 @@
 #!/usr/bin/python
+"""Diffusion statistics for fish movement"""
 import matplotlib.pyplot as plt
-import matplotlib.ticker as mticker
 import numpy as np
-from matplotlib import rc
 from pylab import *
-from matplotlib import cm, tri
 from analysis.defaults import bg_color, overlay_color, label_color, default_dpi
 
 nplots=1
@@ -15,8 +13,6 @@ vpadding = 0.05
 marginWidth = 8.5
 fheight = 6.0
 default_alpha=1.0
-
-
 
 # load data
 ini = open('../100/fish_ini.dat', 'r')
@@ -58,8 +54,7 @@ phaselength = 10
 nphases = 2*30/phaselength - 1
 phase_start = range(0, nphases*phaselength/2, phaselength/2)
 phase_end = range(phaselength, nphases*phaselength/2+phaselength, phaselength/2)
-print phase_start
-print phase_end
+
 window = 40 # steps = 4 hours
 width = 0.25
 
@@ -100,39 +95,6 @@ for ii in range(0, nphases):
     msd_value_a[ii,0] = np.mean(np.mean(displacement[:,phase_start[ii]*240:phase_end[ii]*240], axis=0))
     msd_std_a[ii,0] = np.std(np.mean(displacement[:,phase_start[ii]*240:phase_end[ii]*240], axis=0))
 rects_a = ax[0].bar(np.arange(nphases), msd_value_a[:,0], width, color='white', yerr=msd_std_a[:,0], ecolor='white')
-print "A:", msd_value_a[:,0]
-print "A:", msd_std_a[:,0]
-
-# load experiment data
-data = np.loadtxt('../101/fish_position.dat', unpack=True) # experiment B
-for ii in range(0, nfish):
-    xcol = ii*dwidth + 2
-    ycol = ii*dwidth + 3
-    fpsx[ii,:] = data[xcol,:]
-    fpsy[ii,:] = data[ycol,:]
-# calculate individual displacement over one hour time window
-dx[:,1:end] = fpsx[:,1:end] - fpsx[:,0:end-1]
-dy[:,1:end] = fpsy[:,1:end] - fpsy[:,0:end-1]
-dx = dx - 500.0*(dx > 200)
-dx = dx + 500.0*(dx < -200)
-dy = dy - 500.0*(dy > 200)
-dy = dy + 500.0*(dy < -200)
-displacement[:,:] = 0.0
-for tt in range(start+window, end): # loop of values to calculate
-    disp_x[:] = 0.0
-    disp_y[:] = 0.0
-    for uu in range(tt-window, tt): # loop of steps in calc (40)
-        disp_x[:] = disp_x[:] + dx[:,uu]
-        disp_y[:] = disp_y[:] + dy[:,uu]
-    displacement[:,tt] = displacement[:,tt] + disp_x**2 + disp_y**2 # displacement at end of one hour
-    displacement[:,tt] = 0.25*displacement[:,tt] # average square displacement per hour
-# calculate summary stats
-for ii in range(0, nphases):
-    msd_std_b[ii,0] = np.std(np.mean(displacement[:,phase_start[ii]*240:phase_end[ii]*240], axis=0))
-    msd_value_b[ii,0] = np.mean(np.mean(displacement[:,phase_start[ii]*240:phase_end[ii]*240], axis=0))
-rects_b = ax[0].bar(np.arange(nphases)+width, msd_value_b[:,0], width, color='red', yerr=msd_std_b[:,0], ecolor='red')
-print "B:", msd_value_b[:,0]
-print "B:", msd_std_b[:,0]
 
 # load experiment data
 data = np.loadtxt('../102/fish_position.dat', unpack=True) # experiment C
@@ -165,47 +127,7 @@ for ii in range(0, nphases):
     msd_value_c[ii,1] = np.mean(np.mean(displacement[100:199,phase_start[ii]*240:phase_end[ii]*240], axis=0))
 rects_c = ax[0].bar(np.arange(nphases)+2*width, msd_value_c[:,0], width/2, color='green', yerr=msd_std_c[:,0], ecolor='green')
 rects_c = ax[0].bar(np.arange(nphases)+2.5*width, msd_value_c[:,1], width/2, color='green', yerr=msd_std_c[:,1], ecolor='green')
-print "C1:", msd_value_c[:,0]
-print "C1:", msd_std_c[:,0]
-print "C2:", msd_value_c[:,1]
-print "C2:", msd_std_c[:,1]
 
-
-# load experiment data
-data = np.loadtxt('../103/fish_position.dat', unpack=True) # experiment D
-for ii in range(0, nfish):
-    xcol = ii*dwidth + 2
-    ycol = ii*dwidth + 3
-    fpsx[ii,:] = data[xcol,:]
-    fpsy[ii,:] = data[ycol,:]
-# calculate individual displacement over one hour time window
-dx[:,1:end] = fpsx[:,1:end] - fpsx[:,0:end-1]
-dy[:,1:end] = fpsy[:,1:end] - fpsy[:,0:end-1]
-dx = dx - 500.0*(dx > 200)
-dx = dx + 500.0*(dx < -200)
-dy = dy - 500.0*(dy > 200)
-dy = dy + 500.0*(dy < -200)
-displacement[:,:] = 0.0
-for tt in range(start+window, end): # loop of values to calculate
-    disp_x[:] = 0.0
-    disp_y[:] = 0.0
-    for uu in range(tt-window, tt): # loop of steps in calc (10)
-        disp_x[:] = disp_x[:] + dx[:,uu]
-        disp_y[:] = disp_y[:] + dy[:,uu]
-    displacement[:,tt] = displacement[:,tt] + disp_x**2 + disp_y**2 # displacement at end of one hour
-    displacement[:,tt] = 0.25*displacement[:,tt] # average square displacement per hour
-# calculate summary stats
-for ii in range(0, nphases):
-    msd_std_d[ii,0] = np.std(np.mean(displacement[0:100,phase_start[ii]*240:phase_end[ii]*240], axis=0))
-    msd_value_d[ii,0] = np.mean(np.mean(displacement[0:100,phase_start[ii]*240:phase_end[ii]*240], axis=0))
-    msd_std_d[ii,1] = np.std(np.mean(displacement[100:199,phase_start[ii]*240:phase_end[ii]*240],axis=0))
-    msd_value_d[ii,1] = np.mean(np.mean(displacement[100:199,phase_start[ii]*240:phase_end[ii]*240],axis=0))
-rects_d = ax[0].bar(np.arange(nphases)+3*width, msd_value_d[:,0], width/2, color='blue', yerr=msd_std_d[:,0], ecolor='blue')
-rects_d = ax[0].bar(np.arange(nphases)+3.5*width, msd_value_d[:,1], width/2, color='blue', yerr=msd_std_d[:,1], ecolor='blue')
-print "D1:", msd_value_d[:,0]
-print "D1:", msd_std_d[:,0]
-print "D2:", msd_value_d[:,1]
-print "D2:", msd_std_d[:,1]
 
 # plot path and end markers
 ax[0].set_xlabel(r'Phase (10 day window)')
