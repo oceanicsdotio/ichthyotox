@@ -12,11 +12,18 @@ Analysis and visualization code is written in Python, with dependencies managed 
 
 For testing and post-processing, some of the Fortran modules are compiled with `f2py` and `meson` to create bindings so that numerical functions can be called from Python.
 
-## Random numbers
+## Programs
+
+### Random numbers
 
 The program generates pseudorandom numbers with either uniform or normal distributions using the Box-Muller method. Randoms numbers are used for initial conditions and for movement algorithms for both blooms and fish.
 
-## Blooms
+### Forcing
+
+You can `make bin/forcing` to compile a program that will let you input simulation parameters and create
+a new experiment file. The command `make new` will create a test experiment.
+
+### Blooms
 
 Cyanobacteria blooms can be simulated without fish behavior.
 

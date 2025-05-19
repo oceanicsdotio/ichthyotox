@@ -2,20 +2,18 @@ program forcing
     ! This program generates a simple triangular grid for the simulation
     use variables, only : zero, folderprefix, sp
     use random, only : random_number_generator
+    use simulation, only : write_mesh_data
     use cyanobacteria, only : waterDensity, writeInitialState
 
     implicit none
     character(len=50) :: foldername, sigma_data_format
     real(sp), dimension(:), allocatable :: diffusivity, temperature, density
     real(sp) :: &
-            & biomass, microcystin, toxin_production, toxin_excretion, &
-            & bottom_depth, div_inc, x_range, y_range, dt, day, &
-            & clock_time, salinity, time, control_temp, temp_slope
+        & biomass, microcystin, toxin_production, toxin_excretion, &
+        & bottom_depth, div_inc, x_range, y_range, dt, day, &
+        & clock_time, salinity, time, control_temp, temp_slope
     integer :: &
-        & nodes, elements, node_index=1, element_index=1, start_pattern=1, &
-        & alternate_pattern, x_div, y_div, ii, jj, layers, fid=500, fid2=501, &
-        & x_nodes, y_nodes, step, days, steps, ncolony
-    integer, dimension(3) :: vertices
+        & layers, fid=500, step, days, steps, ncolony
 
     call get_command_argument(1, foldername) ! Import case name from command line
     if (len_trim(foldername) == 0) then
@@ -40,54 +38,11 @@ program forcing
     write(*, '(A)', advance='no') "    Total microcystin load (grams): "; read(*, *) microcystin
     write(*, '(A)', advance='no') "    Microcystin production rate: "; read(*, *) toxin_production
     write(*, '(A)', advance='no') "    Microcystin excretion rate: "; read(*, *) toxin_excretion
-  
+
+    call write_mesh_data(folderprefix, bottom_depth, div_inc, x_range, y_range, layers)
+    
     allocate(diffusivity(layers))
     allocate(temperature, density, mold=diffusivity)
-    
-    x_div = floor( x_range / div_inc )
-    y_div = floor( y_range / div_inc )
-    x_nodes = x_div + 1
-    y_nodes = y_div + 1
-    nodes = (x_div + 1) * (y_div + 1)
-    elements = 2 * x_div * y_div
-    bottom_depth = -abs(bottom_depth) ! force negative depth
-    
-    print *, "Saving mesh data... "
-    write(*, '(A,I5)') "    Nodes:    ", nodes
-    write(*, '(A,I5)') "    Elements: ", elements
-    open(unit=fid, file=trim(folderprefix)//"/nodes.txt", status='replace')
-    open(unit=fid2, file=trim(folderprefix)//"/elements.txt", status='replace')
-    write(fid, *) nodes
-    write(fid2, *) elements, layers
-    do ii = 1, y_nodes
-        alternate_pattern = start_pattern
-        do jj = 1, x_nodes
-            write(fid, *) float(jj-1) * div_inc, float(ii-1) * div_inc, bottom_depth
-            if ( (jj < x_nodes) .and. (ii < y_nodes) ) then
-                ! bottom row of triangles
-                vertices(1) = node_index
-                vertices(2) = node_index + x_nodes ! note index
-                vertices(3) = node_index + 1
-                if (alternate_pattern < 0) vertices(2) = vertices(2) + 1
-                write(fid2, *) vertices(1:3)
-                element_index = element_index + 1
-              
-                ! upper row of triangles
-                vertices(1) = node_index + x_nodes
-                vertices(2) = node_index + x_nodes + 1
-                vertices(3) = node_index + 1
-                if (alternate_pattern < 0) vertices(3) = vertices(3) - 1
-                write(fid2, *) vertices(1:3)
-                element_index = element_index + 1
-                alternate_pattern = -alternate_pattern ! switch triangle pattern as you move x=0 to x=x_range
-            end if
-            node_index = node_index + 1 
-        end do
-        start_pattern = -start_pattern ! switch triangle pattern between rows as grid is built
-    end do
-    close(fid)
-    close(fid2)
-
     print *, "Saving forcing data..."
     write(sigma_data_format, "(A1,I6,A7)") "(", 3*layers, "F20.10)"
     open(unit=fid, file=trim(folderprefix)//"/forcing.txt", status='replace')
@@ -119,7 +74,7 @@ program forcing
 
     print *, "Saving parameters..."
     open(unit=fid, file=trim(folderprefix)//"/parameters.txt", status='replace')
-    write(fid,"(A,F4.2)") "DTI = ", 0.02_SP ! inner interpolation time step, float"
+    write(fid,"(A,F4.2)") "DTI = ", 0.02_SP ! inner interpolation time step, float
     write(fid,"(A,F4.2)") "INSTP = ", dt ! time step of physical field data, float
     write(fid,"(A,F4.2)") "DTOUT = ", 0.1_SP ! output time step, >dti
     write(fid,"(A,F4.2)") "DHOR = ", 0.10_SP ! horizontal diffusion coefficient

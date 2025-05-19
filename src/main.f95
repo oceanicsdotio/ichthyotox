@@ -2,7 +2,7 @@ program main
 
   use variables
   use random, only : random_number_generator
-  use simulation, only : domain, TRIANGLE_GRID_EDGE, getInteger, getString, find_key
+  use simulation, only : domain, topology, getInteger, getString, find_key
   use cyanobacteria, only : CyanobacteriaAgent
   use fish, only : FishAgent
 
@@ -214,7 +214,7 @@ program main
   call domain%init(exp_type) ! allocate and initialize global environmental variables, and additional mesh-based variables
   
   write(*, "(A)", advance='no') "Computing mesh topology... "
-  call TRIANGLE_GRID_EDGE
+  call topology
   write(*, *) "Finished"
 
   state_format="(1F12.6, 9000(I6,3F12.6))"

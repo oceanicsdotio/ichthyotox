@@ -5,11 +5,7 @@ module simulation
     implicit none
     save
     private
-  
-    type, public :: Mesh
-    contains
-    end type
-  
+
     type, public :: Experiment
         character(len = 100), public :: simID
         integer, public :: &
@@ -35,7 +31,7 @@ module simulation
     end type
   
     type(Experiment), allocatable, public :: domain ! domain structure imported from this module
-    public :: TRIANGLE_GRID_EDGE, globalIrradiance
+    public :: topology, globalIrradiance, write_mesh_data
 contains
     pure elemental function globalIrradiance(time, irradiance) result(light)
         ! calculate light based on time and maximum value for region
@@ -133,7 +129,7 @@ contains
         end do
     end subroutine
 
-    subroutine TRIANGLE_GRID_EDGE
+    subroutine topology
         !  Define triangular mesh used for flux computations.
     
         !     variable list:
@@ -166,21 +162,20 @@ contains
         !       3:  2 solid boundary edges                         !
     
         use variables, only : xc, yc, vx, vy, nv, M, isbce, nbe, isonb, awx, awy
-        use variables, only : n, a1u, NBVE, NBVT, vxmin, vxmax, vymin, VYMAX, aw0, a2u, MX_NBR_ELEM, NTVE
+        use variables, only : n, a1u, NBVE, NBVT, vxmin, vxmax, vymin, VYMAX, aw0, a2u, NTVE
 
-        integer, allocatable, dimension(:, :) :: NB_TMP, CELLS, NBET
+        integer, allocatable, dimension(:, :) :: NB_TMP, CELLS
         integer, allocatable, dimension(:) :: CELLCNT
-        integer :: ii, jj, kk, ll, NTMP, NCNT, JJB, N1, N2, N3, J1, J2, J3, tri(3)
-        real(sp) :: X1, X2, X3, Y1, Y2, Y3, DELT, AI(3), BI(3), CI(3), DELTX, DELTY, B1, B2, ART(N)
+        integer :: ii, jj, kk, ll, count, JJB, N1, N2, N3, J1, J2, J3, tri(3), MX_NBR_ELEM
+        real(sp) :: X1, X2, X3, Y1, Y2, Y3, DELT, AI(3), BI(3), CI(3), area(N)
+
+        ! calculate global coordinate ranges
+        VXMIN = minval(VX(1:M))
+        VXMAX = maxval(VX(1:M))
+        VYMIN = minval(VY(1:M))
+        VYMAX = maxval(VY(1:M))
     
-        ! SET UP MESH (HORIZONTAL COORDINATES)
-        ! CALCULATE GLOBAL MINIMUMS AND MAXIMUMS
-        VXMIN = MINVAL(VX(1:M))
-        VXMAX = MAXVAL(VX(1:M))
-        VYMIN = MINVAL(VY(1:M))
-        VYMAX = MAXVAL(VY(1:M))
-    
-        ! CALCULATE GLOBAL ELEMENT CENTER GRID COORDINATES
+        ! calculate global element center grid coordinates
         xc = 0.0_sp
         yc = 0.0_sp
         do ii = 1, N
@@ -188,22 +183,22 @@ contains
             yc(ii) = sum(VY(NV(ii, :))) / 3.0_SP
         end do
     
-        ART(:) = abs(((VX(NV(:, 2)) - VX(NV(:, 1))) * (VY(NV(:, 3)) - VY(NV(:, 1))) - &
+        area(:) = abs(((VX(NV(:, 2)) - VX(NV(:, 1))) * (VY(NV(:, 3)) - VY(NV(:, 1))) - &
                 & (VX(NV(:, 3)) - VX(NV(:, 1))) * (VY(NV(:, 2)) - VY(NV(:, 1))))*0.5)
-    
+
         ISBCE = 0
         ISONB = 0
         NBE   = 0
-    
+
         allocate( &
-            &NBET(N, 3), & ! index of neighbors
             & CELLS(M, 50), &
             & CELLCNT(M))
-    
-        NBET = 0
+
         cellcnt = 0
         cells = 0
     
+        ! For each element, get the node indices, and increment the count of
+        ! triangles in which the node appears.
         do ii = 1, n
             tri = nv(ii, 1:3)
             cellcnt(tri) = cellcnt(tri) + 1
@@ -215,157 +210,121 @@ contains
             N2 = NV(ii,2)
             N3 = NV(ii,3)
             do J1 = 1, CELLCNT(N1)
+                do J2 = 1, CELLCNT(N2)
+                    if ((CELLS(N1, J1) == CELLS(N2, J2)) .and. CELLS(N1,J1) /= ii) NBE(ii, 3) = CELLS(N1, J1)
+                end do
+            end do
             do J2 = 1, CELLCNT(N2)
-                if ((CELLS(N1, J1) == CELLS(N2, J2)) .and. CELLS(N1,J1) /= ii) NBE(ii, 3) = CELLS(N1, J1)
-            end do
-            end do
-            do J2 = 1, CELLCNT(N2)
-            do J3 = 1, CELLCNT(N3)
-                IF ((CELLS(N2, J2) == CELLS(N3, J3)) .and. CELLS(N2, J2) /= ii) NBE(ii,1) = CELLS(N2, J2)
-            end do
+                do J3 = 1, CELLCNT(N3)
+                    IF ((CELLS(N2, J2) == CELLS(N3, J3)) .and. CELLS(N2, J2) /= ii) NBE(ii,1) = CELLS(N2, J2)
+                end do
             end do
             do J1 = 1, CELLCNT(N1)
-            do J3 = 1, CELLCNT(N3)
-                IF((CELLS(N1, J1) == CELLS(N3,J3)) .and. CELLS(N1,J1) /= ii) NBE(ii, 2) = CELLS(N3, J3)
-            end do
+                do J3 = 1, CELLCNT(N3)
+                    IF((CELLS(N1, J1) == CELLS(N3,J3)) .and. CELLS(N1,J1) /= ii) NBE(ii, 2) = CELLS(N3, J3)
+                end do
             end do
         end do
         deallocate(CELLS, CELLCNT)
-    
-        ! Ensure all elements have at least one neighbor
-        do ii = 1, N
-            if (sum(NBE(ii, 1:3)) == 0) then
-            print *, 'cell ', ii, ' @ ', xc(ii), yc(ii), ' has no neighbors'
-            stop
-            end if
-        end do
-    
+
         ! if element on boundary set isbce(i)=1 and isonb(j)=1 for boundary nodes j
         do ii = 1, N
             if ( MIN(NBE(ii, 1), NBE(ii, 2), NBE(ii, 3)) == 0 ) then
-            ISBCE(ii) = 1  ! element on boundary
-            if (NBE(ii, 1) == 0) then
-                ISONB(NV(ii, 2)) = 1 ; ISONB(NV(ii, 3)) = 1
+                ISBCE(ii) = 1  ! element on boundary
+                if (NBE(ii, 1) == 0) then
+                    ISONB(NV(ii, 2)) = 1
+                    ISONB(NV(ii, 3)) = 1
+                end if
+                if (NBE(ii,2) == 0) then
+                    ISONB(NV(ii, 1)) = 1
+                    ISONB(NV(ii, 3)) = 1
+                end if
+                if (NBE(ii,3) == 0) then
+                    ISONB(NV(ii, 1)) = 1
+                    ISONB(NV(ii, 2)) = 1
+                end if
             end if
-            if (NBE(ii,2) == 0) then
-                ISONB(NV(ii, 1)) = 1 ; ISONB(NV(ii, 3)) = 1
-            end if
-            if (NBE(ii,3) == 0) then
-                ISONB(NV(ii, 1)) = 1 ; ISONB(NV(ii, 2)) = 1
-            end if
-            end if
-        end do
-    
-        ! DEFINE NTVE, NBVE, NBVT
-        ! ntve(1:m): total number of the surrounding triangles connected to the given node
-        ! nbve(1:m, 1:ntve+1): the identification number of surrounding triangles with a common node (counted clockwise)
-        ! nbvt(1:m,ntve(1:m)): the idenfication number of a given node over each individual surrounding triangle(counted clockwise)                                              !
-    
-        ! Determine max number of surrounding elements
-        MX_NBR_ELEM = 0
-        do ii = 1, M
-            NCNT = 0
-            do jj = 1, N
-            if ( float(NV(jj, 1) - ii) * float(NV(jj, 2) - ii) * float(NV(jj, 3) - ii) == 0.0_SP ) NCNT = NCNT + 1
-            end do
-            MX_NBR_ELEM = MAX(MX_NBR_ELEM, NCNT)
-        end do
-    
-        ! allocate arrays based on mx_nbr_elem
-        ALLOCATE( NBVE(M, MX_NBR_ELEM + 1))
-        ALLOCATE( NBVT(M, MX_NBR_ELEM + 1))
-    
-        ! Determine number of surrounding elements for node i = ntve(i)
-        ! determine nbve - indices of neighboring elements of node i
-        ! determine nbvt - index (1,2, or 3) of node i in neighboring element
-    
-        do ii = 1, M
-            NCNT = 0
-            do jj = 1, N
-            if ( float(NV(jj, 1) - ii) * float(NV(jj, 2) - ii) * float(NV(jj, 3) - ii) == 0.0_SP) then
-                NCNT = NCNT+1
-                NBVE(ii, NCNT) = jj
-                if ((NV(jj, 1) - ii) == 0) NBVT(ii, NCNT) = 1
-                if ((NV(jj, 2) - ii) == 0) NBVT(ii, NCNT) = 2
-                if ((NV(jj, 3) - ii) == 0) NBVT(ii, NCNT) = 3
-            end if
-            end do
-            NTVE(ii) = NCNT
         end do
 
-        !--Reorder Order Elements Surrounding a Node to Go in a Cyclical Procession----!
-        !--Determine NTSN  = Number of Nodes Surrounding a Node (+1)-------------------!
-        !--Determine NBSN  = Node Numbers of Nodes Surrounding a Node------------------!
-        allocate(NB_TMP(M, MX_NBR_ELEM+1))
+        MX_NBR_ELEM = max_parents(NV, M, N)
+        allocate(&
+            & NBVE(M, MX_NBR_ELEM + 1), &
+            & NBVT(M, MX_NBR_ELEM + 1), &
+            & NB_TMP(M, MX_NBR_ELEM + 1))
+    
+        ! For each node, scan through all elements, to determine number of times the node
+        ! appears in the element list.  If it appears, then store the bi-directional mapping.
         do ii = 1, M
-            if (ISONB(ii) == 0) then
-            NB_TMP(1, 1) = NBVE(ii, 1)
-            NB_TMP(1, 2) = NBVT(ii, 1)
-            do jj = 2, NTVE(ii) + 1
-                kk = NB_TMP(jj - 1, 1)
-                ll = NB_TMP(jj - 1, 2)
-                NB_TMP(jj, 1) = NBE(kk, ll + 1 - INT((ll + 1)/4)*3)
-                ll=NB_TMP(jj, 1)
-                if ((NV(ll, 1) - ii) == 0) NB_TMP(jj, 2) = 1
-                if ((NV(ll, 2) - ii) == 0) NB_TMP(jj, 2) = 2
-                if ((NV(ll, 3) - ii) == 0) NB_TMP(jj, 2) = 3
-            end do
-    
-            do jj = 2, NTVE(ii) + 1
-                NBVE(ii, jj) = NB_TMP(jj, 1)
-            end do
-    
-            do jj = 2, NTVE(ii) + 1
-                NBVT(ii, jj) = NB_TMP(jj, 2)
-            end do
-    
-            NTMP = NTVE(ii) + 1
-            if (NBVE(ii, 1) /= NBVE(ii, NTMP)) then
-                print*, ii,'nbve(ii) not correct!!'
-                stop
-            end if
-            if (NBVT(ii,1) /= NBVT(ii, NTMP)) then
-                print*, ii,'NBVT(ii) NOT CORRECT!!'
-                stop
-            end if
-    
-            else
-            JJB = 0
-    
-            do jj = 1, NTVE(ii)
-                ll = NBVT(ii, jj)
-                if (NBE(NBVE(ii, jj), ll + 2 - int((ll + 2)/4)*3) == 0) then
-                    JJB = JJB + 1
-                    NB_TMP(JJB, 1) = NBVE(ii, jj)
-                    NB_TMP(JJB, 2) = NBVT(ii, jj)
+            count = 0
+            do jj = 1, N
+                if ( (NV(jj, 1) - ii) * (NV(jj, 2) - ii) * (NV(jj, 3) - ii) == 0) then
+                    count = count + 1
+                    NBVE(ii, count) = jj
+                    if ((NV(jj, 1) - ii) == 0) NBVT(ii, count) = 1
+                    if ((NV(jj, 2) - ii) == 0) NBVT(ii, count) = 2
+                    if ((NV(jj, 3) - ii) == 0) NBVT(ii, count) = 3
                 end if
             end do
-    
-            if (JJB /= 1) then
-                print*, 'ERROR IN ISONB !, I, J', ii, jj
-                stop
-            end if
-    
-            do jj = 2, NTVE(ii)
-                kk = NB_TMP(jj - 1, 1)
-                ll = NB_TMP(jj - 1, 2)
-                NB_TMP(jj, 1) = NBE(kk, ll + 1 - int((ll + 1)/4)*3)
-                ll = NB_TMP(jj, 1)
-                if ((NV(ll, 1) - ii) == 0) NB_TMP(jj, 2) = 1
-                if ((NV(ll, 2) - ii) == 0) NB_TMP(jj, 2) = 2
-                if ((NV(ll, 3) - ii) == 0) NB_TMP(jj, 2) = 3
-            end do
-    
-            do jj = 1, NTVE(ii)
-                NBVE(ii, jj) = NB_TMP(jj, 1)
-                NBVT(ii, jj) = NB_TMP(jj, 2)
-            enddo
-    
-            NBVE(ii, NTVE(ii) + 1) = 0
+            NTVE(ii) = count
+        end do
+
+        ! Reorder Order Elements Surrounding a Node to Go in a Cyclical Procession
+        ! Determine NTSN = Number of Nodes Surrounding a Node (+1)
+        ! Determine NBSN = Indices of neighboring nodes
+
+        ! Loop through each node
+        do ii = 1, M
+            if (ISONB(ii) == 0) then
+                NB_TMP(1, 1) = NBVE(ii, 1)
+                NB_TMP(1, 2) = NBVT(ii, 1)
+                do jj = 2, NTVE(ii) + 1
+                    kk = NB_TMP(jj - 1, 1)
+                    ll = NB_TMP(jj - 1, 2)
+                    NB_TMP(jj, 1) = NBE(kk, ll + 1 - INT((ll + 1)/4)*3)
+                    ll=NB_TMP(jj, 1)
+                    if ((NV(ll, 1) - ii) == 0) NB_TMP(jj, 2) = 1
+                    if ((NV(ll, 2) - ii) == 0) NB_TMP(jj, 2) = 2
+                    if ((NV(ll, 3) - ii) == 0) NB_TMP(jj, 2) = 3
+                end do
+        
+                do jj = 2, NTVE(ii) + 1
+                    NBVE(ii, jj) = NB_TMP(jj, 1)
+                    NBVT(ii, jj) = NB_TMP(jj, 2)
+                end do
+            else
+                JJB = 0
+                do jj = 1, NTVE(ii)
+                    ll = NBVT(ii, jj)
+                    if (NBE(NBVE(ii, jj), ll + 2 - int((ll + 2)/4)*3) == 0) then
+                        JJB = JJB + 1
+                        NB_TMP(JJB, 1) = NBVE(ii, jj)
+                        NB_TMP(JJB, 2) = NBVT(ii, jj)
+                    end if
+                end do
+                if (JJB /= 1) then
+                    print*, 'ERROR IN ISONB !, I, J', ii, jj
+                    stop
+                end if
+                do jj = 2, NTVE(ii)
+                    kk = NB_TMP(jj - 1, 1)
+                    ll = NB_TMP(jj - 1, 2)
+                    NB_TMP(jj, 1) = NBE(kk, ll + 1 - int((ll + 1)/4)*3)
+                    ll = NB_TMP(jj, 1)
+                    if ((NV(ll, 1) - ii) == 0) NB_TMP(jj, 2) = 1
+                    if ((NV(ll, 2) - ii) == 0) NB_TMP(jj, 2) = 2
+                    if ((NV(ll, 3) - ii) == 0) NB_TMP(jj, 2) = 3
+                end do
+                do jj = 1, NTVE(ii)
+                    NBVE(ii, jj) = NB_TMP(jj, 1)
+                    NBVT(ii, jj) = NB_TMP(jj, 2)
+                enddo
+                NBVE(ii, NTVE(ii) + 1) = 0
             end if
         end do
+
         deallocate(NB_TMP)
-    
+
+        ! Calculate shape coefficients for each element
         do ii = 1, N
             if (ISBCE(ii) == 0) then
                 Y1 = YC(NBE(ii, 1)) - YC(ii)
@@ -380,10 +339,10 @@ contains
                 Y1 = Y1/1000.0_SP
                 Y2 = Y2/1000.0_SP
                 Y3 = Y3/1000.0_SP
-        
+
                 delt=(x1*y2-x2*y1)**2+(x1*y3-x3*y1)**2+(x2*y3-x3*y2)**2
                 delt=delt*1000.0
-        
+
                 a1u(ii, 1) = (y1+y2+y3)*(x1*y1+x2*y2+x3*y3)- (x1+x2+x3)*(y1**2+y2**2+y3**2)
                 a1u(ii, 1) = a1u(ii, 1)/delt
                 a1u(ii, 2) = (y1**2+y2**2+y3**2)*x1 - (x1*y1+x2*y2+x3*y3)*y1
@@ -401,50 +360,108 @@ contains
                 a2u(ii, 3) = a2u(ii, 3)/delt
                 a2u(ii, 4) = (x1**2+x2**2+x3**2)*y3-(x1*y1+x2*y2+x3*y3)*x3
                 a2u(ii, 4) = a2u(ii, 4)/delt
+            else if (isbce(ii) == 1) then
+                do jj = 1, 3
+                    if (nbe(ii, jj) == 0) ll = jj
+                end do
+                j1 = ll + 1 - int((ll + 1)/4)*3
+                j2 = ll + 2 - int((ll + 2)/4)*3
+                a1u(ii, [0, ll, j1, j2] + 1) = 0.0_sp
+                a2u(ii, [0, ll, j1, j2] + 1) = 0.0_sp
+            else if (isbce(ii) > 1) then
+                a1u(ii, 1:4) = 0.0_sp
+                a2u(ii, 1:4) = 0.0_sp
             end if
-    
+
             x1 = vx(nv(ii, 1)) - xc(ii)
             x2 = vx(nv(ii, 2)) - xc(ii)
             x3 = vx(nv(ii, 3)) - xc(ii)
             y1 = vy(nv(ii, 1)) - yc(ii)
             y2 = vy(nv(ii, 2)) - yc(ii)
             y3 = vy(nv(ii, 3)) - yc(ii)
-    
-            ai = (/ y2 - y3, y3 - y1, y1 - y2 /)
-            bi = (/ x3 - x2, x1 - x3, x2 - x1 /)
-            ci = (/ x2*y3 - x3*y2, x3*y1 - x1*y3, x1*y2 - x2*y1 /)
-    
-            aw0(ii, 1:3) = -1.0 * ci / 2.0 / art(ii)
-            awx(ii, 1:3) = -1.0 * ai / 2.0 / art(ii)
-            awy(ii, 1:3) = -1.0 * bi / 2.0 / art(ii)
-        end do
-    
-        do ii = 1, n
-            if (isbce(ii) > 1) then
-    
-            a1u(ii, 1:4) = 0.0_sp
-            a2u(ii, 1:4) = 0.0_sp
-    
-            else if (isbce(ii) == 1) then
-            do jj = 1, 3
-                if (nbe(ii, jj) == 0) ll = jj
-            end do
-            j1 = ll + 1 - int((ll + 1)/4)*3
-            j2 = ll + 2 - int((ll + 2)/4)*3
-            x1 = vx(nv(ii, j1)) - xc(ii)
-            x2 = vx(nv(ii, j2)) - xc(ii)
-            y1 = vy(nv(ii, j1)) - yc(ii)
-            y2 = vy(nv(ii, j2)) - yc(ii)
-    
-            delt = x1*y2 - x2*y1
-            b1 = (y2 - y1)/delt
-            b2 = (x1 - x2)/delt
-            deltx = vx(nv(ii, j1)) - vx(nv(ii, j2))
-            delty = vy(nv(ii, j1)) - vy(nv(ii, j2))
-    
-            a1u(ii, (/ 0, ll, j1, j2 /) + 1) = 0.0_sp
-            a2u(ii, (/ 0, ll, j1, j2 /) + 1) = 0.0_sp
-            end if
+
+            ai = [y2 - y3, y3 - y1, y1 - y2]
+            bi = [x3 - x2, x1 - x3, x2 - x1]
+            ci = [x2*y3 - x3*y2, x3*y1 - x1*y3, x1*y2 - x2*y1]
+
+            aw0(ii, 1:3) = -1.0 * ci / 2.0 / area(ii)
+            awx(ii, 1:3) = -1.0 * ai / 2.0 / area(ii)
+            awy(ii, 1:3) = -1.0 * bi / 2.0 / area(ii)
         end do
     end subroutine
+
+    function max_parents(indices, nodes, elements) result(parents)
+        ! Determine max number of surrounding elements
+        implicit none
+        integer, intent(in) :: elements, nodes
+        integer, intent(in) :: indices(elements,3)
+        integer :: ii, jj, count, parents
+        parents = 0
+        do ii = 1, nodes
+            count = 0
+            do jj = 1, elements
+                if ( (indices(jj, 1) - ii) * (indices(jj, 2) - ii) * (indices(jj, 3) - ii) == 0 ) then
+                    count = count + 1
+                end if
+            end do
+            parents = max(parents, count)
+        end do
+    end function
+
+    subroutine write_mesh_data(prefix, bottom_depth, div_inc, x_range, y_range, layers)
+        ! This program generates a simple triangular grid for the simulation
+        character(len=50), intent(in) :: prefix
+        real(sp), intent(in) :: &
+            & bottom_depth, div_inc, x_range, y_range
+        integer, intent(in) :: layers
+        integer :: &
+            & nodes, elements, node_index=1, element_index=1, start_pattern=1, &
+            & alternate_pattern, x_div, y_div, ii, jj, fid=500, fid2=501, &
+            & x_nodes, y_nodes
+        integer, dimension(3) :: vertices
+
+        x_div = floor( x_range / div_inc )
+        y_div = floor( y_range / div_inc )
+        x_nodes = x_div + 1
+        y_nodes = y_div + 1
+        nodes = (x_div + 1) * (y_div + 1)
+        elements = 2 * x_div * y_div
+
+        print *, "Saving mesh data... "
+        write(*, '(A,I5)') "    Nodes:    ", nodes
+        write(*, '(A,I5)') "    Elements: ", elements
+        open(unit=fid, file=trim(prefix)//"/nodes.txt", status='replace')
+        open(unit=fid2, file=trim(prefix)//"/elements.txt", status='replace')
+        write(fid, *) nodes
+        write(fid2, *) elements, layers
+        do ii = 1, y_nodes
+            alternate_pattern = start_pattern
+            do jj = 1, x_nodes
+                write(fid, *) float(jj-1) * div_inc, float(ii-1) * div_inc, -abs(bottom_depth)
+                if ( (jj < x_nodes) .and. (ii < y_nodes) ) then
+                    ! bottom row of triangles
+                    vertices(1) = node_index
+                    vertices(2) = node_index + x_nodes ! note index
+                    vertices(3) = node_index + 1
+                    if (alternate_pattern < 0) vertices(2) = vertices(2) + 1
+                    write(fid2, *) vertices(1:3)
+                    element_index = element_index + 1
+                
+                    ! upper row of triangles
+                    vertices(1) = node_index + x_nodes
+                    vertices(2) = node_index + x_nodes + 1
+                    vertices(3) = node_index + 1
+                    if (alternate_pattern < 0) vertices(3) = vertices(3) - 1
+                    write(fid2, *) vertices(1:3)
+                    element_index = element_index + 1
+                    alternate_pattern = -alternate_pattern ! switch triangle pattern as you move x=0 to x=x_range
+                end if
+                node_index = node_index + 1 
+            end do
+            start_pattern = -start_pattern ! switch triangle pattern between rows as grid is built
+        end do
+        close(fid)
+        close(fid2)
+    end subroutine
+
 end module

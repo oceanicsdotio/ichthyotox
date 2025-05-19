@@ -32,7 +32,7 @@ module Cyanobacteria
         & lightExtinctionBiomass = 14.0, & ! light extinction due to overlying biomass
         & lightAttenuationWater = 0.15, & ! light extinction coefficient due to coastal waters
         & shading_upscale = 1.0, &
-        & grav = 9.81_sp, & ! gravity, m/s^2
+        & grav = 9.81_sp ! gravity, m/s^2
 
     type, public, extends(Agent) :: CyanobacteriaAgent
         ! algal state inherited from lagrangian particle class

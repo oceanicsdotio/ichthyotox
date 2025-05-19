@@ -35,8 +35,7 @@ module variables
         & KB, &       ! Number of sigma levels
         & KBM1, &     ! Number of sigma levels-1
         & KBM2, &     ! Number of sigma levels-2
-        & NE, &       ! Number of unique edges
-        & MX_NBR_ELEM ! Max number of elements surrounding a node
+        & NE          ! Number of unique edges
 
     real(sp) :: &
         & DTOUT, &
@@ -59,13 +58,13 @@ module variables
 
     ! Node, boundary condition, and control volume
     integer, allocatable :: &
-        & NV(:, :), &   ! Node numbering for elements
-        & NBE(:, :), &  ! Indices of element neighbors
-        & NTVE(:), &
+        & NV(:, :), &   ! Node indices of triangles
+        & NBE(:, :), &  ! Indices of triangle neighbors
+        & NTVE(:), &    ! Triangles containing each vertex
         & ISONB(:), &   ! Node marker = 0,1,2
         & ISBCE(:), &
-        & NBVE(:, :), &
-        & NBVT(:, :)
+        & NBVE(:, :), & ! Indices of parent triangles, clockwise
+        & NBVT(:, :)    ! Position of node in triangle's vertex list (1,2,3)
 
     ! 1-d arrays for the sigma coordinate and surfaces
     real(sp), allocatable, dimension(:) :: &

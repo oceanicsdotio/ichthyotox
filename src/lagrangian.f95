@@ -1,6 +1,6 @@
 module Lagrangian
   ! type and variables for lagrangian particle system
-  use variables, only : sp, ZERO
+  use variables, only : sp
   implicit none
   save
   private
@@ -83,7 +83,7 @@ contains
       if (lag%found(ii) == 1) cycle
 
       distance(1:n, 1) = sqrt((xc(1:n) - x(ii))**2 + (yc(1:n) - y(ii))**2)
-      previous = zero
+      previous = 0.0_sp
 
       do jj = 1, 16
         nearby(:) = minloc(distance, distance > previous)
@@ -134,22 +134,22 @@ contains
             & self%VP( self%ndrft ), &
             & self%WP( self%ndrft ))
 
-    self%XP(:) = zero
-    self%YP(:) = zero
-    self%ZP(:) = zero
-    self%HP(:) = zero
-    self%EP(:) = zero
+    self%XP(:) = 0.0_sp
+    self%YP(:) = 0.0_sp
+    self%ZP(:) = 0.0_sp
+    self%HP(:) = 0.0_sp
+    self%EP(:) = 0.0_sp
     self%FOUND(:) = 0
     self%HOST(:) = 1
     self%LAYER(:) = 1
     self%SBOUND(:) = 0
     self%INDOMAIN(:) = .true.
-    self%TEMP(:) = zero
-    self%SAL(:) = zero
-    self%RHO(:) = zero
-    self%UP(:) = zero
-    self%VP(:) = zero
-    self%WP(:) = zero
+    self%TEMP(:) = 0.0_sp
+    self%SAL(:) = 0.0_sp
+    self%RHO(:) = 0.0_sp
+    self%UP(:) = 0.0_sp
+    self%VP(:) = 0.0_sp
+    self%WP(:) = 0.0_sp
 
   end subroutine
 
@@ -259,7 +259,7 @@ contains
     real(SP), dimension(self%ndrft, 0:MSTAGE, 3) :: CHI ! ERK stage function evaluation for velocities
     real(SP), parameter :: EPS  = 10.0 ** (-5.0) ! depth of dry element
 
-    CHI = zero ! Initialize Stage Functional Evaluations
+    CHI = 0.0_sp ! Initialize Stage Functional Evaluations
 
     PDXT(:) = self%xp(:) ! Assign position at previous time to current position
     PDYT(:) = self%yp(:)
@@ -271,7 +271,7 @@ contains
       PDY(:) = self%yp(:) + A_RK(stage) * dt * CHI(:, stage - 1, 2)
       PDZ(:) = self%zp(:) + A_RK(stage) * dt * CHI(:, stage - 1, 3)
       PDZ(:) = max(PDZ(:), -(2.0 + PDZ(:))) ! reflect sigma depth off bottom
-      PDZ(:) = min(PDZ(:), zero) ! keep sigma depth below free surface
+      PDZ(:) = min(PDZ(:), 0.0_sp) ! keep sigma depth below free surface
 
       ! Calculate velocity field for stage using c_rk coefficients
       velocity(:, :, 0) = (1.0 - C_RK(stage)) * U1 + C_RK(stage) * U2
@@ -287,7 +287,7 @@ contains
       CHI(:, stage, 2) = self%VP
 
       where ((self%EP - self%HP) < EPS) 
-        CHI(:, stage, 3) = zero ! Limit vertical motion in very shallow water
+        CHI(:, stage, 3) = 0.0_sp ! Limit vertical motion in very shallow water
       elsewhere
         CHI(:, stage, 3) = self%WP / (self%HP - self%EP)    ! delta_sigma/deltaT = ww/D
       end where
@@ -511,8 +511,8 @@ contains
     integer :: KLO, KHI, NZR, host
 
     ! Interpolate eddy diffusivity and its derivative
-    KHOUT  = zero
-    DKHOUT = zero
+    KHOUT  = 0.0_sp
+    DKHOUT = 0.0_sp
     NZRINDX(0) = 1
     do ii = 1, KB
       NZRINDX(ii) = ii
@@ -555,7 +555,7 @@ contains
       ! find z in grid again, as per visser, but in sigma
       DZP = self%ZP(ii) + 0.5*DKHOUT(ii)*DTRW/(self%HP(ii) - self%EP(ii)) ! changed sign, keeney 1/7
       ! adding 0.5*dkhtmp*dtrw, new z can be out of [0;-1]
-      DZP = min(DZP, ZERO)
+      DZP = min(DZP, 0.0_sp)
       DZP = max(DZP, -1.0_SP)
 
       ! find vertical location
