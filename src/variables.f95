@@ -26,7 +26,10 @@ module variables
     character(LEN = 80) :: CASENAME, FOLDERPREFIX ! File Specifiers
 
     integer :: &
-        & HOURLAG, IELAG, ISLAG, TDRIFT, &
+        & HOURLAG, &
+        & IELAG, &
+        & ISLAG, &
+        & TDRIFT, &
         & N, &        ! Number of elements
         & M, &        ! Number of nodes
         & KB, &       ! Number of sigma levels
@@ -34,13 +37,25 @@ module variables
         & KBM2, &     ! Number of sigma levels-2
         & NE, &       ! Number of unique edges
         & MX_NBR_ELEM ! Max number of elements surrounding a node
-  
+
     real(sp) :: &
-        & DTOUT, INSTP, DHOR, DTRW, DTI, &
-        & VXMIN, VYMIN, VXMAX, VYMAX ! Grid metrics
+        & DTOUT, &
+        & INSTP, &
+        & DHOR, &
+        & DTRW, &
+        & DTI, &
+        & VXMIN, &
+        & VYMIN, &
+        & VXMAX, &
+        & VYMAX ! Grid metrics
   
     ! Shape coefficient arrays and control volume metrics
-    real(sp), allocatable, dimension(:, :) :: A1U, A2U, AWX, AWY, AW0
+    real(sp), allocatable, dimension(:, :) :: &
+        & A1U, &
+        & A2U, &
+        & AWX, &
+        & AWY, &
+        & AW0
 
     ! Node, boundary condition, and control volume
     integer, allocatable :: &
@@ -57,7 +72,6 @@ module variables
         & Z, &    ! Sigma coordinate value
         & ZZ, &   ! Intra level sigma value
         & DZ, &   ! Delta-sigma value
-        & DZZ, &  ! Delta of intra level sigma
         & H, &    ! bathymetry
         & D, &    ! depth
         & EL, &   ! surface elevation
@@ -71,11 +85,9 @@ module variables
     real(sp), allocatable, dimension(:, :) :: &
         & U, &  ! x-velocity
         & V, &  ! y-velocity
-        & W, &  ! sigma-velocity
         & WW, & ! z-velocity
         & UT, & ! x-velocity, previous
         & VT, & ! y-velocity, previous
-        & WT, & ! sigma-velocity, previous
         & WWT   ! z-velocity, previous
 
     ! vertex-based arrays
@@ -86,6 +98,5 @@ module variables
         & TT1, &  ! temperature, previous
         & ST1, &  ! salinity, previous
         & RT1, &  ! density, previous
-        & WTS, &  ! vertical velocity in sigma system
         & KH      ! turbulent diffusivity
 end module

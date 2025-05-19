@@ -1,6 +1,6 @@
 program bloom
 
-    use variables, only: sp, KB, M, N, KBM1, KBM2, irradSurf, folderprefix, HOURLAG, TDRIFT, DTI, DTOUT, INSTP, DTRW, xc, yc, vx, vy, nv, isbce, nbe, isonb, awx, awy, u, v, w, ww, ut, vt, wt, wwt, kh, z, zz, dz, dzz, a1u, NBVE, NBVT, vxmin, vxmax, vymin, VYMAX, aw0, a2u, MX_NBR_ELEM, NTVE, h, d, el, et, s1, r1, t1, tt1, st1, rt1, wts, ISLAG, IELAG, iophys, iotox, iocs, iocp
+    use variables, only: sp, KB, M, N, KBM1, KBM2, irradSurf, folderprefix, HOURLAG, TDRIFT, DTI, DTOUT, INSTP, DTRW, xc, yc, vx, vy, nv, isbce, nbe, isonb, awx, awy, u, v, ww, ut, vt, wwt, kh, z, zz, dz, a1u, NBVE, NBVT, vxmin, vxmax, vymin, VYMAX, aw0, a2u, MX_NBR_ELEM, NTVE, h, d, el, et, s1, r1, t1, tt1, st1, rt1, ISLAG, IELAG, iophys, iotox, iocs, iocp
     use random, only : random_number_generator
     use simulation, only : domain, TRIANGLE_GRID_EDGE
     use cyanobacteria, only : CyanobacteriaAgent
@@ -68,11 +68,9 @@ program bloom
     allocate(U(0:N, KB)); U = 0.0_sp  ! x-velocity
     allocate(&
         & V, & ! y-velocity
-        & W, & ! s-velocity
         & WW, & ! z-velocity
         & UT, & ! previous x-velocity
         & VT, & ! previous y-velocity
-        & WT, & ! previous s-velocity
         & WWT, & ! previous z-velocity
         & KH, & ! turbulent quantity
         & UNC, &
@@ -98,7 +96,6 @@ program bloom
     allocate(&
         & ZZ, & ! INTRA LEVEL SIGMA VALUE
         & DZ, & ! DELTA-SIGMA VALUE
-        & DZZ, & ! DELTA OF INTRA LEVEL SIGMA
         & source=Z)
 
     write(*, *) "Finished"
@@ -131,7 +128,6 @@ program bloom
         & TT1, & ! previous temperature
         & ST1, & ! previous salinity
         & RT1, & ! previous density
-        & WTS, & ! vertical velocity, sigma
         & KHNC, &
         & KHNC1, &
         & KHNC2, &

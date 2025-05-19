@@ -156,7 +156,6 @@ program main
   allocate(Z(KB))               ; Z      = zero    ! SIGMA COORDINATE VALUE
   allocate(ZZ(KB))              ; ZZ     = zero    ! INTRA LEVEL SIGMA VALUE
   allocate(DZ(KB))              ; DZ     = zero    ! DELTA-SIGMA VALUE
-  allocate(DZZ(KB))             ; DZZ    = zero    ! DELTA OF INTRA LEVEL SIGMA
 
   ! 2-d flow variable arrays at nodes
   allocate(H(0:M))       ;H    = zero       ! BATHYMETRIC DEPTH
@@ -167,11 +166,9 @@ program main
   ! internal mode arrays-(element based)
   allocate(U(0:N, KB))       ;U     = zero   ! X-VELOCITY
   allocate(V(0:N, KB))       ;V     = zero   ! Y-VELOCITY
-  allocate(W(0:N, KB))       ;W     = zero   ! VERTICAL VELOCITY IN SIGMA SYSTEM
   allocate(WW(0:N, KB))      ;WW    = zero   ! Z-VELOCITY
   allocate(UT(0:N, KB))      ;UT    = zero   ! X-VELOCITY FROM PREVIOUS TIMESTEP
   allocate(VT(0:N, KB))      ;VT    = zero   ! Y-VELOCITY FROM PREVIOUS TIMESTEP
-  allocate(WT(0:N, KB))      ;WT    = zero   ! VERTICAL VELOCITY FROM PREVIOUS TIMESTEP
   allocate(WWT(0:N, KB))     ;WWT   = zero   ! Z-VELOCITY FROM PREVIOUS TIMESTEP
   allocate(KH(0:N, KB))     ;KH    = zero   ! TURBULENT QUANTITY
 
@@ -182,7 +179,6 @@ program main
   allocate(TT1(0:M, KB))      ;TT1    = zero  ! TEMPERATURE FROM PREVIOUS TIME
   allocate(ST1(0:M, KB))      ;ST1    = zero  ! SALINITY FROM PREVIOUS TIME
   allocate(RT1(0:M, KB))      ;RT1 = zero
-  allocate(WTS(0:M, KB))      ;WTS    = zero  ! VERTICAL VELOCITY IN SIGMA SYSTEM
 
   ! Shape coefficient arrays and control volume metrics
   allocate(A1U(0:N, 4))         ;A1U   = zero
