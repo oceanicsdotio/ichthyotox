@@ -31,7 +31,7 @@ module simulation
     end type
   
     type(Experiment), allocatable, public :: domain ! domain structure imported from this module
-    public :: topology, globalIrradiance, write_mesh_data
+    public :: topology, globalIrradiance, write_rectangular_mesh_files
 contains
     pure elemental function globalIrradiance(time, irradiance) result(light)
         ! calculate light based on time and maximum value for region
@@ -165,7 +165,6 @@ contains
         use variables, only : n, a1u, NBVE, NBVT, vxmin, vxmax, vymin, VYMAX, aw0, a2u, NTVE
 
         integer, allocatable, dimension(:, :) :: NB_TMP, CELLS
-        integer, allocatable, dimension(:) :: CELLCNT
         integer :: ii, jj, kk, ll, count, JJB, N1, N2, N3, J1, J2, J3, tri(3), MX_NBR_ELEM
         real(sp) :: X1, X2, X3, Y1, Y2, Y3, DELT, AI(3), BI(3), CI(3), area(N)
 
@@ -190,68 +189,62 @@ contains
         ISONB = 0
         NBE   = 0
 
-        allocate( &
-            & CELLS(M, 50), &
-            & CELLCNT(M))
+        allocate(CELLS(M, 50))
 
-        cellcnt = 0
         cells = 0
     
         ! For each element, get the node indices, and increment the count of
         ! triangles in which the node appears.
         do ii = 1, n
             tri = nv(ii, 1:3)
-            cellcnt(tri) = cellcnt(tri) + 1
-            cells(tri, cellcnt(tri)) = ii
+            ntve(tri) = ntve(tri) + 1
+            cells(tri, ntve(tri)) = ii
         end do
     
         do ii = 1, N
             N1 = NV(ii,1)
             N2 = NV(ii,2)
             N3 = NV(ii,3)
-            do J1 = 1, CELLCNT(N1)
-                do J2 = 1, CELLCNT(N2)
+            do J1 = 1, ntve(N1)
+                do J2 = 1, ntve(N2)
                     if ((CELLS(N1, J1) == CELLS(N2, J2)) .and. CELLS(N1,J1) /= ii) NBE(ii, 3) = CELLS(N1, J1)
                 end do
             end do
-            do J2 = 1, CELLCNT(N2)
-                do J3 = 1, CELLCNT(N3)
+            do J2 = 1, ntve(N2)
+                do J3 = 1, ntve(N3)
                     IF ((CELLS(N2, J2) == CELLS(N3, J3)) .and. CELLS(N2, J2) /= ii) NBE(ii,1) = CELLS(N2, J2)
                 end do
             end do
-            do J1 = 1, CELLCNT(N1)
-                do J3 = 1, CELLCNT(N3)
+            do J1 = 1, ntve(N1)
+                do J3 = 1, ntve(N3)
                     IF((CELLS(N1, J1) == CELLS(N3,J3)) .and. CELLS(N1,J1) /= ii) NBE(ii, 2) = CELLS(N3, J3)
                 end do
             end do
         end do
-        deallocate(CELLS, CELLCNT)
+        deallocate(CELLS)
 
-        ! if element on boundary set isbce(i)=1 and isonb(j)=1 for boundary nodes j
+        ! Flag boundary elements and nodes
         do ii = 1, N
-            if ( MIN(NBE(ii, 1), NBE(ii, 2), NBE(ii, 3)) == 0 ) then
-                ISBCE(ii) = 1  ! element on boundary
-                if (NBE(ii, 1) == 0) then
-                    ISONB(NV(ii, 2)) = 1
-                    ISONB(NV(ii, 3)) = 1
-                end if
-                if (NBE(ii,2) == 0) then
-                    ISONB(NV(ii, 1)) = 1
-                    ISONB(NV(ii, 3)) = 1
-                end if
-                if (NBE(ii,3) == 0) then
-                    ISONB(NV(ii, 1)) = 1
-                    ISONB(NV(ii, 2)) = 1
-                end if
+            if (NBE(ii, 1) == 0) then
+                ISONB(NV(ii, 2)) = 1
+                ISONB(NV(ii, 3)) = 1
+            end if
+            if (NBE(ii, 2) == 0) then
+                ISONB(NV(ii, 1)) = 1
+                ISONB(NV(ii, 3)) = 1
+            end if
+            if (NBE(ii, 3) == 0) then
+                ISONB(NV(ii, 1)) = 1
+                ISONB(NV(ii, 2)) = 1
+            end if
+            if (any(NBE(ii, :) == 1)) then
+                ISBCE(ii) = 1
             end if
         end do
 
-        MX_NBR_ELEM = max_parents(NV, M, N)
-        allocate(&
-            & NBVE(M, MX_NBR_ELEM + 1), &
-            & NBVT(M, MX_NBR_ELEM + 1), &
-            & NB_TMP(M, MX_NBR_ELEM + 1))
-    
+        MX_NBR_ELEM = maxval(ntve)
+        allocate(NBVE(M, MX_NBR_ELEM + 1))
+        allocate(NBVT, NB_TMP, mold=NBVE)
         ! For each node, scan through all elements, to determine number of times the node
         ! appears in the element list.  If it appears, then store the bi-directional mapping.
         do ii = 1, M
@@ -265,7 +258,6 @@ contains
                     if ((NV(jj, 3) - ii) == 0) NBVT(ii, count) = 3
                 end if
             end do
-            NTVE(ii) = count
         end do
 
         ! Reorder Order Elements Surrounding a Node to Go in a Cyclical Procession
@@ -390,25 +382,8 @@ contains
         end do
     end subroutine
 
-    function max_parents(indices, nodes, elements) result(parents)
-        ! Determine max number of surrounding elements
-        implicit none
-        integer, intent(in) :: elements, nodes
-        integer, intent(in) :: indices(elements,3)
-        integer :: ii, jj, count, parents
-        parents = 0
-        do ii = 1, nodes
-            count = 0
-            do jj = 1, elements
-                if ( (indices(jj, 1) - ii) * (indices(jj, 2) - ii) * (indices(jj, 3) - ii) == 0 ) then
-                    count = count + 1
-                end if
-            end do
-            parents = max(parents, count)
-        end do
-    end function
 
-    subroutine write_mesh_data(prefix, bottom_depth, div_inc, x_range, y_range, layers)
+    subroutine write_rectangular_mesh_files(prefix, bottom_depth, div_inc, x_range, y_range, layers)
         ! This program generates a simple triangular grid for the simulation
         character(len=50), intent(in) :: prefix
         real(sp), intent(in) :: &

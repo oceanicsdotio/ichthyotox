@@ -135,12 +135,11 @@ contains
             self%up(ii) = self%UP(ii) * h1h1 * p1 + (noise(ii,1)*epsx_sigma + epsx) * (1.0 - h2h2 * p1) 
             self%up(ii) = self%VP(ii) * h1h1 * p1 + (noise(ii,2)*epsx_sigma + epsx) * (1.0 - h2h2 * p1)
             ! Update position
-            pdxt(ii) = self%xp(ii) + self%up(ii) * deltat * float(self%indomain(ii)) 
-            pdyt(ii) = self%yp(ii) + self%vp(ii) * deltat * float(self%indomain(ii))
+            pdxt(ii) = self%xp(ii) + self%up(ii) * deltat
+            pdyt(ii) = self%yp(ii) + self%vp(ii) * deltat
         end do
 
         ! Evaluate Temporary Location
-        self%found = 0
         inwater = .true.
 
         ! Update only particles still in water

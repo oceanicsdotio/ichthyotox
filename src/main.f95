@@ -251,7 +251,6 @@ program main
 
   write(*, "(A)", advance='no') "Finding host elements... "
   call agent%cyanobacteria%find_host_element(agent%cyanobacteria%XP, agent%cyanobacteria%YP, INWATER) ! Determine element containing each particle
-  where (agent%cyanobacteria%FOUND == 0) agent%cyanobacteria%INDOMAIN(:) = 0 ! if not found, particle is not in domain and will not be tracked
   write(*, *) "Finished"
 
   write(*, "(A)", advance='no') "Interpolating physical fields... "
@@ -280,7 +279,6 @@ program main
 
   write(*, "(A)", advance='no') "Finding host elements... "
   call agent%fish%find_host_element(agent%fish%XP, agent%fish%YP, INWATER) ! Determine element containing each particle
-  where (agent%fish%FOUND == 0) agent%fish%INDOMAIN(:) = 0 ! if not found, particle is not in domain and will not be tracked
   write(*, *) "Finished"
 
   write(*, "(A)", advance='no') "Interpolating physical fields... "

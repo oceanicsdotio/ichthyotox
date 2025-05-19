@@ -60,7 +60,7 @@ module variables
     integer, allocatable :: &
         & NV(:, :), &   ! Node indices of triangles
         & NBE(:, :), &  ! Indices of triangle neighbors
-        & NTVE(:), &    ! Triangles containing each vertex
+        & NTVE(:), &    ! Number of triangles containing each vertex
         & ISONB(:), &   ! Node marker = 0,1,2
         & ISBCE(:), &
         & NBVE(:, :), & ! Indices of parent triangles, clockwise

@@ -179,7 +179,6 @@ program bloom
 
     write(*, "(A)", advance='no') "Finding host elements... "
     call particles%find_host_element(particles%XP, particles%YP)
-    where (particles%FOUND == 0) particles%indomain(:) = .false.
     write(*, *) "Finished"
 
     write(*, "(A)", advance='no') "Interpolating physical fields... "

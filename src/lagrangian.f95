@@ -9,14 +9,10 @@ module Lagrangian
     character(len = 20) :: species    ! string for identification
     logical :: fixed_depth = .false.  ! fixed particle depth option in cartesian
     integer :: ndrft                  ! total particles
-    logical, allocatable, dimension(:) :: &
-        & indomain                    ! Particle is in the domain
     integer, allocatable, dimension(:) :: &
         & ITAG, &                     ! Label for the particle
         & host, &                     ! Element containing particle
-        & layer, &                    ! sigma layer
-        & found, &                    ! Host element is found
-        & SBOUND                      ! Host element has a solid boundary node
+        & layer                    ! sigma layer
     real(SP), allocatable, dimension(:) :: &
         & XP, YP, ZP, &               ! position of particle
         & XPT, YPT, ZPT, &            ! absolute position of particle
@@ -50,7 +46,7 @@ contains
 
   subroutine find_host_element(lag, x, y)
     !  Find host elements of particles by searching progressively further elements
-    use variables, only: N, NV, ISONB, VX, NV, VY, XC, YC, NTVE, NBVE
+    use variables, only: N, NV, VX, NV, VY, XC, YC, NTVE, NBVE
     class(Agent), intent(inout) :: lag
     real(sp), dimension(lag%ndrft), intent(in) :: x, y
 
@@ -60,10 +56,7 @@ contains
     integer, dimension(2) :: nearby
 
     do ii = 1, lag%ndrft
-
-      if (.not. lag%indomain(ii)) cycle
       if (isintriangle(VX(NV(lag%HOST(ii), 1:3)), VY(NV(lag%HOST(ii), 1:3)), x(ii), y(ii))) then
-        lag%FOUND(ii) = 1
         cycle
       end if
 
@@ -71,16 +64,11 @@ contains
         do kk = 1, NTVE(NV(lag%HOST(ii), jj))
           ind = NBVE(NV(lag%HOST(ii), jj), kk)
           if (isintriangle(VX(NV(ind, 1:3)), VY(NV(ind, 1:3)), x(ii), y(ii))) then
-            lag%FOUND(ii) = 1
             lag%HOST(ii) = ind
-            lag%SBOUND(ii) = merge(1, 0, &
-                    & (ISONB(NV(ind, 1)) == 1) .or. (ISONB(NV(ind, 2)) == 1) .or. (ISONB(NV(ind, 3)) == 1))
             exit
           end if
         end do
       end do
-
-      if (lag%found(ii) == 1) cycle
 
       distance(1:n, 1) = sqrt((xc(1:n) - x(ii))**2 + (yc(1:n) - y(ii))**2)
       previous = 0.0_sp
@@ -90,12 +78,7 @@ contains
         if (nearby(1) == 0) exit
         previous = distance(nearby(1), 1)
         if (ISINTRIANGLE(VX(NV(nearby(1), 1:3)), VY(NV(nearby(1), 1:3)) , x(ii), y(ii))) then
-          lag%found(ii) = 1
           lag%host(ii) = nearby(1)
-          lag%sbound(ii) = merge(1, 0, &
-                  & (ISONB(NV(lag%host(ii), 1)) == 1) .or. &
-                  & (ISONB(NV(lag%host(ii), 2)) == 1) .or. &
-                  & (ISONB(NV(lag%host(ii), 3)) == 1))
           exit
         end if
       end do
@@ -122,11 +105,8 @@ contains
             & self%ZP( self%ndrft ), &
             & self%HP( self%ndrft ), &
             & self%EP( self%ndrft ), &
-            & self%FOUND( self%ndrft ), &
             & self%HOST( self%ndrft ), &
             & self%LAYER( self%ndrft ), &
-            & self%SBOUND( self%ndrft ), &
-            & self%INDOMAIN( self%ndrft ), &
             & self%TEMP( self%ndrft ), &
             & self%SAL( self%ndrft ), &
             & self%RHO( self%ndrft ), &
@@ -139,11 +119,8 @@ contains
     self%ZP(:) = 0.0_sp
     self%HP(:) = 0.0_sp
     self%EP(:) = 0.0_sp
-    self%FOUND(:) = 0
     self%HOST(:) = 1
     self%LAYER(:) = 1
-    self%SBOUND(:) = 0
-    self%INDOMAIN(:) = .true.
     self%TEMP(:) = 0.0_sp
     self%SAL(:) = 0.0_sp
     self%RHO(:) = 0.0_sp
@@ -159,8 +136,6 @@ contains
     write(*, *) '    Particle Class'
     write(*, *) '        Species       : ', self%species
     write(*, *) '        Quantity      : ', self%ndrft
-    write(*, *) '        Out of bounds : ', self%ndrft - count(self%INDOMAIN)
-    write(*, *) '        Stopped       : ', self%ndrft - sum(self%FOUND)
     write(*, *)
   end subroutine
 
@@ -294,14 +269,11 @@ contains
     end do
 
     do stage = 1, MSTAGE
-      where (self%indomain)
-        PDXT(:) = PDXT(:) + dt * CHI(:, stage, 1) * B_RK(stage) ! Update current position if particle is in domain
-        PDYT(:) = PDYT(:) + dt * CHI(:, stage, 2) * B_RK(stage)
-        PDZT(:) = PDZT(:) + dt * CHI(:, stage, 3) * B_RK(stage)
-      end where
+      PDXT(:) = PDXT(:) + dt * CHI(:, stage, 1) * B_RK(stage) ! Update current position if particle is in domain
+      PDYT(:) = PDYT(:) + dt * CHI(:, stage, 2) * B_RK(stage)
+      PDZT(:) = PDZT(:) + dt * CHI(:, stage, 3) * B_RK(stage)
     end do
 
-    self%FOUND = 0
     inwater(:) = .true.
 
     ! Perform robust progressive-topology search
@@ -338,11 +310,9 @@ contains
     VIN = velocity(:, :, 1)
     WIN = velocity(:, :, 2)
     INWATER(:) = .true.
-    lag%FOUND(:) = 0
     call lag%find_host_element(XP, YP) ! determine host element
 
     particle_loop: do ii = 1, lag%ndrft
-      if ( (.not. lag%INDOMAIN(ii)) .or. (.not. INWATER(ii))) cycle ! skip particles outside domain
       host = lag%HOST(ii)
       E1  = NBE(host,1)
       E2  = NBE(host,2)
@@ -419,12 +389,10 @@ contains
 
     if (FHE == 1) then
       inwater(:) = .true.
-      self%FOUND(:) = 0
       call self%find_host_element(XP, YP)
     end if
 
     do ii = 1, self%ndrft
-      if (.not. self%INDOMAIN(ii)) cycle ! skip particle outside domain
       host = self%host(ii) ! element containing particle
       N1 = NV(self%host(ii), 1); 
       N2 = NV(self%host(ii), 2); 
@@ -461,7 +429,6 @@ contains
     ZTMP(:) = ZP(:)
     find_host: if (FHE == 1) then
       inwater(:) = .true.
-      self%FOUND(:) = 0
       call self%find_host_element(XP, YP)
     end if find_host
 
@@ -520,7 +487,6 @@ contains
     NZRINDX(KB+1) = KB
 
     do ii = 1, self%ndrft
-      if (.not. self%indomain(ii)) cycle
       host = self%host(ii) ! element containing particle
       N1 = NV(host, 1); N2 = NV(host, 2); N3 = NV(host, 3) ! get node indices of host element
       offset(1) = self%XP(ii) - XC(host); offset(2) = self%YP(ii) - YC(host) ! distance from element center

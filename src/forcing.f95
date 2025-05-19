@@ -2,7 +2,7 @@ program forcing
     ! This program generates a simple triangular grid for the simulation
     use variables, only : zero, folderprefix, sp
     use random, only : random_number_generator
-    use simulation, only : write_mesh_data
+    use simulation, only : write_rectangular_mesh_files
     use cyanobacteria, only : waterDensity, writeInitialState
 
     implicit none
@@ -39,7 +39,7 @@ program forcing
     write(*, '(A)', advance='no') "    Microcystin production rate: "; read(*, *) toxin_production
     write(*, '(A)', advance='no') "    Microcystin excretion rate: "; read(*, *) toxin_excretion
 
-    call write_mesh_data(folderprefix, bottom_depth, div_inc, x_range, y_range, layers)
+    call write_rectangular_mesh_files(folderprefix, bottom_depth, div_inc, x_range, y_range, layers)
     
     allocate(diffusivity(layers))
     allocate(temperature, density, mold=diffusivity)
