@@ -34,5 +34,5 @@ clean:
 	@ rm -f bin/*
 	@ rm -rf data/test
 	@ rm -f test.cpython-313-darwin.so
-	
+
 .PHONY: clean carbon
