@@ -23,7 +23,7 @@ module variables
         & C_RK = (/ 0.0_sp, 0.5_sp, 0.5_sp, 1.0_sp /)
 
  
-    character(LEN = 80) :: CASENAME, GEOAREA, OUTDIR, INPDIR, INFOFILE, LAGINI, FOLDERPREFIX ! File Specifiers
+    character(LEN = 80) :: CASENAME, FOLDERPREFIX ! File Specifiers
 
     integer :: &
         & IOPAR, IPT, INLAG, &  ! File Unit Specifiers

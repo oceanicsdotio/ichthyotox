@@ -13,8 +13,8 @@ module Fish
         & epsx_sigma = 0.5*travel_distance, &
         & salinity_optimal = 30.0, & ! test @ 2.0
         & salinity_sigma_coef = 5.0, &
-        & speedtable(0:4) = (/0.50, 1.00, 0.50, 0.25, 0.33/), &
-        & angletable(0:4) = (/2.00, 0.25, 0.25, 1.00, 0.50/), &
+        & speed_table(0:4) = (/0.50, 1.00, 0.50, 0.25, 0.33/), &
+        & angle_table(0:4) = (/2.00, 0.25, 0.25, 1.00, 0.50/), &
         & memory(0:1) = (/0.5, 0.96/), & ! unitless, memory coefficients
         & threshold(1:2) = (/0.005*10.0**(-6.0), 0.5/), & ! detection thresholds
         & weight(1:2) = (/0.7, 1.0/), & ! sensitivity analyis @ (/0.1, 1.0/)
@@ -211,7 +211,7 @@ contains
             self%last_rule(ii) = rule_index ! store last behavior
             self%reverse(ii) = merge(1.0_sp, 0.0_sp, ((rule_index == 1) .and. (self%reverse(ii) < 0.5))) ! reverse direction for avoidance
             self%angle(ii) = self%angle(ii) + self%reverse(ii)*pi + &
-                    & noise(ii)*pi*angletable(rule_index)
+                    & noise(ii)*pi*angle_table(rule_index)
 
             if (self%angle(ii) < -pi) then
                 self%angle(ii) = self%angle(ii) + 2*PI ! normalize angles to -pi, pi]
@@ -219,7 +219,7 @@ contains
                 self%angle(ii) = self%angle(ii) - 2*PI
             end if
 
-            speed = dti*3600.0*speedtable(rule_index)*self%length(ii)*self%effective_length(ii)
+            speed = dti*3600.0*speed_table(rule_index)*self%length(ii)*self%effective_length(ii)
             self%xp(ii) = self%xp(ii) + cos(self%angle(ii))*speed
             self%yp(ii) = self%yp(ii) + sin(self%angle(ii))*speed
 

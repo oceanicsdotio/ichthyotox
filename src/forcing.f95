@@ -119,7 +119,6 @@ program forcing
 
     print *, "Saving parameters..."
     open(unit=fid, file=trim(folderprefix)//"/parameters.txt", status='replace')
-    write(fid,"(A)") "INFOFILE = screen"
     write(fid,"(A,F4.2)") "DTI = ", 0.02_SP ! inner interpolation time step, float"
     write(fid,"(A,F4.2)") "INSTP = ", dt ! time step of physical field data, float
     write(fid,"(A,F4.2)") "DTOUT = ", 0.1_SP ! output time step, >dti
@@ -133,10 +132,6 @@ program forcing
     write(fid,"(A,I2)") "DAYLAG = ", 1
     write(fid,"(A,I2)") "HOURLAG = ", 0
     write(fid,"(A,I1)") "EXPTYPE = ", 1
-    write(fid,"(A)") "GEOAREA = box"
-    write(fid,"(A)") "INPDIR=/"
-    write(fid,"(A)") "LAGINI=/"
-    write(fid,"(A)") "OUTDIR=/"
     close(fid)
 
 end program

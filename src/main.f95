@@ -74,32 +74,12 @@ program main
   ! Read in variables and set values
   filename = "./"//trim(folderprefix)//"/"//trim(CASENAME)//"_run.dat"
 
-  ! Info file
-  ISCAN = find_key(filename, "INFOFILE", CVAL = INFOFILE)
-  if (ISCAN /= 0) then
-    write(IPT, *) 'ERROR READING INFOFILE: ', ISCAN
-    stop
-  end if
-
-  ! Open runtime info file
-  IPT = 71
-  if (trim(INFOFILE) /= "screen") then
-    open(IPT, FILE = trim(INFOFILE))
-  else
-    IPT = 6
-  end if
-
 
   call getInteger(filename, "YEARLAG", YEARLAG) ! year
   call getInteger(filename, "MONTHLAG", MONTHLAG) ! month
   call getInteger(filename, "DAYLAG", DAYLAG) ! day
   call getInteger(filename, "HOURLAG", HOURLAG) ! day
   call getInteger(filename, "TDRIFT", TDRIFT) ! Total time to move drifters (TDRIFT)
-
-  call getString(filename, "GEOAREA", GEOAREA, ipt) ! Name of geographic region
-  call getString(filename, "INPDIR", INPDIR, ipt) ! File directory
-  call getString(filename, "LAGINI", LAGINI, ipt)  ! INPUT FILES
-  call getString(filename, "OUTDIR", OUTDIR, ipt)
 
   ! External time step (DTI)
   ISCAN = find_key(trim(filename), "DTI", FSCAL = DTI)
@@ -387,7 +367,8 @@ program main
 
   IINT = 0
   do NH = ISLAG, IELAG ! timestep units are hours, but not necessarily whole numbers
-    write(*,*); write(*, "(I4,A,I4,A)", advance='no') NH-ISLAG+1, ' / ', IELAG-ISLAG+1, ' steps: '
+    write(*,*)
+    write(*, "(I4,A,I4,A)", advance='no') NH-ISLAG+1, ' / ', IELAG-ISLAG+1, ' steps: '
     call domain%read(UNC2, VNC2, WNC2, KHNC2, ELNC2, SALNC2, TEMPNC2, RHONC2)
 
     HOUR = HOUR + 1
