@@ -22,7 +22,6 @@ module variables
         & B_RK = (/ 1.0_sp/6.0_sp, 1.0_sp/3.0_sp, 1.0_sp/3.0_sp, 1.0_sp/6.0_sp /), &
         & C_RK = (/ 0.0_sp, 0.5_sp, 0.5_sp, 1.0_sp /)
 
-    logical :: P_SIGMA, OUT_SIGMA, F_DEPTH ! I/O position coordinate systems
  
     character(LEN = 80) :: CASENAME, GEOAREA, OUTDIR, INPDIR, INFOFILE, LAGINI, FOLDERPREFIX ! File Specifiers
 

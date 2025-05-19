@@ -133,9 +133,6 @@ program forcing
     write(fid,"(A,I2)") "DAYLAG = ", 1
     write(fid,"(A,I2)") "HOURLAG = ", 0
     write(fid,"(A,I1)") "EXPTYPE = ", 1
-    write(fid,"(A)") "P_SIGMA = F"
-    write(fid,"(A)") "OUT_SIGMA = F"
-    write(fid,"(A)") "F_DEPTH = F" 
     write(fid,"(A)") "GEOAREA = box"
     write(fid,"(A)") "INPDIR=/"
     write(fid,"(A)") "LAGINI=/"

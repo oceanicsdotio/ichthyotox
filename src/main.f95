@@ -137,30 +137,6 @@ program main
     stop
   end if
 
-
-  ! "P_SIGMA" turns on vertical location of particles in sigma
-  ISCAN = find_key(trim(filename), "P_SIGMA", LVAL = P_SIGMA)
-  if (ISCAN /= 0) then
-    write(IPT, *) 'ERROR READING P_SIGMA: ', ISCAN
-    stop
-  end if
-
-  ! "OUT_SIGMA" TURNS ON VERTICAL LOCATION OF PARTICLES IN SIGMA
-  ISCAN = find_key(trim(filename), "OUT_SIGMA", LVAL = OUT_SIGMA)
-  if (ISCAN /= 0) then
-    write(IPT, *) 'ERROR READING OUT_SIGMA: ', ISCAN
-    stop
-  end if
-
-
-  ! "F_DEPTH" KEEP SAME Z DEPTH ALONG THE TRACKING
-  ISCAN = find_key(trim(filename), "F_DEPTH", LVAL = F_DEPTH)
-  if (ISCAN /= 0) then
-    write(IPT, *) 'ERROR READING F_DEPTH: ', ISCAN
-    stop
-  end if
-
-
   ! Set unit values for input output files
   IOPAR=11
   INLAG=13
