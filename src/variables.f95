@@ -1,18 +1,19 @@
 module variables
     implicit none
     save
-  
-    logical, parameter :: strict_integration =  .false. ! set mass transfer
 
     integer, parameter :: &
-        & iocp = 101, iocs = 102, iotox = 103, iofp = 201, &
-        & iofs = 202, iophys = 301, iorun = 302, iovar=303, &
+        & iocp = 101, &
+        & iocs = 102, &
+        & iotox = 103, &
+        & iofp = 201, &
+        & iofs = 202, &
+        & iophys = 301, &
         & sp = SELECTED_REAL_KIND(12,300), & ! double precision, single -> (6,30)
         & MSTAGE = 4 ! number of Runge-Kutta integration stages
   
     ! physical and mathematical constants
     real(sp), parameter :: &
-        & GRAV = 9.81_sp, & ! note this is positive
         & ZERO = 0.0_sp, &
         & irradSurf = 650.0_sp ! W/M^2
 
@@ -22,12 +23,10 @@ module variables
         & B_RK = (/ 1.0_sp/6.0_sp, 1.0_sp/3.0_sp, 1.0_sp/3.0_sp, 1.0_sp/6.0_sp /), &
         & C_RK = (/ 0.0_sp, 0.5_sp, 0.5_sp, 1.0_sp /)
 
- 
     character(LEN = 80) :: CASENAME, FOLDERPREFIX ! File Specifiers
 
     integer :: &
-        & IOPAR, IPT, INLAG, &  ! File Unit Specifiers
-        & YEARLAG, MONTHLAG, DAYLAG, HOURLAG, IELAG, ISLAG, TDRIFT, ITOUT, &
+        & HOURLAG, IELAG, ISLAG, TDRIFT, &
         & N, &        ! Number of elements
         & M, &        ! Number of nodes
         & KB, &       ! Number of sigma levels

@@ -74,31 +74,27 @@ program main
   ! Read in variables and set values
   filename = "./"//trim(folderprefix)//"/"//trim(CASENAME)//"_run.dat"
 
-
-  call getInteger(filename, "YEARLAG", YEARLAG) ! year
-  call getInteger(filename, "MONTHLAG", MONTHLAG) ! month
-  call getInteger(filename, "DAYLAG", DAYLAG) ! day
   call getInteger(filename, "HOURLAG", HOURLAG) ! day
   call getInteger(filename, "TDRIFT", TDRIFT) ! Total time to move drifters (TDRIFT)
 
   ! External time step (DTI)
   ISCAN = find_key(trim(filename), "DTI", FSCAL = DTI)
   if (ISCAN /= 0) then
-    write (IPT, *) 'ERROR READING DTI: ', ISCAN
+    write (*, *) 'ERROR READING DTI: ', ISCAN
     stop
   end if
 
   ! Input time step of flow fields (instp)
   ISCAN = find_key(trim(filename),"INSTP", FSCAL = INSTP)
   if (ISCAN /= 0) then
-    write(IPT, *) 'ERROR READING INSTP: ', ISCAN
+    write(*, *) 'ERROR READING INSTP: ', ISCAN
     stop
   end if
 
   ! External time step (DTOUT)
   ISCAN = find_key(trim(filename), "DTOUT", FSCAL = DTOUT)
   if (ISCAN /= 0) then
-    write (IPT, *) 'ERROR READING DTOUT: ', ISCAN
+    write (*, *) 'ERROR READING DTOUT: ', ISCAN
     stop
   end if
 
@@ -106,22 +102,16 @@ program main
   ! Horizontal diffusion coefficient (DHOR)
   ISCAN = find_key(trim(filename), "DHOR", FSCAL = DHOR)
   if (ISCAN /= 0) then
-    write(IPT, *) 'ERROR READING DHOR: ', ISCAN
+    write(*, *) 'ERROR READING DHOR: ', ISCAN
     stop
   end if
 
   ! Random walk time step
   ISCAN = find_key(trim(filename), "DTRW", FSCAL = DTRW)
   if (ISCAN /= 0) then
-    write(IPT, *) 'ERROR READING DTRW: ', ISCAN
+    write(*, *) 'ERROR READING DTRW: ', ISCAN
     stop
   end if
-
-  ! Set unit values for input output files
-  IOPAR=11
-  INLAG=13
-
-
 
   ! Determine number of elements and nodes in the model
   write(*, "(A)", advance='no') "Reading mesh files... "

@@ -127,9 +127,6 @@ program forcing
     write(fid,"(A,F8.4)") "TOXP = ", 0.0_SP ! toxin production rate
     write(fid,"(A,F8.4)") "TOXE = ", 0.0_SP ! toxin excretion rate
     write(fid,"(A,I4)") "TDRIFT = ", steps  ! number of time steps to iterate, int
-    write(fid,"(A,I4)") "YEARLAG = ", 2016
-    write(fid,"(A,I2)") "MONTHLAG = ", 4
-    write(fid,"(A,I2)") "DAYLAG = ", 1
     write(fid,"(A,I2)") "HOURLAG = ", 0
     write(fid,"(A,I1)") "EXPTYPE = ", 1
     close(fid)
