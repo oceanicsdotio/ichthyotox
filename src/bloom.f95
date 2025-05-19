@@ -1,14 +1,11 @@
 program bloom
 
-    use variables, only: sp, KB, M, N, KBM1, KBM2, irradSurf, folderprefix, HOURLAG, TDRIFT, DTI, DTOUT, INSTP, DTRW, F_DEPTH
-    use variables, only : xc, yc, vx, vy, nv, isbce, nbe, isonb, awx, awy, u, v, w, ww, ut, vt, wt, wwt, kh, z, zz, dz, dzz
-    use variables, only : a1u, NBVE, NBVT, vxmin, vxmax, vymin, VYMAX, aw0, a2u, MX_NBR_ELEM, NTVE, h, d, el, et, s1, r1
-    use variables, only: t1, tt1, st1, rt1, wts, ISLAG, IELAG, iophys, iotox, iocs, iocp
+    use variables, only: sp, KB, M, N, KBM1, KBM2, irradSurf, folderprefix, HOURLAG, TDRIFT, DTI, DTOUT, INSTP, DTRW, F_DEPTH, xc, yc, vx, vy, nv, isbce, nbe, isonb, awx, awy, u, v, w, ww, ut, vt, wt, wwt, kh, z, zz, dz, dzz, a1u, NBVE, NBVT, vxmin, vxmax, vymin, VYMAX, aw0, a2u, MX_NBR_ELEM, NTVE, h, d, el, et, s1, r1, t1, tt1, st1, rt1, wts, ISLAG, IELAG, iophys, iotox, iocs, iocp
     use random, only : random_number_generator
     use simulation, only : domain, TRIANGLE_GRID_EDGE
     use cyanobacteria, only : CyanobacteriaAgent
     use io, only : scanInteger, scanReal, scanString, scanLogical
-    
+
     implicit none
 
     type(CyanobacteriaAgent) :: particles

@@ -1,4 +1,4 @@
-program grid
+program forcing
     ! This program generates a simple triangular grid for the simulation
     use variables, only : zero, folderprefix, sp
     use random, only : random_number_generator
@@ -133,7 +133,6 @@ program grid
     write(fid,"(A,I2)") "DAYLAG = ", 1
     write(fid,"(A,I2)") "HOURLAG = ", 0
     write(fid,"(A,I1)") "EXPTYPE = ", 1
-    write(fid,"(A,I1)") "IRW = ", 0 ! random walk type
     write(fid,"(A)") "P_SIGMA = F"
     write(fid,"(A)") "OUT_SIGMA = F"
     write(fid,"(A)") "F_DEPTH = F" 

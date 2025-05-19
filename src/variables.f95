@@ -28,7 +28,7 @@ module variables
 
     integer :: &
         & IOPAR, IPT, INLAG, &  ! File Unit Specifiers
-        & YEARLAG, MONTHLAG, DAYLAG, HOURLAG, IELAG, ISLAG, TDRIFT, ITOUT, IRW, &
+        & YEARLAG, MONTHLAG, DAYLAG, HOURLAG, IELAG, ISLAG, TDRIFT, ITOUT, &
         & N, &        ! Number of elements
         & M, &        ! Number of nodes
         & KB, &       ! Number of sigma levels

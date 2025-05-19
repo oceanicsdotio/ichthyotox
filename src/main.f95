@@ -94,7 +94,6 @@ program main
   call getInteger(filename, "MONTHLAG", MONTHLAG) ! month
   call getInteger(filename, "DAYLAG", DAYLAG) ! day
   call getInteger(filename, "HOURLAG", HOURLAG) ! day
-  call getInteger(filename, "IRW", IRW) ! RANDOM WALK CHOICE
   call getInteger(filename, "TDRIFT", TDRIFT) ! Total time to move drifters (TDRIFT)
 
   call getString(filename, "GEOAREA", GEOAREA, ipt) ! Name of geographic region
