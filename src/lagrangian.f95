@@ -227,7 +227,6 @@ contains
     real(SP), dimension(0:M, KB), intent(in) :: temperature, salinity, density
 
     real(SP), dimension(self%ndrft) :: PDXT, PDYT, PDZT, PDX, PDY, PDZ ! RK stage positions
-    logical, dimension(self%ndrft) :: inwater
     integer :: stage
     real(SP), dimension(0:N, KB, 0:2) :: velocity ! ERK stage velocity field
     real(SP), dimension(0:M) :: ELL ! ERK stage freesurface height
@@ -274,15 +273,13 @@ contains
       PDZT(:) = PDZT(:) + dt * CHI(:, stage, 3) * B_RK(stage)
     end do
 
-    inwater(:) = .true.
 
     ! Perform robust progressive-topology search
     call self%find_host_element(PDXT, PDYT)
-    where (inwater)
-      self%xp(:) = PDXT(:) ! Update only particles still in water
-      self%yp(:) = PDYT(:)
-      self%zp(:) = PDZT(:)
-    end where
+    
+    self%xp(:) = PDXT(:) ! Update only particles still in water
+    self%yp(:) = PDYT(:)
+    self%zp(:) = PDZT(:)
 
     self%zp = max(self%zp, -(2.0_SP + self%zp)) ! reflect off bottom, sigma
     self%zp = min(self%zp, -self%zp) ! reflect off free surface, sigma
@@ -301,7 +298,6 @@ contains
     class(Agent), intent(inout) :: lag
     real(sp), intent(in), dimension(lag%ndrft) :: XP, YP, ZP ! ZP is sigma depth
     real(sp), dimension(0:N, 1:KB) :: UIN, VIN, WIN
-    logical, dimension(lag%ndrft) ::  INWATER
     integer :: ii, host, E1, E2, E3, K1, K2, K
     real(SP) :: DUDX, DUDY, DVDX, DVDY, DWDX, DWDY, UE01, UE02, VE01, VE02, WE01, WE02
     real(SP) :: ZF1, ZF2, X0C, Y0C
@@ -309,7 +305,6 @@ contains
     UIN = velocity(:, :, 0)
     VIN = velocity(:, :, 1)
     WIN = velocity(:, :, 2)
-    INWATER(:) = .true.
     call lag%find_host_element(XP, YP) ! determine host element
 
     particle_loop: do ii = 1, lag%ndrft
@@ -384,11 +379,9 @@ contains
     integer, intent(in) :: FHE ! Find host elements: 0 if host has correct elements; 1 if host should be updated
 
     integer :: ii, host, N1, N2, N3
-    logical, dimension(self%ndrft) :: inwater
     real(sp) :: H0, HX, HY, E0, EX, EY, offset(2)
 
     if (FHE == 1) then
-      inwater(:) = .true.
       call self%find_host_element(XP, YP)
     end if
 
@@ -422,13 +415,11 @@ contains
     real(sp), intent(in), dimension(0:M, KB) :: SAL, TEMP, RHO
     integer, intent(in) :: FHE ! Find host elements: 0 if host has correct elements; 1 if host should be updated
 
-    logical, dimension(self%ndrft) :: inwater
     integer :: ii, host, N1, N2, N3
     real(sp) :: S0, SX, SY, T0, TX, TY, D0, DX, DY, offset(2), ZTMP(self%ndrft)
 
     ZTMP(:) = ZP(:)
     find_host: if (FHE == 1) then
-      inwater(:) = .true.
       call self%find_host_element(XP, YP)
     end if find_host
 

@@ -124,7 +124,6 @@ contains
         real(SP), dimension(0:M), intent(in) :: HIN, EIN ! grid based field for kinesis (usually salinity)
 
         real(SP), dimension(self%ndrft) :: PDXT, PDYT
-        logical, dimension(self%ndrft) :: inwater
         integer :: ii
         real(SP) :: pp1, p1
 
@@ -139,15 +138,10 @@ contains
             pdyt(ii) = self%yp(ii) + self%vp(ii) * deltat
         end do
 
-        ! Evaluate Temporary Location
-        inwater = .true.
-
         ! Update only particles still in water
-        call self%find_host_element(pdxt, pdyt, inwater)
-        where (inwater)
-            self%xp = PDXT
-            self%yp = PDYT
-        end where
+        call self%find_host_element(pdxt, pdyt)
+        self%xp = PDXT
+        self%yp = PDYT
        
         ! interpolate bathymetry, elevation, and fields at new position
         call self%INTERP_ELH(self%xp, self%yp, HIN, EIN, 1) 

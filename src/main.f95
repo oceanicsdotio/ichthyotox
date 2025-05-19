@@ -24,7 +24,6 @@ program main
   real(sp), dimension(0:M) :: ELNC, ELNC1, ELNC2 ! free surface height field read, start and end of hour
   real(sp) :: TMP1, TMP2, LAG_TIME
 
-  integer , allocatable, dimension(:) :: INWATER
   integer :: NH, I1, I2, IT, HOUR, IINT, ii, index, ionode=100, ioelem=101, exp_type, NCT, ISCAN
   character(len = 100) :: input_file, input, meshfile, foldername, exp_letter, state_format
   logical :: fileExists
@@ -243,15 +242,13 @@ program main
   call agent%cyanobacteria%lag_alloc() ! allocate common variables other than position
   call agent%fish%lag_alloc()
 
-  allocate( INWATER(agent%cyanobacteria%ndrft) ); INWATER(:) = 1 ! allocate inwater flag for only single species
   write(*, *) "Finished"
 
   agent%cyanobacteria%XP(:) = agent%cyanobacteria%XPT(:) ! Shift x to model coordinate system
   agent%cyanobacteria%YP(:) = agent%cyanobacteria%YPT(:) ! Shift y to model coordinate system
 
   write(*, "(A)", advance='no') "Finding host elements... "
-  call agent%cyanobacteria%find_host_element(agent%cyanobacteria%XP, agent%cyanobacteria%YP, INWATER) ! Determine element containing each particle
-  write(*, *) "Finished"
+  call agent%cyanobacteria%find_host_element(agent%cyanobacteria%XP, agent%cyanobacteria%YP) ! Determine element containing each particlewrite(*, *) "Finished"
 
   write(*, "(A)", advance='no') "Interpolating physical fields... "
   call agent%cyanobacteria%INTERP_ELH(agent%cyanobacteria%XP, agent%cyanobacteria%YP, H, ELNC, 1) ! interpolate elevation and bathymetry
@@ -270,15 +267,11 @@ program main
   call agent%cyanobacteria%writePosition(iocp) ! write particle positions to output file
   write(*, *) "Finished"
 
-  deallocate(INWATER) ! needs to be resized for new particle structure
-
-  allocate( INWATER(agent%fish%ndrft) ); INWATER(:) = 1 ! allocate inwater flag for only single species
-
   agent%fish%XP(:) = agent%fish%XPT(:) ! Shift x to model coordinate system
   agent%fish%YP(:) = agent%fish%YPT(:) ! Shift y to model coordinate system
 
   write(*, "(A)", advance='no') "Finding host elements... "
-  call agent%fish%find_host_element(agent%fish%XP, agent%fish%YP, INWATER) ! Determine element containing each particle
+  call agent%fish%find_host_element(agent%fish%XP, agent%fish%YP) ! Determine element containing each particle
   write(*, *) "Finished"
 
   write(*, "(A)", advance='no') "Interpolating physical fields... "
@@ -297,8 +290,6 @@ program main
   call agent%fish%writeState(iofs)
   call agent%fish%writePosition(iofp) ! write particle positions to output file
   write(*, *) "Finished"
-
-  deallocate(INWATER) ! needs to be resized for new particle structure
 
   write(*, *) ! Print particle statistics
   write(*, *) '    Tracking Info'
