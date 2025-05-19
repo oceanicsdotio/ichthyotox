@@ -143,9 +143,7 @@ contains
         self%xp = PDXT
         self%yp = PDYT
        
-        ! interpolate bathymetry, elevation, and fields at new position
-        call self%INTERP_ELH(self%xp, self%yp, HIN, EIN, 1) 
-        call self%INTERP_FIELDS(self%xp, self%yp, self%zp, salinity, temperature, density, 0) 
+        call self%INTERP_FIELDS(self%xp, self%yp, self%zp, salinity, temperature, density, HIN, EIN)
 
     end subroutine
 

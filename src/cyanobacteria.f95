@@ -50,25 +50,25 @@ module Cyanobacteria
 
     contains
         ! user interface subroutines
-        procedure, public :: init => colony_initialize ! read position and count, allocate state variables
-        procedure, public :: writeState => colony_writeState ! write internal state variables
-        procedure, public :: movement => colony_verticalMovement ! subroutine that updates position of colony particles
-        procedure, public :: random => colony_random_walk ! vertical random walk for cyanobacteria
+        procedure, public :: init => initialize ! read position and count, allocate state variables
+        procedure, public :: writeState => writeState ! write internal state variables
+        procedure, public :: movement => verticalMovement ! subroutine that updates position of colony particles
+        procedure, public :: random => random_walk ! vertical random walk for cyanobacteria
 
         ! private utility procedures
         procedure, private :: tempLimit ! scaling coefficients
-        procedure, private :: tempFunction => colony_temperatureFunction ! scaling coefficients
+        procedure, private :: tempFunction => temperatureFunction ! scaling coefficients
 
         ! movement function call aliases
-        procedure, private :: velocity => colony_stokesVelocity ! particle vertical velocities
-        procedure, private :: density => colony_algaeDensity ! colony densities
-        procedure, private :: viscosity => colony_dynamicViscosity ! viscosity at particle locations
+        procedure, private :: velocity => stokesVelocity ! particle vertical velocities
+        procedure, private :: density => algaeDensity ! colony densities
+        procedure, private :: viscosity => dynamicViscosity ! viscosity at particle locations
 
         ! mass transfer function call aliases
-        procedure, private :: fixation => colony_carbonFixation ! subroutine adds mass to carbohydrate ballast
-        procedure, private :: synthesis => colony_carbonSynthesis ! subroutine moves mass from carbohydrate to protein
-        procedure, private :: excretion => colony_carbonExcretion ! subroutine subtracts mass from protein
-        procedure, private :: respiration => colony_carbonRespiration ! subroutine subtracts mass from carbohydrate
+        procedure, private :: fixation => carbonFixation ! subroutine adds mass to carbohydrate ballast
+        procedure, private :: synthesis => carbonSynthesis ! subroutine moves mass from carbohydrate to protein
+        procedure, private :: excretion => carbonExcretion ! subroutine subtracts mass from protein
+        procedure, private :: respiration => carbonRespiration ! subroutine subtracts mass from carbohydrate
         procedure, private :: production => colony_microcystinProduction ! constant production
         procedure, private :: release => colony_microcystinExcretion ! constant excretion
 
@@ -78,7 +78,7 @@ module Cyanobacteria
 
 contains
 
-    subroutine colony_initialize(self)
+    subroutine initialize(self)
         ! read position and state, and allocate internal variables
         use variables, only: folderprefix
         class(CyanobacteriaAgent), intent(inout) :: self
@@ -86,18 +86,18 @@ contains
         character(len=50) :: filename
         logical :: fexist
         allocate(self%radius(self%ndrft)); self%radius = 0.0_sp
-        allocate(self%zpt, self%carbohydrate, self%protein, self%microcystin, source=self%radius)
+        allocate(self%zp, self%carbohydrate, self%protein, self%microcystin, source=self%radius)
         open (unit=fid, file=trim(folderprefix)//'cyanobacteria.txt', form='formatted')
         read (fid, "(I6)") self%ndrft
         do ii = 1, self%ndrft
             read (fid, "(5F20.6)") &
-                & self%zpt(ii), self%radius(ii), self%carbohydrate(ii), self%protein(ii), self%microcystin(ii)
+                & self%zp(ii), self%radius(ii), self%carbohydrate(ii), self%protein(ii), self%microcystin(ii)
         end do
         close (fid)
     end subroutine
 
 
-    subroutine colony_verticalMovement(self)
+    subroutine verticalMovement(self)
         ! update position due to buoyant movement
         use simulation, only: domain
         use variables, only: dti, KBM1 ! integration step
@@ -120,13 +120,12 @@ contains
         ini_carbohydrate(:) = self%carbohydrate(:)
         ini_protein(:) = self%protein(:)
         ini_microcystin(:) = self%microcystin(:)
-        ini_sigma(:) = self%zp(:)
-        ini_position(:) = self%zpt(:)
+        ini_position(:) = self%zp(:)
 
         do ii = 1, MSTAGE
             ! get new stage values
             update_coef = A_RK(ii)*dti
-            self%zpt(:) = ini_position(:) + update_coef * chi_position(:, ii - 1)      ! new stage position
+            self%zp(:) = ini_position(:) + update_coef * chi_position(:, ii - 1)      ! new stage position
             self%carbohydrate(:) = ini_carbohydrate(:) + update_coef * chi_carbohydrate(:, ii - 1)  ! new carb stage value
             self%protein(:) = ini_protein(:) + update_coef * chi_protein(:, ii - 1)       ! new protein stage value
             self%microcystin(:) = ini_microcystin(:) + update_coef * chi_microcystin(:, ii - 1)   ! new toxin stage value
@@ -135,11 +134,10 @@ contains
             self%carbohydrate(:) = max(self%carbohydrate, 0.0_sp) ! non-negative
             self%protein(:) = max(self%protein, 0.0_sp) ! non-negative
             self%microcystin = max(self%microcystin, 0.0_sp) ! non-negative
-            self%zpt = min(self%zpt, self%ep) ! stop at surface
-            self%zpt = max(self%zpt, self%hp) ! stop at sediment
+            self%zp = min(self%zp, self%ep) ! stop at surface
+            self%zp = max(self%zp, self%hp) ! stop at sediment
 
             ! update particle values at new stage for next calculation
-            self%zp = self%sigma(self%zpt) ! update sigma position
             self%layer = self%zlocate(self%zp) ! update layers
             self%rho = self%zinterp(domain%verticalrho) ! interp of density at stage position
             self%temp = self%zinterp(domain%verticaltemp) ! interp of temperature at stage position
@@ -178,8 +176,7 @@ contains
         self%carbohydrate(:) = ini_carbohydrate(:)
         self%protein(:) = ini_protein(:)
         self%microcystin(:) = ini_microcystin(:)
-        self%zp(:) = ini_sigma(:)
-        self%zpt(:) = ini_position(:)
+        self%zp(:) = ini_position(:)
 
         do ii = 1, MSTAGE ! add weighted stages to initial values
 
@@ -187,19 +184,19 @@ contains
             where (-chi_carbohydrate(:, ii)*dti*B_RK(ii) > self%carbohydrate(:)) chi_carbohydrate(:, ii) = self%carbohydrate(:)/dti/B_RK(ii)
             where (-chi_protein(:, ii)*dti*B_RK(ii) > self%protein(:)) chi_protein(:, ii) = self%protein(:)/dti/B_RK(ii)
 
-            self%zpt(:) = self%zpt(:) + chi_position(:, ii)*B_RK(ii)*dti ! update depth
+            self%zp(:) = self%zp(:) + chi_position(:, ii)*B_RK(ii)*dti ! update depth
             self%carbohydrate(:) = self%carbohydrate(:) + chi_carbohydrate(:, ii)*dti*B_RK(ii) ! update carbs
             self%protein(:) = self%protein(:) + chi_protein(:, ii)*dti*B_RK(ii) ! update protein
             self%microcystin(:) = self%microcystin(:) + chi_microcystin(:, ii)*dti*B_RK(ii) ! update toxin
 
-            where (self%zpt(:) > self%ep(:))
-                self%zpt(:) = self%ep(:)
-                else where (self%zpt(:) < self%hp(:))
-                self%zpt(:) = self%hp(:)
+            where (self%zp(:) > self%ep(:))
+                self%zp(:) = self%ep(:)
+                else where (self%zp(:) < self%hp(:))
+                self%zp(:) = self%hp(:)
             end where
 
             ! update dissolved toxin  at particle position for each stage
-            self%zp(:) = self%sigma(self%zpt(:)) ! update sigma
+            self%zp(:) = self%sigma(self%zp(:)) ! update sigma
             self%layer(:) = self%zlocate(self%zp(:)) ! update layer
             idz(:) = float(KBM1)*abs((1.0/float(KBM1)*(self%layer(:) - 1)) - self%zp(:)) ! relative distance from layer above
             where (idz(:) > 1.0)
@@ -230,16 +227,15 @@ contains
         self%carbohydrate(:) = max(self%carbohydrate(:), 0.0_sp)
         self%protein(:) = max(self%protein(:), 0.0_sp)
         where (self%microcystin(:) < 0.0_sp) self%microcystin(:) = 0.0_sp
-        self%zpt(:) = min(self%zpt(:), self%ep(:)) ! collect at surface, mixing during random walk
-        self%zpt(:) = max(self%zpt(:), self%hp(:)) ! collect at sediment, mixing during random walk
-        self%zp(:) = self%sigma(self%zpt(:)) ! convert to sigma coordinate for finding current layer
+        self%zp(:) = min(self%zp(:), self%ep(:)) ! collect at surface, mixing during random walk
+        self%zp(:) = max(self%zp(:), self%hp(:)) ! collect at sediment, mixing during random walk
         self%layer(:) = self%zlocate(self%zp(:)) ! update layer
         self%rho(:) = self%zinterp(domain%verticalrho(:)) ! vertical interp of density at final position
         self%temp(:) = self%zinterp(domain%verticaltemp(:)) ! vertical interp of density at final position
 
     end subroutine
 
-    subroutine colony_random_walk(self, noise)
+    subroutine random_walk(self, noise)
         ! vertical random walk
         use variables, only: dti, dtrw
         class(CyanobacteriaAgent), intent(inout) :: self
@@ -254,15 +250,14 @@ contains
             dkzp(:) = 0.0
             wdiff(:) = dkzp(:)*dtrw + noise * &
                 & sqrt((2.0*kzp(:) + dkzp(:)**2.0)*dtrw/variance) ! Ross and Sharples 2004 eqn 1
-            self%zpt(:) = self%zpt(:) + wdiff(:)
-            self%zpt(:) = min(self%zpt(:), self%ep(:)) ! stop at surface during integration
-            self%zpt(:) = max(self%zpt(:), self%hp(:)) ! stop at sediment during integration
-            self%zp(:) = self%sigma(self%zpt(:))
+            self%zp(:) = self%zp(:) + wdiff(:)
+            self%zp(:) = min(self%zp(:), self%ep(:)) ! stop at surface during integration
+            self%zp(:) = max(self%zp(:), self%hp(:)) ! stop at sediment during integration
             self%layer(:) = self%zlocate(self%zp(:))
         end do
     end subroutine
 
-    subroutine colony_writeState(self, fid, time)
+    subroutine writeState(self, fid, time)
         class(CyanobacteriaAgent), intent(in) :: self ! cyanobacteria extended type
         integer, intent(in) :: fid ! persistent file unit number
         real(sp), intent(in) :: time ! elapsed time in seconds
@@ -344,7 +339,7 @@ contains
             & fixationBeta*irradRatio + 1.0) * fixationMax
     end function
 
-    function colony_carbonFixation(self) result(fixation)
+    function carbonFixation(self) result(fixation)
         ! Updates carbohydrate ballast state variable due to fixation (alias is "fixation")
         use simulation, only: domain
         class(CyanobacteriaAgent), intent(in) :: self
@@ -354,9 +349,9 @@ contains
             & irradiance, &
             & fixation
         integer :: ii
-        integer, dimension(self%ndrft) :: indices ! copy array for sorting indices by recursive binary partitioning
+        integer, dimension(self%ndrft) :: indices
 
-        indices(:) = self%ITAG(:) ! copy of particle indices
+        indices(:) = [(ii, ii=1,self%ndrft)] ! particle indices
         proxy_depth(:) = abs(self%ZP) ! use sigma to avoid positive ZPT values in sorting
         call colony_QsortC(proxy_depth, indices) ! sort indices by position from shallowest to deepest
 
@@ -367,19 +362,19 @@ contains
             irradiance(indices(ii)) = irradiance(indices(ii-1)) * &
                 & exp(-lightExtinctionBiomass*shading_upscale*biomass(indices(ii-1))) 
         end do
-        fixation = fixation_coefficient(biomass, irradiance, self%zpt) * &
+        fixation = fixation_coefficient(biomass, irradiance, self%zp) * &
             & self%protein*(1.0 - vesicleFrac) * &
             & (carbonRatioMax - self%carbohydrate/self%protein)/carbonRatioMax 
     end function
 
-    pure function colony_carbonSynthesis(self) result(synthesis)
+    pure function carbonSynthesis(self) result(synthesis)
         ! updates carbohydrate and protein state variables due to synthesis transport (alias is "synthesis")
         class(CyanobacteriaAgent), intent(in) :: self
         real(sp), dimension(self%ndrft) :: synthesis
         synthesis = self%carbohydrate * synthesisMax * self%tempLimit()
     end function
 
-    pure function colony_carbonExcretion(self) result(excretion)
+    pure function carbonExcretion(self) result(excretion)
         ! update protein and dissolved pools due to excretion transport (alias is "excretion")
         ! temperature is tracked for all particles, so function uses algae array subset
         class(CyanobacteriaAgent), intent(in) :: self
@@ -388,7 +383,7 @@ contains
             & (respirationBasic * self%carbohydrate + synthesisMax * self%protein)
     end function
 
-    pure function colony_carbonRespiration(self) result(respiration)
+    pure function carbonRespiration(self) result(respiration)
         ! update carbohydrate and dissolved pools due to respiration transport (alias is "respiration")
         ! temperature is tracked for all particles, so function calls use algae array subset
         class(CyanobacteriaAgent), intent(in) :: self
@@ -405,7 +400,7 @@ contains
             & ( (tempRef - tempOpt) / tempOpt )  ))**(4.0)
     end function
 
-    pure function colony_temperatureFunction(self) result(coefficient)
+    pure function temperatureFunction(self) result(coefficient)
         ! returns array of scaling coefficents for biometric fcns
         class(CyanobacteriaAgent), intent(in) :: self
         real(sp), dimension(self%ndrft) :: coefficient ! array of output coefficients for each particles
@@ -426,7 +421,7 @@ contains
         excretion(:) = self%mclrExcretionRate * self%protein
     end function
 
-    pure function colony_stokesVelocity(self) result (velocity)
+    pure function stokesVelocity(self) result (velocity)
         ! returns stokes velocity of particle in m/hr, if lighter than water result is positive
         ! calls density() and viscosity()
         class(CyanobacteriaAgent), intent(in) :: self
@@ -451,14 +446,14 @@ contains
             & cellFrac * ((1.0 - vesicleFrac) * cell_density + vesicleFrac*vesicleDensity)
     end function
 
-    pure function colony_algaeDensity(self) result(density)
+    pure function algaeDensity(self) result(density)
         ! colony density including contibutions of mucus and gas vacuoles
         class(CyanobacteriaAgent), intent(in) :: self
         real(sp), dimension(self%ndrft) :: density ! output array of overall colony density
         density = algae_density(self%carbohydrate, self%protein, self%rho)
     end function
 
-    pure function colony_dynamicViscosity(self) result(viscosity)
+    pure function dynamicViscosity(self) result(viscosity)
         ! returns array of dynamic viscosity values at particle locations
         class(CyanobacteriaAgent), intent(in) :: self
         logical :: simple;

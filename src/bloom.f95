@@ -173,22 +173,16 @@ program bloom
     call particles%lag_alloc() ! allocate common variables other than position
 
     write(*, *) "Finished"
-
-    particles%XP(:) = particles%XPT(:) ! Shift x to model coordinate system
-    particles%YP(:) = particles%YPT(:) ! Shift y to model coordinate system
-
     write(*, "(A)", advance='no') "Finding host elements... "
     call particles%find_host_element(particles%XP, particles%YP)
     write(*, *) "Finished"
 
     write(*, "(A)", advance='no') "Interpolating physical fields... "
-    call particles%INTERP_ELH(particles%XP, particles%YP, H, ELNC, 1) ! interpolate elevation and bathymetry
-    call particles%INTERP_FIELDS(particles%XP, particles%YP, particles%ZP, SALNC, TEMPNC, RHONC, 0) ! interpolate salinity and temperature
+    call particles%INTERP_FIELDS(particles%XP, particles%YP, particles%ZP, SALNC, TEMPNC, RHONC, H, ELNC)
     write(*, *) "Finished"
 
     write(*, "(A)", advance='no') "Adjusting vertical domain... "
-    particles%ZPT(:) = -1.0_sp*abs(particles%ZPT(:)) ! make depth negative
-    particles%ZP(:) = particles%sigma(particles%ZPT(:)) ! convert to sigma coordinate
+    particles%ZP(:) = -1.0_sp*abs(particles%ZP(:)) ! make depth negative
     particles%LAYER(:) = particles%zlocate(particles%ZP(:)) ! valid when sigma layers are equal thickness
     write(*, *) "Finished"
 
@@ -256,8 +250,6 @@ program bloom
             call particles%movement()
             call particles%random(noise=particles%noise) ! random walk
             if ( mod(IINT, int(DTOUT/DTI) ) == 0) then
-                particles%XPT(:) = particles%XP(:) ! change back to initial coordinate system for output
-                particles%YPT(:) = particles%YP(:)
                 call particles%writePosition(iocp, time=domain%time) ! output position, same for all particle types
                 call particles%writeState(iocs, time=domain%time)
                 write(iotox,"(1f20.3,51F20.6)") domain%time, domain%verticaltox(1:KB)

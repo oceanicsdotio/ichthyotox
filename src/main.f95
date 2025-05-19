@@ -244,9 +244,6 @@ program main
 
   write(*, *) "Finished"
 
-  agent%cyanobacteria%XP(:) = agent%cyanobacteria%XPT(:) ! Shift x to model coordinate system
-  agent%cyanobacteria%YP(:) = agent%cyanobacteria%YPT(:) ! Shift y to model coordinate system
-
   write(*, "(A)", advance='no') "Finding host elements... "
   call agent%cyanobacteria%find_host_element(agent%cyanobacteria%XP, agent%cyanobacteria%YP) ! Determine element containing each particlewrite(*, *) "Finished"
 
@@ -256,8 +253,7 @@ program main
   write(*, *) "Finished"
 
   write(*, "(A)", advance='no') "Adjusting vertical domain... "
-  agent%cyanobacteria%ZPT(:) = -1.0_sp*abs(agent%cyanobacteria%ZPT(:)) ! make depth negative
-  agent%cyanobacteria%ZP(:) = agent%cyanobacteria%sigma(agent%cyanobacteria%ZPT(:)) ! convert to sigma coordinate
+  agent%cyanobacteria%ZP(:) = -abs(agent%cyanobacteria%ZP(:)) ! make depth negative
   agent%cyanobacteria%LAYER(:) = agent%cyanobacteria%zlocate(agent%cyanobacteria%ZP(:)) ! valid when sigma layers are equal thickness
 
   write(*, "(A)", advance='no') "Writing position and state variables to file... "
@@ -266,9 +262,6 @@ program main
   call agent%cyanobacteria%writeState(iocs)
   call agent%cyanobacteria%writePosition(iocp) ! write particle positions to output file
   write(*, *) "Finished"
-
-  agent%fish%XP(:) = agent%fish%XPT(:) ! Shift x to model coordinate system
-  agent%fish%YP(:) = agent%fish%YPT(:) ! Shift y to model coordinate system
 
   write(*, "(A)", advance='no') "Finding host elements... "
   call agent%fish%find_host_element(agent%fish%XP, agent%fish%YP) ! Determine element containing each particle
@@ -280,8 +273,7 @@ program main
   write(*, *) "Finished"
 
   write(*, "(A)", advance='no') "Adjusting vertical domain... "
-  agent%fish%ZPT(:) = -1.0_sp*abs(agent%fish%ZPT(:)) ! make depth negative
-  agent%fish%ZP(:) = agent%fish%sigma(agent%fish%ZPT(:)) ! convert to sigma coordinate
+  agent%fish%ZP(:) = -1.0_sp*abs(agent%fish%ZP(:)) ! make depth negative
   agent%fish%LAYER(:) = agent%fish%zlocate(agent%fish%ZP(:)) ! valid when sigma layers are equal thickness
 
   write(*, "(A)", advance='no') "Writing position and state variables to file... "
@@ -369,8 +361,6 @@ program main
         call agent%cyanobacteria%movement() ! uses runge-kutta integration
         call agent%cyanobacteria%random() ! random walk
         if ( mod(IINT, int(DTOUT/DTI) ) == 0) then
-          agent%cyanobacteria%XPT(:) = agent%cyanobacteria%XP(:) ! change back to initial coordinate system for output
-          agent%cyanobacteria%YPT(:) = agent%cyanobacteria%YP(:)
           call agent%cyanobacteria%writePosition(iocp) ! output position, same for all particle types
           call agent%cyanobacteria%writeState(iocs)
           write(iotox,"(1f20.3,51F20.6)") domain%time, domain%verticaltox(1:KB)
@@ -380,8 +370,6 @@ program main
       if (includeFish) then
         call agent%fish%movement() ! uses runge-kutta integration
         if ( mod(IINT, int(DTOUT/DTI) ) == 0) then
-          agent%fish%XPT(:) = agent%fish%XP(:) ! change back to initial coordinate system for output
-          agent%fish%YPT(:) = agent%fish%YP(:)
           call agent%fish%writePosition(iofp) ! output position, same for all particle types
           call agent%fish%writeState(iofs) ! output state variables
         end if

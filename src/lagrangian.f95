@@ -7,15 +7,12 @@ module Lagrangian
 
   type, public :: Agent
     character(len = 20) :: species    ! string for identification
-    logical :: fixed_depth = .false.  ! fixed particle depth option in cartesian
     integer :: ndrft                  ! total particles
     integer, allocatable, dimension(:) :: &
-        & ITAG, &                     ! Label for the particle
         & host, &                     ! Element containing particle
         & layer                    ! sigma layer
     real(SP), allocatable, dimension(:) :: &
         & XP, YP, ZP, &               ! position of particle
-        & XPT, YPT, ZPT, &            ! absolute position of particle
         & HP, &                       ! Bathymetry at particle position
         & EP, &                       ! Free surface height at particle
         & UP, VP, WP, &               ! velocity of particle
@@ -35,7 +32,6 @@ module Lagrangian
     procedure, public :: zinterp => lag_zinterp
     procedure, public :: find_host_element => find_host_element
     procedure, public :: traject => traject
-    procedure, public :: interp_elh => interp_elh
     procedure, public :: interp_fields => interp_fields
     procedure, public :: interp_v => interp_v
     procedure, public :: interp_kh => interp_kh
@@ -155,13 +151,11 @@ contains
 
     open(unit=fid, file=filename, form='formatted')
     read(fid, "(I6)") self%ndrft ! read number of particles
-    allocate( self%itag(self%ndrft), &
-            & self%xpt(self%ndrft), &
-            & self%ypt(self%ndrft), &
-            & self%zpt(self%ndrft))
+    allocate(self%xp(self%ndrft), &
+            & self%yp(self%ndrft), &
+            & self%zp(self%ndrft))
     do ii = 1, self%ndrft
-      read(fid, "(3F20.6)") self%xpt(ii), self%ypt(ii), self%zpt(ii)
-      self%itag(ii) = ii
+      read(fid, "(3F20.6)") self%xp(ii), self%yp(ii), self%zp(ii)
     end do
 
     close(fid)
@@ -173,7 +167,7 @@ contains
     integer, intent(in) :: fid ! unit number of open output file
     real(sp), intent(in) :: time ! time to write
     integer :: ii
-    write(fid, "(1F10.2,9000(3F20.3))") time, (self%XPT(ii), self%YPT(ii), self%ZPT(ii), ii=1,self%ndrft)
+    write(fid, "(1F10.2,9000(3F20.3))") time, (self%XP(ii), self%YP(ii), self%ZP(ii), ii=1,self%ndrft)
   end subroutine
 
   pure function lag_cart2sig(self, cartesian) result(sigma)
@@ -226,7 +220,7 @@ contains
     real(SP), dimension(0:M), intent(in) :: HL, EL1, EL2 ! bathymetry and free surface height
     real(SP), dimension(0:M, KB), intent(in) :: temperature, salinity, density
 
-    real(SP), dimension(self%ndrft) :: PDXT, PDYT, PDZT, PDX, PDY, PDZ ! RK stage positions
+    real(SP), dimension(self%ndrft) :: PDX, PDY, PDZ ! RK stage positions
     integer :: stage
     real(SP), dimension(0:N, KB, 0:2) :: velocity ! ERK stage velocity field
     real(SP), dimension(0:M) :: ELL ! ERK stage freesurface height
@@ -234,10 +228,6 @@ contains
     real(SP), parameter :: EPS  = 10.0 ** (-5.0) ! depth of dry element
 
     CHI = 0.0_sp ! Initialize Stage Functional Evaluations
-
-    PDXT(:) = self%xp(:) ! Assign position at previous time to current position
-    PDYT(:) = self%yp(:)
-    PDZT(:) = self%zp(:)
 
     do stage = 1, MSTAGE ! Runge-Kutta integration stages
       ! New stage position updated from time zero position
@@ -254,8 +244,7 @@ contains
       ELL = (1.0 - C_RK(stage)) * EL1 + C_RK(stage) * EL2
 
       call self%INTERP_V(PDX, PDY, PDZ, velocity)
-      ! interpolate particle velocity, automatically updates host elements
-      call self%INTERP_ELH(PDX, PDY, HL, ELL, 0) ! interpolate elevation and bathymetry at stage particle position, zero denotes not to search for host elements
+      call self%INTERP_FIELDS(PDX, PDY, PDZ, salinity, temperature, density, HL, ELL)
 
       CHI(:, stage, 1) = self%UP ! Update CHI values for next time step
       CHI(:, stage, 2) = self%VP
@@ -268,26 +257,15 @@ contains
     end do
 
     do stage = 1, MSTAGE
-      PDXT(:) = PDXT(:) + dt * CHI(:, stage, 1) * B_RK(stage) ! Update current position if particle is in domain
-      PDYT(:) = PDYT(:) + dt * CHI(:, stage, 2) * B_RK(stage)
-      PDZT(:) = PDZT(:) + dt * CHI(:, stage, 3) * B_RK(stage)
+      self%xp(:) = self%xp(:) + dt * CHI(:, stage, 1) * B_RK(stage)
+      self%yp(:) = self%yp(:) + dt * CHI(:, stage, 2) * B_RK(stage)
+      self%zp(:) = self%zp(:) + dt * CHI(:, stage, 3) * B_RK(stage)
     end do
 
-
-    ! Perform robust progressive-topology search
-    call self%find_host_element(PDXT, PDYT)
-    
-    self%xp(:) = PDXT(:) ! Update only particles still in water
-    self%yp(:) = PDYT(:)
-    self%zp(:) = PDZT(:)
-
-    self%zp = max(self%zp, -(2.0_SP + self%zp)) ! reflect off bottom, sigma
-    self%zp = min(self%zp, -self%zp) ! reflect off free surface, sigma
-    self%zpt(:) = self%cartesian(self%zp(:)) ! Calculate particle location in cartesian vertical coordinate
+    self%zp = max(self%zp, -(2.0_SP + self%zp)) ! reflect off bottom
+    self%zp = min(self%zp, -self%zp) ! reflect off free surface
     self%layer(:) = self%zlocate(self%zp(:)) ! only valid for sigma layers of equal separation
-
-    call self%INTERP_ELH(self%xp, self%yp, HL, ELL, 1) ! interpolate bathymetry and elevation
-    call self%INTERP_FIELDS(self%xp, self%yp, self%zp, salinity, temperature, density, 0) ! interpolate salinity and temperature
+    call self%INTERP_FIELDS(self%xp, self%yp, self%zp, salinity, temperature, density, HL, ELL)
   end subroutine
 
   subroutine INTERP_V(lag, XP, YP, ZP, velocity)
@@ -367,105 +345,80 @@ contains
 
   end subroutine INTERP_V
 
+  pure function linear_planar_interpolation(offset, host, stencil) result(sample)
+    ! Linearly interpolate a 2D planar field at a point, base for 3D
+    use variables, only : AW0, AWX, AWY
+    real(sp), intent(in) :: offset(2), stencil(3)
+    integer, intent(in) :: host ! element and layer containing particle
+    real(sp) :: f, fx, fy
+    real(sp) :: sample
+    f = sum(AW0(host, 1:3) * stencil)
+    fx = sum(AWX(host, 1:3) * stencil) * offset(1)
+    fy = sum(AWY(host, 1:3) * stencil) * offset(2)
+    sample = abs(f + fx + fy)
+  end function
 
-  subroutine INTERP_ELH(self, XP, YP, HIN, EIN, FHE) ! OK
-    ! Linearly interpolate elevation and bathymetry at a set of particle positions
-    use variables, only : AW0, AWX, AWY, NV, XC, YC
-    use variables, only : M
+  pure function linear_interpolation_at_layer(offset, host, field, layer) result(sample)
+    ! Linearly interpolates a field at a point in discrete layer
+    use variables, only : NV, KB, M
+    real(sp), intent(in) :: offset(2)
+    real(sp), intent(in), dimension(0:M, KB) :: field
+    integer, intent(in) :: host, layer ! element and layer containing particle
+    real(sp) :: sample, stencil(3)
+    stencil = field(NV(host, 1:3), layer)
+    sample = linear_planar_interpolation(offset, host, stencil)
+  end function
 
-    class(Agent), intent(inout) :: self
-    real(sp), intent(in), dimension(self%ndrft) :: XP, YP ! position arrays, needed because subroutine is used between updates of LAG structure
-    real(sp), intent(in), dimension(0:M) :: HIN, EIN ! baythmetry and elevation inputs
-    integer, intent(in) :: FHE ! Find host elements: 0 if host has correct elements; 1 if host should be updated
+  pure function linear_interpolation_of_surface(offset, host, field) result(sample)
+    ! Linearly interpolate a 2D surface at a point
+    use variables, only : NV, M, XC, YC
+    real(sp), intent(in) :: offset(2)
+    real(sp), intent(in), dimension(0:M) :: field
+    integer, intent(in) :: host ! element and layer containing particle
+    real(sp) :: sample, stencil(3)
+    stencil = field(NV(host, 1:3))
+    sample = linear_planar_interpolation(offset, host, stencil)
+  end function
 
-    integer :: ii, host, N1, N2, N3
-    real(sp) :: H0, HX, HY, E0, EX, EY, offset(2)
-
-    if (FHE == 1) then
-      call self%find_host_element(XP, YP)
-    end if
-
-    do ii = 1, self%ndrft
-      host = self%host(ii) ! element containing particle
-      N1 = NV(self%host(ii), 1); 
-      N2 = NV(self%host(ii), 2); 
-      N3 = NV(self%host(ii), 3) ! node indices
-      offset(1) = XP(ii) - XC(host); 
-      offset(2) = YP(ii) - YC(host) ! distance from element center
-
-      H0 = AW0(host, 1)*HIN(N1) + AW0(host, 2)*HIN(N2) + AW0(host, 3)*HIN(N3)
-      HX = AWX(host, 1)*HIN(N1) + AWX(host, 2)*HIN(N2) + AWX(host, 3)*HIN(N3)
-      HY = AWY(host, 1)*HIN(N1) + AWY(host, 2)*HIN(N2) + AWY(host, 3)*HIN(N3)
-      self%HP(ii) = -1.0*(H0 + HX*offset(1) + HY*offset(2)) ! Linear interpolation of bathymetry, forced to be negtaive?
-
-      E0 = AW0(host, 1)*EIN(N1) + AW0(host, 2)*EIN(N2) + AW0(host, 3)*EIN(N3)
-      EX = AWX(host, 1)*EIN(N1) + AWX(host, 2)*EIN(N2) + AWX(host, 3)*EIN(N3)
-      EY = AWY(host, 1)*EIN(N1) + AWY(host, 2)*EIN(N2) + AWY(host, 3)*EIN(N3)
-      self%EP(ii) = -1.0*(E0 + EX*offset(1) + EY*offset(2)) ! Linear interpolation of free surface height, forced to be positive
-    end do
-  end subroutine
-
-
-  subroutine INTERP_FIELDS(self, XP, YP, ZP, SAL, TEMP, RHO, FHE) ! OK
+  subroutine INTERP_FIELDS(self, XP, YP, ZP, SAL, TEMP, RHO, HIN, EIN) ! OK
     ! Linearly interpolates salinity, temperature and density
-    use variables, only : AW0, AWX, AWY, NV, XC, YC, KB, M
+    use variables, only : KB, M, XC, YC
 
     class(Agent), intent(inout) :: self
     real(sp), intent(in), dimension(self%ndrft) :: XP, YP, ZP
     real(sp), intent(in), dimension(0:M, KB) :: SAL, TEMP, RHO
-    integer, intent(in) :: FHE ! Find host elements: 0 if host has correct elements; 1 if host should be updated
+    real(sp), intent(in), dimension(0:M) :: HIN, EIN
+    real(sp), dimension(2) :: offset
 
-    integer :: ii, host, N1, N2, N3
-    real(sp) :: S0, SX, SY, T0, TX, TY, D0, DX, DY, offset(2), ZTMP(self%ndrft)
-
-    ZTMP(:) = ZP(:)
-    find_host: if (FHE == 1) then
-      call self%find_host_element(XP, YP)
-    end if find_host
-
-    host = self%host(ii) ! element containing particle
-    N1 = NV(host, 1); 
-    N2 = NV(host, 2); 
-    N3 = NV(host, 3) ! node indices
-    offset(1) = XP(ii) - XC(host); 
-    offset(2) = YP(ii) - YC(host) ! distance from element center
-
-    S0 = AW0(host, 1)*SAL(N1, 1) + AW0(host, 2)*SAL(N2, 1) + AW0(host, 3)*SAL(N3, 1)
-    SX = AWX(host, 1)*SAL(N1, 1) + AWX(host, 2)*SAL(N2, 1) + AWX(host, 3)*SAL(N3, 1)
-    SY = AWY(host, 1)*SAL(N1, 1) + AWY(host, 2)*SAL(N2, 1) + AWY(host, 3)*SAL(N3, 1)
-    self%SAL(ii) = abs(S0 + SX*offset(1) + SY*offset(2)) ! Linear interpolation of salinity field
-
-    T0 = AW0(host, 1)*TEMP(N1, 1) + AW0(host, 2)*TEMP(N2, 1) + AW0(host, 3)*TEMP(N3, 1)
-    TX = AWX(host, 1)*TEMP(N1, 1) + AWX(host, 2)*TEMP(N2, 1) + AWX(host, 3)*TEMP(N3, 1)
-    TY = AWY(host, 1)*TEMP(N1, 1) + AWY(host, 2)*TEMP(N2, 1) + AWY(host, 3)*TEMP(N3, 1)
-    self%TEMP(ii) = abs(T0 + TX*offset(1) + TY*offset(2)) ! Linear interpolation of temperature field
-
-    D0 = AW0(host, 1)*RHO(N1, 1) + AW0(host, 2)*RHO(N2, 1) + AW0(host, 3)*RHO(N3, 1)
-    DX = AWX(host, 1)*RHO(N1, 1) + AWX(host, 2)*RHO(N2, 1) + AWX(host, 3)*RHO(N3, 1)
-    DY = AWY(host, 1)*RHO(N1, 1) + AWY(host, 2)*RHO(N2, 1) + AWY(host, 3)*RHO(N3, 1)
-    self%RHO(ii) = abs(D0 + DX*offset(1) + DY*offset(2)) ! Linear interpolation of temperature field
-
-  end subroutine INTERP_FIELDS
-
+    integer :: ii, host
+    call self%find_host_element(XP, YP)
+    do ii = 1, self%ndrft
+      host = self%host(ii) ! element containing particle
+      offset = [XP(ii) - XC(host), YP(ii) - YC(host)]
+      self%SAL(ii) = linear_interpolation_at_layer(offset, host, SAL, 1)
+      self%TEMP(ii) = linear_interpolation_at_layer(offset, host, TEMP, 1)
+      self%RHO(ii) = linear_interpolation_at_layer(offset, host, RHO, 1)
+      self%HP(ii) = -linear_interpolation_of_surface(offset, host, HIN)
+      self%EP(ii) = -linear_interpolation_of_surface(offset, host, EIN)
+    end do
+  end subroutine
 
   pure subroutine INTERP_KH(self, ZKH, DZKH, KHOUT, DKHOUT)
-    ! Obtain a spline interpolation on the vertical with the provided eddy diffusivity (ZKH) and its derivative (DZKH) at grid point points
-    ! then linear interpolation on the horizontal
+    ! Obtain a spline interpolation on the vertical with eddy diffusivity (ZKH) and 
+    ! its derivative (DZKH) at grid points, then linear interpolation on the horizontal
     !  RETURNS:   Both dkh/dz (DKHOUT) and kh (KHOUT)
 
     use variables, only: M, KB, NV, XC, Z, KBM1, YC, DTRW, AW0, AWX, AWY
     class(Agent), intent(in) :: self
     real(SP), intent(out), dimension(self%ndrft) :: DKHOUT, KHOUT
     real(SP), intent(in), dimension(0:M, KB) :: DZKH, ZKH
-
-    real(SP) :: offset(2), COF1, COF2, COF3
+    real(SP) :: offset(2)
     integer :: N1, N2, N3, ii
-    real(SP) :: DKHR1, DKHR2, DKHR3 !, DKHR4
-    real(SP) :: KHR1, KHR2, KHR3 !, KHR4
-    !real(SP) :: DDKHR1, DDKHR2, DDKHR3, DDKHR4
+    real(SP) :: DKHR1, DKHR2, DKHR3
+    real(SP) :: KHR1, KHR2, KHR3
     real(SP) :: DKHTMP, DZP
     integer, dimension(0:KB+1) :: NZRINDX
-    real(SP) :: HK, HK2, AK, AK2, AK3, BK, BK2, BK3
+    real(SP) :: HK, HK2, AK, AK2, AK3, BK, BK2, BK3, stencil(3)
     integer :: KLO, KHI, NZR, host
 
     ! Interpolate eddy diffusivity and its derivative
@@ -478,51 +431,47 @@ contains
     NZRINDX(KB+1) = KB
 
     do ii = 1, self%ndrft
-      host = self%host(ii) ! element containing particle
-      N1 = NV(host, 1); N2 = NV(host, 2); N3 = NV(host, 3) ! get node indices of host element
-      offset(1) = self%XP(ii) - XC(host); offset(2) = self%YP(ii) - YC(host) ! distance from element center
+
+      host = self%host(ii)
+      N1 = NV(host, 1)
+      N2 = NV(host, 2)
+      N3 = NV(host, 3)
+      offset(1) = self%XP(ii) - XC(host)
+      offset(2) = self%YP(ii) - YC(host) ! distance from element center
 
       ! DERIVATIVE OF THE DIFFUSION
       ! find vertical location
-      NZR = floor( float(KBM1)*abs(self%zp(ii)) ) ! guess value for hunt
-      !call HUNT(Z, KB, self%ZP(ii), NZR) ! Z is sigma coordinate value from variables, only necessary if sigma layers are different thicknesses
-
+      NZR = floor( float(KBM1) * abs(self%zp(ii)) )
       KHI = NZRINDX(NZR)
       KLO = NZRINDX(NZR + 1)
 
       ! as k in z(k) increases, sigma decreases.
-      HK=Z(KHI)-Z(KLO)
-      AK=(Z(KHI)-self%ZP(ii))/HK
-      AK2=AK**2
-      BK=(self%ZP(ii)-Z(KLO))/HK
+      HK= Z(KHI) - Z(KLO)
+      HK2 = HK**2
+      AK = (Z(KHI) - self%ZP(ii))/HK
+      AK2 = AK**2
+      BK = (self%ZP(ii) - Z(KLO))/HK
       BK2=BK**2
 
       DKHR1=(-ZKH(N1,KLO)+ZKH(N1,KHI))/HK+((-3*AK2+1)*DZKH(N1,KLO)+(3*BK2-1)*DZKH(N1,KHI))*HK/6
       DKHR2=(-ZKH(N2,KLO)+ZKH(N2,KHI))/HK+((-3*AK2+1)*DZKH(N2,KLO)+(3*BK2-1)*DZKH(N2,KHI))*HK/6
       DKHR3=(-ZKH(N3,KLO)+ZKH(N3,KHI))/HK+((-3*AK2+1)*DZKH(N3,KLO)+(3*BK2-1)*DZKH(N3,KHI))*HK/6
-
-      COF1=AW0(self%HOST(ii),1)*DKHR1 +AW0(self%HOST(ii),2)*DKHR2+AW0(self%HOST(ii),3)*DKHR3
-      COF2=AWX(self%HOST(ii),1)*DKHR1 +AWX(self%HOST(ii),2)*DKHR2+AWX(self%HOST(ii),3)*DKHR3
-      COF3=AWY(self%HOST(ii),1)*DKHR1 +AWY(self%HOST(ii),2)*DKHR2+AWY(self%HOST(ii),3)*DKHR3
-
-      DKHTMP = COF1 + COF2*offset(1) + COF3*offset(2)
-      DKHOUT(ii) = DKHTMP / (self%HP(ii) - self%EP(ii))     !--want the answer to be dkh/dz not dkh/dsigma, changed sign, keeney 1/7
+      stencil = [DKHR1, DKHR2, DKHR3]
+      DKHTMP = linear_planar_interpolation(offset, host, stencil)
+      DKHOUT(ii) = DKHTMP / (self%HP(ii) - self%EP(ii))
 
       ! DIFFUSION ITSELF
       ! find z in grid again, as per visser, but in sigma
-      DZP = self%ZP(ii) + 0.5*DKHOUT(ii)*DTRW/(self%HP(ii) - self%EP(ii)) ! changed sign, keeney 1/7
-      ! adding 0.5*dkhtmp*dtrw, new z can be out of [0;-1]
+      DZP = self%ZP(ii) + 0.5*DKHOUT(ii)*DTRW/(self%HP(ii) - self%EP(ii))
       DZP = min(DZP, 0.0_sp)
       DZP = max(DZP, -1.0_SP)
 
       ! find vertical location
-      !call HUNT(Z, KB, DZP, NZR)
-      NZR = floor( float(KBM1)*abs(DZP ) ) ! guess value for hunt
+      NZR = floor( float(KBM1)*abs(DZP) ) ! guess value for hunt
       KHI = NZRINDX(NZR)
       KLO = NZRINDX(NZR+1)
 
-      HK = Z(KHI) - Z(KLO)
-      HK2 = HK**2
+    
       AK = (Z(KHI)-DZP)/HK
       AK3 = AK**3
       BK = (DZP-Z(KLO))/HK
@@ -531,12 +480,9 @@ contains
       KHR1 = AK*(ZKH(N1,KLO)) + BK*(ZKH(N1,KHI)) + ((AK3-AK)*(DZKH(N1,KLO))+(BK3-BK)*(DZKH(N1,KHI)))*HK2/6
       KHR2 = AK*(ZKH(N2,KLO)) + BK*(ZKH(N2,KHI)) + ((AK3-AK)*(DZKH(N2,KLO))+(BK3-BK)*(DZKH(N2,KHI)))*HK2/6
       KHR3 = AK*(ZKH(N3,KLO)) + BK*(ZKH(N3,KHI)) + ((AK3-AK)*(DZKH(N3,KLO))+(BK3-BK)*(DZKH(N3,KHI)))*HK2/6
-
-      COF1 = AW0(self%HOST(ii),1)*KHR1 + AW0(self%HOST(ii),2)*KHR2+AW0(self%HOST(ii),3)*KHR3
-      COF2 = AWX(self%HOST(ii),1)*KHR1 + AWX(self%HOST(ii),2)*KHR2+AWX(self%HOST(ii),3)*KHR3
-      COF3 = AWY(self%HOST(ii),1)*KHR1 + AWY(self%HOST(ii),2)*KHR2+AWY(self%HOST(ii),3)*KHR3
-
-      KHOUT(ii) = COF1 + COF2*offset(1) + COF3*offset(2)
+      stencil = [KHR1, KHR2, KHR3]
+      
+      KHOUT(ii) = linear_planar_interpolation(offset, host, stencil)
 
     end do
   end subroutine
