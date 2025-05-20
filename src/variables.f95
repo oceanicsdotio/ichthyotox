@@ -26,10 +26,7 @@ module variables
     character(LEN = 80) :: CASENAME, FOLDERPREFIX ! File Specifiers
 
     integer :: &
-        & HOURLAG, &
-        & IELAG, &
-        & ISLAG, &
-        & TDRIFT, &
+        & duration, &
         & N, &        ! Number of elements
         & M, &        ! Number of nodes
         & KB, &       ! Number of sigma levels
@@ -40,7 +37,6 @@ module variables
     real(sp) :: &
         & DTOUT, &
         & INSTP, &
-        & DHOR, &
         & DTRW, &
         & DTI, &
         & VXMIN, &
@@ -92,10 +88,6 @@ module variables
     ! vertex-based arrays
     real(sp), allocatable, dimension(:, :) :: &
         & T1, &   ! temperature at nodes
-        & S1, &   ! salinity at nodes
-        & R1, &   ! density at nodes
         & TT1, &  ! temperature, previous
-        & ST1, &  ! salinity, previous
-        & RT1, &  ! density, previous
         & KH      ! turbulent diffusivity
 end module

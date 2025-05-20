@@ -24,7 +24,7 @@ program main
   real(sp), dimension(0:M) :: ELNC, ELNC1, ELNC2 ! free surface height field read, start and end of hour
   real(sp) :: TMP1, TMP2, LAG_TIME
 
-  integer :: NH, I1, I2, IT, HOUR, IINT, ii, index, ionode=100, ioelem=101, exp_type, NCT, ISCAN
+  integer :: NH, I1, I2, IT, HOUR, IINT, ii, index, ionode=100, ioelem=101, exp_type, NCT, start, end
   character(len = 100) :: input_file, input, meshfile, foldername, exp_letter, state_format
   logical :: fileExists
 
@@ -73,8 +73,8 @@ program main
   ! Read in variables and set values
   filename = "./"//trim(folderprefix)//"/"//trim(CASENAME)//"_run.dat"
 
-  call getInteger(filename, "HOURLAG", HOURLAG) ! day
-  call getInteger(filename, "TDRIFT", TDRIFT) ! Total time to move drifters (TDRIFT)
+  call getInteger(filename, "HOURLAG", HOUR) ! day
+  call getInteger(filename, "TDRIFT", duration) ! Total time to move drifters (TDRIFT)
 
   ! External time step (DTI)
   ISCAN = find_key(trim(filename), "DTI", FSCAL = DTI)
@@ -94,14 +94,6 @@ program main
   ISCAN = find_key(trim(filename), "DTOUT", FSCAL = DTOUT)
   if (ISCAN /= 0) then
     write (*, *) 'ERROR READING DTOUT: ', ISCAN
-    stop
-  end if
-
-
-  ! Horizontal diffusion coefficient (DHOR)
-  ISCAN = find_key(trim(filename), "DHOR", FSCAL = DHOR)
-  if (ISCAN /= 0) then
-    write(*, *) 'ERROR READING DHOR: ', ISCAN
     stop
   end if
 
@@ -173,11 +165,7 @@ program main
 
   ! 3d variable arrays-(node based)
   allocate(T1(0:M, KB))       ;T1     = zero  ! TEMPERATURE AT NODES
-  allocate(S1(0:M, KB))       ;S1     = zero  ! SALINITY AT NODES
-  allocate(R1(0:M, KB))       ;R1   = zero  ! DENSITY AT NODES
   allocate(TT1(0:M, KB))      ;TT1    = zero  ! TEMPERATURE FROM PREVIOUS TIME
-  allocate(ST1(0:M, KB))      ;ST1    = zero  ! SALINITY FROM PREVIOUS TIME
-  allocate(RT1(0:M, KB))      ;RT1 = zero
 
   ! Shape coefficient arrays and control volume metrics
   allocate(A1U(0:N, 4))         ;A1U   = zero
@@ -230,9 +218,8 @@ program main
   call domain%read(UNC, VNC, WNC, KHNC, ELNC, SALNC, TEMPNC, RHONC)
   write(*, *) "Finished"
 
-  HOUR = HOURLAG ! start time (int) is 0
-  ISLAG = HOURLAG ! tracking begin iteration is 0
-  IELAG = ISLAG + TDRIFT - 1 ! tracking end iteration
+  start = HOUR ! tracking begin iteration is 0
+  end = start + duration - 1 ! tracking end iteration
 
   write(*, "(A)", advance='no') "Initiatializing particle structures... "
   call agent%cyanobacteria%init(exp_type) ! initialize and allocate type specific structures, also reads position and state variables from file
@@ -283,15 +270,9 @@ program main
   call agent%fish%writePosition(iofp) ! write particle positions to output file
   write(*, *) "Finished"
 
-  write(*, *) ! Print particle statistics
-  write(*, *) '    Tracking Info'
-  write(*, *) '        Start iteration :', ISLAG
-  write(*, *) '        Final iteration :', IELAG
-  write(*, *)
-
   write(*, *) "Starting simulation loop... "
 
-  HOUR = HOURLAG ! First reading of velocity fields from netcdf file
+  HOUR = HOUR ! First reading of velocity fields from netcdf file
   input_file = "./" //trim(folderprefix)//"/"// trim(casename) // "_phys.dat" ! NetCDF file for simulation
   call domain%read(UNC1, VNC1, WNC1, KHNC1, ELNC1, SALNC1, TEMPNC1, RHONC1) ! read physical fields
 
@@ -326,14 +307,12 @@ program main
   VT(:,:) = VNC1(:,:) ! assign current v velocity field
   WWT(:,:) = WNC1(:,:) ! assign current w velocity field
   ET(:) = ELNC1(:) ! assign current free surface height field
-  ST1(:,:) = SALNC1(:,:) !---fish change 10, assign current salinity field
   TT1(:,:) = TEMPNC1(:,:) !--Keeney change, copy temperature field to working array
-  RT1(:,:) = RHONC1(:,:) ! copy density field to working array
 
   IINT = 0
-  do NH = ISLAG, IELAG ! timestep units are hours, but not necessarily whole numbers
+  do NH = start, end
     write(*,*)
-    write(*, "(I4,A,I4,A)", advance='no') NH-ISLAG+1, ' / ', IELAG-ISLAG+1, ' steps: '
+    write(*, "(I4,A,I4,A)", advance='no') NH-start+1, ' / ', end-start+1, ' steps: '
     call domain%read(UNC2, VNC2, WNC2, KHNC2, ELNC2, SALNC2, TEMPNC2, RHONC2)
 
     HOUR = HOUR + 1
@@ -343,7 +322,7 @@ program main
 
       write(*,"(A)",advance='no') "|"
       IINT = IINT + 1 ! increment total step count
-      LAG_TIME = float(IINT)*DTI + float(ISLAG) ! decimal simulation time for output timestamp
+      LAG_TIME = float(IINT)*DTI + float(start) ! decimal simulation time for output timestamp
       domain%time = LAG_TIME
       domain%daytime = LAG_TIME / 24.0_sp
       domain%clocktime = LAG_TIME - 24.0_sp*floor(domain%daytime)

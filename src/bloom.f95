@@ -1,6 +1,6 @@
 program bloom
 
-    use variables, only: sp, KB, M, N, KBM1, KBM2, irradSurf, folderprefix, HOURLAG, TDRIFT, DTI, DTOUT, INSTP, DTRW, xc, yc, vx, vy, nv, isbce, nbe, isonb, awx, awy, u, v, ww, ut, vt, wwt, kh, z, zz, dz, a1u, NBVE, NBVT, vxmin, vxmax, vymin, VYMAX, aw0, a2u, NTVE, h, d, el, et, s1, r1, t1, tt1, st1, rt1, ISLAG, IELAG, iophys, iotox, iocs, iocp
+    use variables, only: sp, KB, M, N, KBM1, KBM2, irradSurf, folderprefix, duration, DTI, DTOUT, INSTP, DTRW, xc, yc, vx, vy, nv, isbce, nbe, isonb, awx, awy, u, v, ww, ut, vt, wwt, kh, z, zz, dz, a1u, NBVE, NBVT, vxmin, vxmax, vymin, VYMAX, aw0, a2u, NTVE, h, d, el, et, t1, tt1, iophys, iotox, iocs, iocp
     use random, only : random_number_generator
     use simulation, only : domain, topology
     use cyanobacteria, only : CyanobacteriaAgent
@@ -14,10 +14,10 @@ program bloom
     ! Element-based velocity fields start and end of hour
     real(sp), allocatable, dimension(:, :) :: UNC, UNC2, VNC, VNC2, WNC, WNC2 
     ! Node-based diffusion and physical fields start and end of hour
-    real(sp), allocatable, dimension(:, :) :: KHNC, KHNC1, KHNC2, SALNC, SALNC2, TEMPNC, TEMPNC2, RHONC, RHONC2
+    real(sp), allocatable, dimension(:, :) :: KHNC, KHNC1, KHNC2, salinity, SALNC2, temperature, TEMPNC2, density, RHONC2
     ! Node-based free surface height field read, start and end of hour
     real(sp), allocatable, dimension(:) :: ELNC, ELNC1, ELNC2
-    integer :: NH, IT, HOUR, IINT, ii, index, ionode=100, ioelem=101, exp_type
+    integer :: NH, IT, HOUR, IINT, ii, index, ionode=100, ioelem=101, exp_type, start=1, end
     character(len = 80) :: input_file, foldername, state_format, file
 
     call get_command_argument(1, foldername) ! Import case name from command line
@@ -32,8 +32,8 @@ program bloom
     write(*, "(A)", advance='no') 'Importing simulation parameters... '
     file = trim(folderprefix)//"/parameters.dat"
     exp_type = scanInteger(file, "EXPTYPE") ! Experiment type
-    HOURLAG = scanInteger(file, "HOURLAG") ! day
-    TDRIFT = scanInteger(file, "TDRIFT") ! Simulation duration
+    HOUR = scanInteger(file, "HOUR") ! day
+    duration = scanInteger(file, "TDRIFT") ! Simulation duration
     DTI = scanReal(file, "DTI") ! Input time step
     DTOUT = scanReal(file, "DTOUT") ! Output time step
     INSTP = scanReal(file, "INSTP") ! Input time step of flow fields
@@ -123,19 +123,15 @@ program bloom
     ! Node based floating point 3D fields
     allocate(T1(0:M, KB)); T1 = 0.0_sp ! temperature
     allocate(&
-        & S1, & ! salinity
-        & R1, & ! density
         & TT1, & ! previous temperature
-        & ST1, & ! previous salinity
-        & RT1, & ! previous density
         & KHNC, &
         & KHNC1, &
         & KHNC2, &
-        & SALNC, &
+        & salinity, &
         & SALNC2, &
-        & TEMPNC, &
+        & temperature, &
         & TEMPNC2, &
-        & RHONC, &
+        & density, &
         & RHONC2, &
         & source=T1)
 
@@ -159,12 +155,11 @@ program bloom
 
     write(*, "(A)", advance='no') "Loading physical field data... "
     open(unit=iophys, file=input_file, status='old', position='rewind')
-    call domain%read(UNC, VNC, WNC, KHNC, ELNC, SALNC, TEMPNC, RHONC)
+    call domain%read(UNC, VNC, WNC, KHNC, ELNC, salinity, temperature, density)
     write(*, *) "Finished"
 
-    HOUR = HOURLAG ! start time (int) is 0
-    ISLAG = HOURLAG ! tracking begin iteration is 0
-    IELAG = ISLAG + TDRIFT - 1 ! tracking end iteration
+    start = HOUR ! tracking begin iteration is 0
+    end = start + duration - 1 ! tracking end iteration
 
     write(*, "(A)", advance='no') "Initializing particle structures... "
     call particles%init(exp_type) ! initialize and allocate type specific structures
@@ -178,7 +173,7 @@ program bloom
     write(*, *) "Finished"
 
     write(*, "(A)", advance='no') "Interpolating physical fields... "
-    call particles%INTERP_FIELDS(particles%XP, particles%YP, particles%ZP, SALNC, TEMPNC, RHONC, H, ELNC)
+    call particles%INTERP_FIELDS(particles%XP, particles%YP, particles%ZP, salinity, temperature, density, H, ELNC)
     write(*, *) "Finished"
 
     write(*, "(A)", advance='no') "Adjusting vertical domain... "
@@ -189,22 +184,13 @@ program bloom
     write(*, "(A)", advance='no') "Writing position and state variables to file... "
     open(unit=iocp, file="./"//trim(folderprefix)//"/"//"cyanobacteria_position.dat", status='replace') ! create new position file
     open(unit=iocs, file="./"//trim(folderprefix)//"/"//"cyanobacteria_state.dat", status='replace') ! create new state variable file
-    domain%time = float(HOURLAG) ! decimal simulation time for output timestamp
+    domain%time = float(HOUR) ! decimal simulation time for output timestamp
     call particles%writeState(iocs, domain%time)
     call particles%writePosition(iocp, domain%time) ! write particle positions to output file
     write(*, *) "Finished"
-
-    write(*, *) ! Print particle statistics
-    write(*, *) '    Tracking Info'
-    write(*, *) '        Start iteration :', ISLAG
-    write(*, *) '        Final iteration :', IELAG
-    write(*, *)
-
     write(*, *) "Starting simulation loop... "
-
-    HOUR = HOURLAG ! First reading of velocity fields from netcdf file
     call domain%read(UT, VT, WWT, KHNC1, ET, ST1, TT1, RT1) ! read physical fields
-
+    HOUR = HOUR + 1
     do ii = 1, domain%nelements
         length1(ii) = sqrt(  (vx(nv(ii, 1)) - vx(nv(ii, 2)) )**(2.0_sp) + ( vy(nv(ii, 1)) - vy(nv(ii, 2)) )**(2.0_sp)  )
         length2(ii) = sqrt(  (vx(nv(ii, 2)) - vx(nv(ii, 3)) )**(2.0_sp) + ( vy(nv(ii, 2)) - vy(nv(ii, 3)) )**(2.0_sp)  )
@@ -212,30 +198,26 @@ program bloom
         average_thickness = abs(sum( H(nv(ii,1:3)) )/3.0_sp) ! must be positive
     end do
 
-    ss(:) = 0.5_sp*(length1(:) + length2(:)+ length3(:))
-    ! herons's formula for area
+    ss(:) = 0.5_sp*(length1(:) + length2(:)+ length3(:)) ! herons's formula for area
     domain%elementArea = sqrt( ss * (ss(:) - length1(:)) * (ss(:) - length1(:)) * (ss(:) - length3(:)) ) 
     domain%meshArea = sum(domain%elementArea)
     domain%elementSigmaVolume = domain%elementArea * average_thickness
     domain%layerDepth = average_thickness(1)
     domain%layerSigma = float(KBM1)**(-1.0_SP)
 
-    HOUR = HOUR + 1
-
     open(unit=iotox, file=trim(folderprefix)//"/dissolved_toxin.txt", status='replace')
     IINT = 0
-    do NH = ISLAG, IELAG ! timestep units are hours, but not necessarily whole numbers
+    do NH = start, end
         write(*,*);
-        write(*, "(I4,A,I4,A)", advance='no') NH-ISLAG+1, ' / ', IELAG-ISLAG+1, ' steps: '
+        write(*, "(I4,A,I4,A)", advance='no') NH-start+1, ' / ', end-start+1, ' steps: '
         call domain%read(UNC2, VNC2, WNC2, KHNC2, ELNC2, SALNC2, TEMPNC2, RHONC2)
-
         HOUR = HOUR + 1
         ! length (float) of flow field interpolation divided by length (float) of inner time step
         do IT = 1, int(INSTP/DTI)
 
             write(*, "(A)", advance='no') "|"
             IINT = IINT + 1 ! increment total step count
-            domain%time = float(IINT)*DTI + float(ISLAG) ! decimal simulation time for output timestamp
+            domain%time = float(IINT)*DTI + float(start) ! decimal simulation time for output timestamp
             domain%daytime = domain%time / 24.0_sp
             domain%clocktime = domain%time - 24.0_sp*floor(domain%daytime)
 
