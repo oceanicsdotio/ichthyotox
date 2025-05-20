@@ -199,7 +199,6 @@ program bloom
     write(*, *) '        Start iteration :', ISLAG
     write(*, *) '        Final iteration :', IELAG
     write(*, *)
-    call particles%stats
 
     write(*, *) "Starting simulation loop... "
 

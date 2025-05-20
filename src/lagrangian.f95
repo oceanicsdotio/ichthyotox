@@ -7,7 +7,7 @@ module Lagrangian
 
   type, public :: Agent
     character(len = 20) :: species    ! string for identification
-    integer :: ndrft                  ! total particles
+    integer :: count                  ! total particles
     integer, allocatable, dimension(:) :: &
         & host, &                     ! Element containing particle
         & layer                    ! sigma layer
@@ -23,7 +23,6 @@ module Lagrangian
   contains
 
     procedure, public :: lag_alloc => lag_alloc
-    procedure, public :: stats => lag_printStatistics ! print particle information if desired
     procedure, public :: readPosition => readPositions ! read position and ndrft from file
     procedure, public :: writePosition => lag_writePosition ! write position to file
     procedure, public :: sigma => lag_cart2sig ! convert cartesian to sigma
@@ -44,14 +43,14 @@ contains
     !  Find host elements of particles by searching progressively further elements
     use variables, only: N, NV, VX, NV, VY, XC, YC, NTVE, NBVE
     class(Agent), intent(inout) :: lag
-    real(sp), dimension(lag%ndrft), intent(in) :: x, y
+    real(sp), dimension(lag%count), intent(in) :: x, y
 
     real(sp), dimension(1:N, 1) :: distance
     real(sp) :: previous
     integer :: ii, jj, kk, ind
     integer, dimension(2) :: nearby
 
-    do ii = 1, lag%ndrft
+    do ii = 1, lag%count
       if (isintriangle(VX(NV(lag%HOST(ii), 1:3)), VY(NV(lag%HOST(ii), 1:3)), x(ii), y(ii))) then
         cycle
       end if
@@ -96,19 +95,19 @@ contains
   subroutine lag_alloc(self)
     class(Agent), intent(inout) :: self
 
-    allocate( self%XP( self%ndrft ), &
-            & self%YP( self%ndrft ), &
-            & self%ZP( self%ndrft ), &
-            & self%HP( self%ndrft ), &
-            & self%EP( self%ndrft ), &
-            & self%HOST( self%ndrft ), &
-            & self%LAYER( self%ndrft ), &
-            & self%TEMP( self%ndrft ), &
-            & self%SAL( self%ndrft ), &
-            & self%RHO( self%ndrft ), &
-            & self%UP( self%ndrft ), &
-            & self%VP( self%ndrft ), &
-            & self%WP( self%ndrft ))
+    allocate( self%XP( self%count ), &
+            & self%YP( self%count ), &
+            & self%ZP( self%count ), &
+            & self%HP( self%count ), &
+            & self%EP( self%count ), &
+            & self%HOST( self%count ), &
+            & self%LAYER( self%count ), &
+            & self%TEMP( self%count ), &
+            & self%SAL( self%count ), &
+            & self%RHO( self%count ), &
+            & self%UP( self%count ), &
+            & self%VP( self%count ), &
+            & self%WP( self%count ))
 
     self%XP(:) = 0.0_sp
     self%YP(:) = 0.0_sp
@@ -126,15 +125,6 @@ contains
 
   end subroutine
 
-  subroutine lag_printStatistics(self)
-    class(Agent), intent(inout) :: self
-    write(*, *)
-    write(*, *) '    Particle Class'
-    write(*, *) '        Species       : ', self%species
-    write(*, *) '        Quantity      : ', self%ndrft
-    write(*, *)
-  end subroutine
-
   subroutine readPositions(self)
     use variables, only : folderprefix
     class(Agent), intent(inout) :: self
@@ -150,11 +140,11 @@ contains
     end if
 
     open(unit=fid, file=filename, form='formatted')
-    read(fid, "(I6)") self%ndrft ! read number of particles
-    allocate(self%xp(self%ndrft), &
-            & self%yp(self%ndrft), &
-            & self%zp(self%ndrft))
-    do ii = 1, self%ndrft
+    read(fid, "(I6)") self%count ! read number of particles
+    allocate(self%xp(self%count), &
+            & self%yp(self%count), &
+            & self%zp(self%count))
+    do ii = 1, self%count
       read(fid, "(3F20.6)") self%xp(ii), self%yp(ii), self%zp(ii)
     end do
 
@@ -167,22 +157,22 @@ contains
     integer, intent(in) :: fid ! unit number of open output file
     real(sp), intent(in) :: time ! time to write
     integer :: ii
-    write(fid, "(1F10.2,9000(3F20.3))") time, (self%XP(ii), self%YP(ii), self%ZP(ii), ii=1,self%ndrft)
+    write(fid, "(1F10.2,9000(3F20.3))") time, (self%XP(ii), self%YP(ii), self%ZP(ii), ii=1,self%count)
   end subroutine
 
   pure function lag_cart2sig(self, cartesian) result(sigma)
     ! Calculate sigma vertical position from cartesian
     class(Agent), intent(in) :: self
-    real(sp), dimension(self%ndrft), intent(in) :: cartesian
-    real(sp), dimension(self%ndrft) :: sigma
+    real(sp), dimension(self%count), intent(in) :: cartesian
+    real(sp), dimension(self%count) :: sigma
     sigma(:) = -1.0_SP * abs(cartesian(:) - self%EP(:)) / abs(self%EP(:) - self%HP(:))
   end function
 
   pure function lag_sig2cart(self, sigma) result(depth)
     ! calculate cartesian vertical from sigma coordinate
     class(Agent), intent(in) :: self
-    real(sp), dimension(self%ndrft), intent(in) :: sigma
-    real(sp), dimension(self%ndrft) :: depth
+    real(sp), dimension(self%count), intent(in) :: sigma
+    real(sp), dimension(self%count) :: depth
     depth(:) = sigma(:)*(self%EP(:) - self%HP(:)) + self%EP(:)
   end function
 
@@ -190,8 +180,8 @@ contains
     ! update current sigma layer of particles between moves
     use variables, only : KBM1
     class(Agent), intent(in) :: self
-    real(sp), dimension(self%ndrft), intent(in) :: sigma
-    integer, dimension(self%ndrft) :: layers
+    real(sp), dimension(self%count), intent(in) :: sigma
+    integer, dimension(self%count) :: layers
     layers(:) = ceiling(-KBM1*sigma(:))
     where (layers(:) < 1) layers(:) = 1
   end function
@@ -201,7 +191,7 @@ contains
     use simulation, only : domain ! domain structure
     class(Agent), intent(in) :: self ! lagrangian particle swarm object
     real(sp), dimension(0:KB+1), intent(in) :: verticalvar
-    real(sp), dimension(self%ndrft) :: idz, interpolated
+    real(sp), dimension(self%count) :: idz, interpolated
 
     idz(:) = (domain%layerSigma*(self%layer(:)-1) - self%zp(:))/domain%layerSigma ! relative distance from layer above
     interpolated(:) = verticalvar(self%layer(:))*(1.0_SP - idz(:)) + verticalvar(self%layer(:)+1)*idz(:)
@@ -220,11 +210,11 @@ contains
     real(SP), dimension(0:M), intent(in) :: HL, EL1, EL2 ! bathymetry and free surface height
     real(SP), dimension(0:M, KB), intent(in) :: temperature, salinity, density
 
-    real(SP), dimension(self%ndrft) :: PDX, PDY, PDZ ! RK stage positions
+    real(SP), dimension(self%count) :: PDX, PDY, PDZ ! RK stage positions
     integer :: stage
     real(SP), dimension(0:N, KB, 0:2) :: velocity ! ERK stage velocity field
     real(SP), dimension(0:M) :: ELL ! ERK stage freesurface height
-    real(SP), dimension(self%ndrft, 0:MSTAGE, 3) :: CHI ! ERK stage function evaluation for velocities
+    real(SP), dimension(self%count, 0:MSTAGE, 3) :: CHI ! ERK stage function evaluation for velocities
     real(SP), parameter :: EPS  = 10.0 ** (-5.0) ! depth of dry element
 
     CHI = 0.0_sp ! Initialize Stage Functional Evaluations
@@ -274,7 +264,7 @@ contains
 
     real(sp), intent(in), dimension(0:N, 1:KB, 0:2) :: velocity
     class(Agent), intent(inout) :: lag
-    real(sp), intent(in), dimension(lag%ndrft) :: XP, YP, ZP ! ZP is sigma depth
+    real(sp), intent(in), dimension(lag%count) :: XP, YP, ZP ! ZP is sigma depth
     real(sp), dimension(0:N, 1:KB) :: UIN, VIN, WIN
     integer :: ii, host, E1, E2, E3, K1, K2, K
     real(SP) :: DUDX, DUDY, DVDX, DVDY, DWDX, DWDY, UE01, UE02, VE01, VE02, WE01, WE02
@@ -285,7 +275,7 @@ contains
     WIN = velocity(:, :, 2)
     call lag%find_host_element(XP, YP) ! determine host element
 
-    particle_loop: do ii = 1, lag%ndrft
+    particle_loop: do ii = 1, lag%count
       host = lag%HOST(ii)
       E1  = NBE(host,1)
       E2  = NBE(host,2)
@@ -385,14 +375,14 @@ contains
     use variables, only : KB, M, XC, YC
 
     class(Agent), intent(inout) :: self
-    real(sp), intent(in), dimension(self%ndrft) :: XP, YP, ZP
+    real(sp), intent(in), dimension(self%count) :: XP, YP, ZP
     real(sp), intent(in), dimension(0:M, KB) :: SAL, TEMP, RHO
     real(sp), intent(in), dimension(0:M) :: HIN, EIN
     real(sp), dimension(2) :: offset
 
     integer :: ii, host
     call self%find_host_element(XP, YP)
-    do ii = 1, self%ndrft
+    do ii = 1, self%count
       host = self%host(ii) ! element containing particle
       offset = [XP(ii) - XC(host), YP(ii) - YC(host)]
       self%SAL(ii) = linear_interpolation_at_layer(offset, host, SAL, 1)
@@ -410,7 +400,7 @@ contains
 
     use variables, only: M, KB, NV, XC, Z, KBM1, YC, DTRW, AW0, AWX, AWY
     class(Agent), intent(in) :: self
-    real(SP), intent(out), dimension(self%ndrft) :: DKHOUT, KHOUT
+    real(SP), intent(out), dimension(self%count) :: DKHOUT, KHOUT
     real(SP), intent(in), dimension(0:M, KB) :: DZKH, ZKH
     real(SP) :: offset(2)
     integer :: N1, N2, N3, ii
@@ -430,7 +420,7 @@ contains
     end do
     NZRINDX(KB+1) = KB
 
-    do ii = 1, self%ndrft
+    do ii = 1, self%count
 
       host = self%host(ii)
       N1 = NV(host, 1)

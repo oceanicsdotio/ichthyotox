@@ -288,8 +288,6 @@ program main
   write(*, *) '        Start iteration :', ISLAG
   write(*, *) '        Final iteration :', IELAG
   write(*, *)
-  call agent%cyanobacteria%stats
-  call agent%fish%stats
 
   write(*, *) "Starting simulation loop... "
 

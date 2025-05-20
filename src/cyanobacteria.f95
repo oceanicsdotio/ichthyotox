@@ -85,11 +85,11 @@ contains
         integer :: ii, indexMatch, fid=100
         character(len=50) :: filename
         logical :: fexist
-        allocate(self%radius(self%ndrft)); self%radius = 0.0_sp
+        allocate(self%radius(self%count)); self%radius = 0.0_sp
         allocate(self%zp, self%carbohydrate, self%protein, self%microcystin, source=self%radius)
         open (unit=fid, file=trim(folderprefix)//'cyanobacteria.txt', form='formatted')
-        read (fid, "(I6)") self%ndrft
-        do ii = 1, self%ndrft
+        read (fid, "(I6)") self%count
+        do ii = 1, self%count
             read (fid, "(5F20.6)") &
                 & self%zp(ii), self%radius(ii), self%carbohydrate(ii), self%protein(ii), self%microcystin(ii)
         end do
@@ -107,10 +107,10 @@ contains
         integer :: ii
         real(sp) :: mcoef, update_coef
         ! initial values
-        real(sp), dimension(self%ndrft) :: idz, ini_position, ini_sigma, ini_microcystin, ini_carbohydrate, ini_protein 
+        real(sp), dimension(self%count) :: idz, ini_position, ini_sigma, ini_microcystin, ini_carbohydrate, ini_protein 
         ! stage fcn evaluations
-        real(sp), dimension(self%ndrft, 0:MSTAGE) :: chi_dissolved, chi_position, chi_carbohydrate, chi_protein, chi_microcystin 
-        real(sp), dimension(self%ndrft) :: synthesis, excretion, respiration, fixation, mc_excretion, mc_production, calc_array
+        real(sp), dimension(self%count, 0:MSTAGE) :: chi_dissolved, chi_position, chi_carbohydrate, chi_protein, chi_microcystin 
+        real(sp), dimension(self%count) :: synthesis, excretion, respiration, fixation, mc_excretion, mc_production, calc_array
         chi_position = 0.0_sp; 
         chi_carbohydrate = 0.0_sp; 
         chi_protein = 0.0_sp; 
@@ -239,8 +239,8 @@ contains
         ! vertical random walk
         use variables, only: dti, dtrw
         class(CyanobacteriaAgent), intent(inout) :: self
-        real(sp), dimension(self%ndrft) :: noise
-        real(sp), dimension(self%ndrft) :: wdiff, kzp, dkzp ! diffusivity and first derivative at particle positions
+        real(sp), dimension(self%count) :: noise
+        real(sp), dimension(self%count) :: wdiff, kzp, dkzp ! diffusivity and first derivative at particle positions
         integer :: substeps
         real(sp), parameter :: variance = 1.0
 
@@ -264,7 +264,7 @@ contains
         integer :: ii
         write(fid, "(1F10.2,9000(3F20.3))") time, & 
             & (self%carbohydrate(ii), self%protein(ii), &
-            & self%microcystin(ii), ii=1,self%ndrft)
+            & self%microcystin(ii), ii=1,self%count)
     end subroutine
 
     recursive subroutine colony_QsortC(absdepth, order) ! OK
@@ -343,21 +343,21 @@ contains
         ! Updates carbohydrate ballast state variable due to fixation (alias is "fixation")
         use simulation, only: domain
         class(CyanobacteriaAgent), intent(in) :: self
-        real(sp), dimension(self%ndrft) :: &
+        real(sp), dimension(self%count) :: &
             & proxy_depth, & ! copy array for updating depth by recursive binary partitioning
             & biomass, &
             & irradiance, &
             & fixation
         integer :: ii
-        integer, dimension(self%ndrft) :: indices
+        integer, dimension(self%count) :: indices
 
-        indices(:) = [(ii, ii=1,self%ndrft)] ! particle indices
+        indices(:) = [(ii, ii=1,self%count)] ! particle indices
         proxy_depth(:) = abs(self%ZP) ! use sigma to avoid positive ZPT values in sorting
         call colony_QsortC(proxy_depth, indices) ! sort indices by position from shallowest to deepest
 
         biomass = (self%carbohydrate + self%protein)/domain%meshArea ! contribution to shading by particle
         irradiance(indices(1)) = domain%globalIrradiance ! first particle unshaded
-        do ii = 2, self%ndrft
+        do ii = 2, self%count
             ! attenuate by next biomass
             irradiance(indices(ii)) = irradiance(indices(ii-1)) * &
                 & exp(-lightExtinctionBiomass*shading_upscale*biomass(indices(ii-1))) 
@@ -370,7 +370,7 @@ contains
     pure function carbonSynthesis(self) result(synthesis)
         ! updates carbohydrate and protein state variables due to synthesis transport (alias is "synthesis")
         class(CyanobacteriaAgent), intent(in) :: self
-        real(sp), dimension(self%ndrft) :: synthesis
+        real(sp), dimension(self%count) :: synthesis
         synthesis = self%carbohydrate * synthesisMax * self%tempLimit()
     end function
 
@@ -378,7 +378,7 @@ contains
         ! update protein and dissolved pools due to excretion transport (alias is "excretion")
         ! temperature is tracked for all particles, so function uses algae array subset
         class(CyanobacteriaAgent), intent(in) :: self
-        real(sp), dimension(self%ndrft) :: excretion
+        real(sp), dimension(self%count) :: excretion
         excretion(:) = excretionFrac * self%tempFunction() * &
             & (respirationBasic * self%carbohydrate + synthesisMax * self%protein)
     end function
@@ -387,7 +387,7 @@ contains
         ! update carbohydrate and dissolved pools due to respiration transport (alias is "respiration")
         ! temperature is tracked for all particles, so function calls use algae array subset
         class(CyanobacteriaAgent), intent(in) :: self
-        real(sp), dimension(self%ndrft) :: respiration
+        real(sp), dimension(self%count) :: respiration
         respiration = respirationBasic*self%tempFunction() * self%protein + &
             & respirationActive * synthesisMax * self%tempLimit() * self%carbohydrate
     end function
@@ -395,7 +395,7 @@ contains
     pure function tempLimit(self) result(limit)
         ! Returns array of temperature limitation coefficents (0,1) for C synthesis
         class(CyanobacteriaAgent), intent(in) :: self
-        real(sp), dimension(self%ndrft) :: limit ! array of output coefficients for each particle
+        real(sp), dimension(self%count) :: limit ! array of output coefficients for each particle
         limit = (self%temp / tempOpt * (  ((self%temp - tempLethal)/(tempOpt - tempLethal))** &
             & ( (tempRef - tempOpt) / tempOpt )  ))**(4.0)
     end function
@@ -403,21 +403,21 @@ contains
     pure function temperatureFunction(self) result(coefficient)
         ! returns array of scaling coefficents for biometric fcns
         class(CyanobacteriaAgent), intent(in) :: self
-        real(sp), dimension(self%ndrft) :: coefficient ! array of output coefficients for each particles
+        real(sp), dimension(self%count) :: coefficient ! array of output coefficients for each particles
         coefficient(:) = tempFcnAlpha*exp(tempFcnBeta*(self%temp(:) - tempOpt + tempRef))
     end function
 
     pure function colony_microcystinProduction(self) result(production)
         ! calculates toxin production per time step
         class(CyanobacteriaAgent), intent(in) :: self
-        real(sp), dimension(self%ndrft) :: production ! array of microcystin production for colony particles
+        real(sp), dimension(self%count) :: production ! array of microcystin production for colony particles
         production(:) = self%mclrProductionRate * self%protein
     end function
 
     pure function colony_microcystinExcretion(self) result(excretion)
         ! calculates temperature dependent toxin loss and moves mass to host element
         class(CyanobacteriaAgent), intent(in) :: self
-        real(sp), dimension(self%ndrft) :: excretion
+        real(sp), dimension(self%count) :: excretion
         excretion(:) = self%mclrExcretionRate * self%protein
     end function
 
@@ -425,7 +425,7 @@ contains
         ! returns stokes velocity of particle in m/hr, if lighter than water result is positive
         ! calls density() and viscosity()
         class(CyanobacteriaAgent), intent(in) :: self
-        real(sp), dimension(self%ndrft) :: & 
+        real(sp), dimension(self%count) :: & 
             & velocity, & ! output array of particle vertical velocities
             & delta_rho ! difference in density between water and colony
 
@@ -449,7 +449,7 @@ contains
     pure function algaeDensity(self) result(density)
         ! colony density including contibutions of mucus and gas vacuoles
         class(CyanobacteriaAgent), intent(in) :: self
-        real(sp), dimension(self%ndrft) :: density ! output array of overall colony density
+        real(sp), dimension(self%count) :: density ! output array of overall colony density
         density = algae_density(self%carbohydrate, self%protein, self%rho)
     end function
 
@@ -457,7 +457,7 @@ contains
         ! returns array of dynamic viscosity values at particle locations
         class(CyanobacteriaAgent), intent(in) :: self
         logical :: simple;
-        real(sp), dimension(self%ndrft) :: viscosity
+        real(sp), dimension(self%count) :: viscosity
         simple = .true.
         if (simple) then
             viscosity = simpleDynamicViscosity(self%temp)
