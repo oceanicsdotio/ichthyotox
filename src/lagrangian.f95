@@ -15,7 +15,7 @@ module Lagrangian
         & XP, YP, ZP, &               ! position of particle
         & HP, &                       ! bathymetry at particle position
         & EP, &                       ! surface height at particle
-        & UP, VP, WP, &               ! velocity of particle
+        & UP, VP, &                   ! velocity of particle
         & TEMP, &                     ! temperature at particle position
         & SAL, &                      ! salinity at particle position
         & RHO                         ! density at particle position
@@ -26,12 +26,10 @@ module Lagrangian
     procedure, public :: readPosition => readPositions ! read position and ndrft from file
     procedure, public :: writePosition => lag_writePosition ! write position to file
     procedure, public :: sigma => lag_cart2sig ! convert cartesian to sigma
-    procedure, public :: cartesian => lag_sig2cart ! convert sigma to cartesian
     procedure, public :: zlocate => layer ! the layer the particle is below
     procedure, public :: zinterp => zinterp
     procedure, public :: find_host_element => find_host_element
     procedure, public :: interp_fields => interp_fields
-    procedure, public :: interp_kh => interp_kh
 
   end type
 
@@ -92,10 +90,8 @@ contains
     isintriangle = ((F1*F3 >= 0.0_sp) .and. (F3*F2 >= 0.0_sp))
   end function
 
-
   subroutine lag_alloc(self)
     class(Agent), intent(inout) :: self
-
     allocate( self%XP( self%count ), &
             & self%YP( self%count ), &
             & self%ZP( self%count ), &
@@ -107,9 +103,7 @@ contains
             & self%SAL( self%count ), &
             & self%RHO( self%count ), &
             & self%UP( self%count ), &
-            & self%VP( self%count ), &
-            & self%WP( self%count ))
-
+            & self%VP( self%count ))
     self%XP(:) = 0.0_sp
     self%YP(:) = 0.0_sp
     self%ZP(:) = 0.0_sp
@@ -122,8 +116,6 @@ contains
     self%RHO(:) = 0.0_sp
     self%UP(:) = 0.0_sp
     self%VP(:) = 0.0_sp
-    self%WP(:) = 0.0_sp
-
   end subroutine
 
   subroutine readPositions(self)
@@ -169,14 +161,6 @@ contains
     sigma(:) = -1.0_SP * abs(cartesian(:) - self%EP(:)) / abs(self%EP(:) - self%HP(:))
   end function
 
-  pure function lag_sig2cart(self, sigma) result(depth)
-    ! calculate cartesian vertical from sigma coordinate
-    class(Agent), intent(in) :: self
-    real(sp), dimension(self%count), intent(in) :: sigma
-    real(sp), dimension(self%count) :: depth
-    depth(:) = sigma(:)*(self%EP(:) - self%HP(:)) + self%EP(:)
-  end function
-
   pure function layer(self, sigma) result(layers)
     ! update current sigma layer of particles between moves
     use variables, only : KBM1
@@ -188,18 +172,14 @@ contains
   end function
 
   pure function zinterp(self, verticalvar) result(interpolated)
-    use variables, only : KB ! sigma layers
+    use variables, only : layers ! sigma layers
     use simulation, only : domain ! domain structure
     class(Agent), intent(in) :: self ! lagrangian particle swarm object
-    real(sp), dimension(0:KB+1), intent(in) :: verticalvar
+    real(sp), dimension(0:layers+1), intent(in) :: verticalvar
     real(sp), dimension(self%count) :: idz, interpolated
-
     idz(:) = (domain%layerSigma*(self%layer(:)-1) - self%zp(:))/domain%layerSigma ! relative distance from layer above
     interpolated(:) = verticalvar(self%layer(:))*(1.0_SP - idz(:)) + verticalvar(self%layer(:)+1)*idz(:)
-
   end function
-
-
 
   pure function linear_planar_interpolation(offset, host, stencil) result(sample)
     ! Linearly interpolate a 2D planar field at a point, base for 3D
@@ -214,36 +194,36 @@ contains
     sample = abs(f + fx + fy)
   end function
 
-  pure function linear_interpolation_at_layer(offset, host, field, layer) result(sample)
+  pure function linear_interpolation_at_layer(offset, triangle, field, layer) result(sample)
     ! Linearly interpolates a field at a point in discrete layer
-    use variables, only : NV, KB, M
+    use variables, only : NV, layers, M
     real(sp), intent(in) :: offset(2)
-    real(sp), intent(in), dimension(0:M, KB) :: field
-    integer, intent(in) :: host, layer ! element and layer containing particle
+    real(sp), intent(in), dimension(0:M, layers) :: field
+    integer, intent(in) :: triangle, layer
     real(sp) :: sample, stencil(3)
-    stencil = field(NV(host, 1:3), layer)
-    sample = linear_planar_interpolation(offset, host, stencil)
+    stencil = field(NV(triangle, 1:3), layer)
+    sample = linear_planar_interpolation(offset, triangle, stencil)
   end function
 
-  pure function linear_interpolation_of_surface(offset, host, field) result(sample)
+  pure function linear_interpolation_of_surface(offset, triangle, field) result(sample)
     ! Linearly interpolate a 2D surface at a point
     use variables, only : NV, M, XC, YC
     real(sp), intent(in) :: offset(2)
     real(sp), intent(in), dimension(0:M) :: field
-    integer, intent(in) :: host ! element and layer containing particle
+    integer, intent(in) :: triangle ! element and layer containing particle
     real(sp) :: sample, stencil(3)
-    stencil = field(NV(host, 1:3))
-    sample = linear_planar_interpolation(offset, host, stencil)
+    stencil = field(NV(triangle, 1:3))
+    sample = linear_planar_interpolation(offset, triangle, stencil)
   end function
 
-  subroutine INTERP_FIELDS(self, XP, YP, ZP, SAL, TEMP, RHO, HIN, EIN) ! OK
+  subroutine INTERP_FIELDS(self, XP, YP, ZP, salinity, temperature, density, depth, surface)
     ! Linearly interpolates salinity, temperature and density
-    use variables, only : KB, M, XC, YC
+    use variables, only : layers, M, XC, YC
 
     class(Agent), intent(inout) :: self
     real(sp), intent(in), dimension(self%count) :: XP, YP, ZP
-    real(sp), intent(in), dimension(0:M, KB) :: SAL, TEMP, RHO
-    real(sp), intent(in), dimension(0:M) :: HIN, EIN
+    real(sp), intent(in), dimension(0:M, layers) :: salinity, temperature, density
+    real(sp), intent(in), dimension(0:M) :: depth, surface
     real(sp), dimension(2) :: offset
 
     integer :: ii, host
@@ -251,95 +231,11 @@ contains
     do ii = 1, self%count
       host = self%host(ii) ! element containing particle
       offset = [XP(ii) - XC(host), YP(ii) - YC(host)]
-      self%SAL(ii) = linear_interpolation_at_layer(offset, host, SAL, 1)
-      self%TEMP(ii) = linear_interpolation_at_layer(offset, host, TEMP, 1)
-      self%RHO(ii) = linear_interpolation_at_layer(offset, host, RHO, 1)
-      self%HP(ii) = -linear_interpolation_of_surface(offset, host, HIN)
-      self%EP(ii) = -linear_interpolation_of_surface(offset, host, EIN)
-    end do
-  end subroutine
-
-  pure subroutine INTERP_KH(self, ZKH, DZKH, KHOUT, DKHOUT)
-    ! Obtain a spline interpolation on the vertical with eddy diffusivity (ZKH) and 
-    ! its derivative (DZKH) at grid points, then linear interpolation on the horizontal
-    !  RETURNS:   Both dkh/dz (DKHOUT) and kh (KHOUT)
-
-    use variables, only: M, KB, NV, XC, Z, KBM1, YC, DTRW, AW0, AWX, AWY
-    class(Agent), intent(in) :: self
-    real(SP), intent(out), dimension(self%count) :: DKHOUT, KHOUT
-    real(SP), intent(in), dimension(0:M, KB) :: DZKH, ZKH
-    real(SP) :: offset(2)
-    integer :: N1, N2, N3, ii
-    real(SP) :: DKHR1, DKHR2, DKHR3
-    real(SP) :: KHR1, KHR2, KHR3
-    real(SP) :: DKHTMP, DZP
-    integer, dimension(0:KB+1) :: NZRINDX
-    real(SP) :: HK, HK2, AK, AK2, AK3, BK, BK2, BK3, stencil(3)
-    integer :: KLO, KHI, NZR, host
-
-    ! Interpolate eddy diffusivity and its derivative
-    KHOUT  = 0.0_sp
-    DKHOUT = 0.0_sp
-    NZRINDX(0) = 1
-    do ii = 1, KB
-      NZRINDX(ii) = ii
-    end do
-    NZRINDX(KB+1) = KB
-
-    do ii = 1, self%count
-
-      host = self%host(ii)
-      N1 = NV(host, 1)
-      N2 = NV(host, 2)
-      N3 = NV(host, 3)
-      offset(1) = self%XP(ii) - XC(host)
-      offset(2) = self%YP(ii) - YC(host) ! distance from element center
-
-      ! DERIVATIVE OF THE DIFFUSION
-      ! find vertical location
-      NZR = floor( float(KBM1) * abs(self%zp(ii)) )
-      KHI = NZRINDX(NZR)
-      KLO = NZRINDX(NZR + 1)
-
-      ! as k in z(k) increases, sigma decreases.
-      HK= Z(KHI) - Z(KLO)
-      HK2 = HK**2
-      AK = (Z(KHI) - self%ZP(ii))/HK
-      AK2 = AK**2
-      BK = (self%ZP(ii) - Z(KLO))/HK
-      BK2=BK**2
-
-      DKHR1=(-ZKH(N1,KLO)+ZKH(N1,KHI))/HK+((-3*AK2+1)*DZKH(N1,KLO)+(3*BK2-1)*DZKH(N1,KHI))*HK/6
-      DKHR2=(-ZKH(N2,KLO)+ZKH(N2,KHI))/HK+((-3*AK2+1)*DZKH(N2,KLO)+(3*BK2-1)*DZKH(N2,KHI))*HK/6
-      DKHR3=(-ZKH(N3,KLO)+ZKH(N3,KHI))/HK+((-3*AK2+1)*DZKH(N3,KLO)+(3*BK2-1)*DZKH(N3,KHI))*HK/6
-      stencil = [DKHR1, DKHR2, DKHR3]
-      DKHTMP = linear_planar_interpolation(offset, host, stencil)
-      DKHOUT(ii) = DKHTMP / (self%HP(ii) - self%EP(ii))
-
-      ! DIFFUSION ITSELF
-      ! find z in grid again, as per visser, but in sigma
-      DZP = self%ZP(ii) + 0.5*DKHOUT(ii)*DTRW/(self%HP(ii) - self%EP(ii))
-      DZP = min(DZP, 0.0_sp)
-      DZP = max(DZP, -1.0_SP)
-
-      ! find vertical location
-      NZR = floor( float(KBM1)*abs(DZP) ) ! guess value for hunt
-      KHI = NZRINDX(NZR)
-      KLO = NZRINDX(NZR+1)
-
-    
-      AK = (Z(KHI)-DZP)/HK
-      AK3 = AK**3
-      BK = (DZP-Z(KLO))/HK
-      BK3 = BK**3
-
-      KHR1 = AK*(ZKH(N1,KLO)) + BK*(ZKH(N1,KHI)) + ((AK3-AK)*(DZKH(N1,KLO))+(BK3-BK)*(DZKH(N1,KHI)))*HK2/6
-      KHR2 = AK*(ZKH(N2,KLO)) + BK*(ZKH(N2,KHI)) + ((AK3-AK)*(DZKH(N2,KLO))+(BK3-BK)*(DZKH(N2,KHI)))*HK2/6
-      KHR3 = AK*(ZKH(N3,KLO)) + BK*(ZKH(N3,KHI)) + ((AK3-AK)*(DZKH(N3,KLO))+(BK3-BK)*(DZKH(N3,KHI)))*HK2/6
-      stencil = [KHR1, KHR2, KHR3]
-      
-      KHOUT(ii) = linear_planar_interpolation(offset, host, stencil)
-
+      self%SAL(ii) = linear_interpolation_at_layer(offset, host, salinity, 1)
+      self%TEMP(ii) = linear_interpolation_at_layer(offset, host, temperature, 1)
+      self%RHO(ii) = linear_interpolation_at_layer(offset, host, density, 1)
+      self%HP(ii) = -linear_interpolation_of_surface(offset, host, depth)
+      self%EP(ii) = -linear_interpolation_of_surface(offset, host, surface)
     end do
   end subroutine
 end module

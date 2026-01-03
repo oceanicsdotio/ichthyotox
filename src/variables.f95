@@ -29,7 +29,7 @@ module variables
         & duration, &
         & N, &        ! Number of elements
         & M, &        ! Number of nodes
-        & KB, &       ! Number of sigma levels
+        & layers, &       ! Number of sigma levels
         & KBM1, &     ! Number of sigma levels-1
         & KBM2, &     ! Number of sigma levels-2
         & NE          ! Number of unique edges

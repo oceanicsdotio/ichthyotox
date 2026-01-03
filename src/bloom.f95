@@ -1,6 +1,6 @@
 program bloom
 
-    use variables, only: sp, KB, M, N, KBM1, KBM2, irradSurf, folderprefix, duration, DTI, DTOUT, INSTP, DTRW, xc, yc, vx, vy, nv, isbce, nbe, isonb, awx, awy, u, v, ww, ut, vt, wwt, kh, z, zz, dz, a1u, NBVE, NBVT, vxmin, vxmax, vymin, VYMAX, aw0, a2u, NTVE, h, d, el, et, t1, tt1, iophys, iotox, iocs, iocp
+    use variables, only: sp, layers, M, N, KBM1, KBM2, irradSurf, folderprefix, duration, DTI, DTOUT, INSTP, DTRW, xc, yc, vx, vy, nv, isbce, nbe, isonb, awx, awy, u, v, ww, ut, vt, wwt, kh, z, zz, dz, a1u, NBVE, NBVT, vxmin, vxmax, vymin, VYMAX, aw0, a2u, NTVE, h, d, el, et, t1, tt1, iophys, iotox, iocs, iocp
     use random, only : random_number_generator
     use simulation, only : domain, topology
     use cyanobacteria, only : CyanobacteriaAgent
@@ -45,12 +45,12 @@ program bloom
     allocate(domain)
     file = trim(folderprefix)//"/elements.txt"
     open(ioelem, file=file)
-    read(ioelem, *) N, KB ! get number of nodes, elements, and sigma layers
+    read(ioelem, *) N, layers ! get number of nodes, elements, and sigma layers
 
     domain%nelements = N
-    domain%nlayers = KB
-    KBM1 = KB - 1
-    KBM2 = KB - 2
+    domain%nlayers = layers
+    KBM1 = layers - 1
+    KBM2 = layers - 2
     allocate(NV(0:N, 4)); NV = 0  ! child nodes
     allocate(NBE(0:N, 3)); NBE = 0  ! element neighbors
     allocate(ISBCE(0:N)); ISBCE = 0
@@ -65,7 +65,7 @@ program bloom
         & YC, & ! center y-coordinate
         & source=length1)
     ! Element based 3D fields
-    allocate(U(0:N, KB)); U = 0.0_sp  ! x-velocity
+    allocate(U(0:N, layers)); U = 0.0_sp  ! x-velocity
     allocate(&
         & V, & ! y-velocity
         & WW, & ! z-velocity
@@ -92,7 +92,7 @@ program bloom
     NV(:, 4) = NV(:, 1) ! duplicate node for computation
     close(ioelem)
     ! Sigma based 1D fields and coordinates
-    allocate(Z(KB)); Z = 0.0_sp ! s-position
+    allocate(Z(layers)); Z = 0.0_sp ! s-position
     allocate(&
         & ZZ, & ! INTRA LEVEL SIGMA VALUE
         & DZ, & ! DELTA-SIGMA VALUE
@@ -121,7 +121,7 @@ program bloom
         & ELNC2, &
         & source=H)
     ! Node based floating point 3D fields
-    allocate(T1(0:M, KB)); T1 = 0.0_sp ! temperature
+    allocate(T1(0:M, layers)); T1 = 0.0_sp ! temperature
     allocate(&
         & TT1, & ! previous temperature
         & KHNC, &
@@ -233,7 +233,7 @@ program bloom
             if ( mod(IINT, int(DTOUT/DTI) ) == 0) then
                 call particles%writePosition(iocp, time=domain%time) ! output position, same for all particle types
                 call particles%writeState(iocs, time=domain%time)
-                write(iotox,"(1f20.3,51F20.6)") domain%time, domain%verticaltox(1:KB)
+                write(iotox,"(1f20.3,51F20.6)") domain%time, domain%verticaltox(1:layers)
             end if
         end do
     end do

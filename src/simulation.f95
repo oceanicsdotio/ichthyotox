@@ -68,19 +68,19 @@ contains
   
     subroutine readSimulation(self, u_vel, v_vel, w_vel, diffusivity, elevation, salinity, temperature, density)
         ! read physical drivers from file
-        use variables, only : KB, M, N, iophys
+        use variables, only : layers, M, N, iophys
     
         class(Experiment), intent(inout) :: self
-        real(sp), dimension(0:N, KB), intent(inout) :: u_vel, v_vel, w_vel
-        real(sp), dimension(0:M, KB), intent(inout) :: diffusivity, salinity, temperature, density
+        real(sp), dimension(0:N, layers), intent(inout) :: u_vel, v_vel, w_vel
+        real(sp), dimension(0:M, layers), intent(inout) :: diffusivity, salinity, temperature, density
         real(sp), dimension(0:M), intent(inout) :: elevation
     
         character(len = 100) :: vert_format
         real(sp) :: time
         integer :: ii
     
-        write(vert_format, "(A7,I6,A7)") "(F10.3,", 3*KB, "F20.10)"
-        read(iophys, vert_format) time, self%verticaltemp(1:KB), self%verticalrho(1:KB), self%verticaldiff(1:KB)
+        write(vert_format, "(A7,I6,A7)") "(F10.3,", 3*layers, "F20.10)"
+        read(iophys, vert_format) time, self%verticaltemp(1:layers), self%verticalrho(1:layers), self%verticaldiff(1:layers)
     
         u_vel(:, :) = 0.0_sp
         v_vel(:, :) = 0.0_sp 
@@ -88,9 +88,9 @@ contains
         elevation(:) = -abs(0.0_sp)
         salinity(:,:) = 0.0_sp
         do ii = 1, self%nnodes
-            temperature(ii, 1:KB) = self%verticaltemp(1:KB)
-            diffusivity(ii, 1:KB) = self%verticaldiff(1:KB)
-            density(ii, 1:KB) = self%verticalrho(1:KB)
+            temperature(ii, 1:layers) = self%verticaltemp(1:layers)
+            diffusivity(ii, 1:layers) = self%verticaldiff(1:layers)
+            density(ii, 1:layers) = self%verticalrho(1:layers)
         end do
         if (self%lines_read == 0) rewind(unit=iophys)
         self%lines_read = self%lines_read + 1
@@ -98,7 +98,7 @@ contains
 
     subroutine verticalDiffusion(self)
         ! One-dimensional vertical diffusion
-        use variables, only : KB, KBM1, dti
+        use variables, only : layers, KBM1, dti
         class(Experiment), intent(inout) :: self
         integer :: ii, jj, steps_to_stability
         real(sp) :: &
@@ -114,7 +114,7 @@ contains
     
         do ii = 1, steps_to_stability
             self%verticaltox(1) = self%verticaltox(2)
-            self%verticaltox(KB) = self%verticaltox(KBM1)
+            self%verticaltox(layers) = self%verticaltox(KBM1)
     
             ! central-in-space (z), forward-in-time, second derivative
             do jj = 2, KBM1
@@ -124,7 +124,7 @@ contains
             end do
     
             profile(1) = profile(2);
-            profile(KB) = profile(KBM1) ! copy in domain value to boundary nodes
+            profile(layers) = profile(KBM1) ! copy in domain value to boundary nodes
             self%verticaltox(:) = profile(:)
         end do
     end subroutine

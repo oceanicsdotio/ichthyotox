@@ -19,8 +19,8 @@ program main
     & includeAlgae = .true., &
     & includeFish =  .true.
 
-  real(sp), dimension(0:N, KB) :: UNC, UNC1, UNC2, VNC, VNC1, VNC2, WNC, WNC1, WNC2 ! velocity fields start and end of hour
-  real(sp), dimension(0:M, KB) :: KHNC, KHNC1, KHNC2, SALNC, SALNC1, SALNC2, TEMPNC, TEMPNC1, TEMPNC2, RHONC, RHONC1, RHONC2 ! diffusion and physical fields start and end of hour
+  real(sp), dimension(0:N, layers) :: UNC, UNC1, UNC2, VNC, VNC1, VNC2, WNC, WNC1, WNC2 ! velocity fields start and end of hour
+  real(sp), dimension(0:M, layers) :: KHNC, KHNC1, KHNC2, SALNC, SALNC1, SALNC2, TEMPNC, TEMPNC1, TEMPNC2, RHONC, RHONC1, RHONC2 ! diffusion and physical fields start and end of hour
   real(sp), dimension(0:M) :: ELNC, ELNC1, ELNC2 ! free surface height field read, start and end of hour
   real(sp) :: TMP1, TMP2, LAG_TIME
 
@@ -117,13 +117,13 @@ program main
   open(ioelem, file = "./"//trim(folderprefix)//"/mesh_elem.dat")
   open(ionode, file = "./"//trim(folderprefix)//"/mesh_node.dat")
 
-  read(ioelem, *) N, KB ! get number of nodes, elements, and sigma layers
+  read(ioelem, *) N, layers ! get number of nodes, elements, and sigma layers
   read(ionode, *) M
 
 
-  domain%nnodes = M; domain%nelements = N; domain%nlayers = KB
-  KBM1 = KB - 1
-  KBM2 = KB - 2
+  domain%nnodes = M; domain%nelements = N; domain%nlayers = layers
+  KBM1 = layers - 1
+  KBM2 = layers - 2
 
   write(*, "(A)", advance='no') "Allocating mesh based variables... "
 
@@ -144,9 +144,9 @@ program main
   allocate(ISBCE(0:N))          ;ISBCE    = 0
 
   ! 1-d arrays for the sigma coordinate
-  allocate(Z(KB))               ; Z      = zero    ! SIGMA COORDINATE VALUE
-  allocate(ZZ(KB))              ; ZZ     = zero    ! INTRA LEVEL SIGMA VALUE
-  allocate(DZ(KB))              ; DZ     = zero    ! DELTA-SIGMA VALUE
+  allocate(Z(layers))               ; Z      = zero    ! SIGMA COORDINATE VALUE
+  allocate(ZZ(layers))              ; ZZ     = zero    ! INTRA LEVEL SIGMA VALUE
+  allocate(DZ(layers))              ; DZ     = zero    ! DELTA-SIGMA VALUE
 
   ! 2-d flow variable arrays at nodes
   allocate(H(0:M))       ;H    = zero       ! BATHYMETRIC DEPTH
@@ -155,17 +155,17 @@ program main
   allocate(ET(0:M))      ;ET  = zero       ! SURFACE ELEVATION PREVIOUS TIMESTEP
 
   ! internal mode arrays-(element based)
-  allocate(U(0:N, KB))       ;U     = zero   ! X-VELOCITY
-  allocate(V(0:N, KB))       ;V     = zero   ! Y-VELOCITY
-  allocate(WW(0:N, KB))      ;WW    = zero   ! Z-VELOCITY
-  allocate(UT(0:N, KB))      ;UT    = zero   ! X-VELOCITY FROM PREVIOUS TIMESTEP
-  allocate(VT(0:N, KB))      ;VT    = zero   ! Y-VELOCITY FROM PREVIOUS TIMESTEP
-  allocate(WWT(0:N, KB))     ;WWT   = zero   ! Z-VELOCITY FROM PREVIOUS TIMESTEP
-  allocate(KH(0:N, KB))     ;KH    = zero   ! TURBULENT QUANTITY
+  allocate(U(0:N, layers))       ;U     = zero   ! X-VELOCITY
+  allocate(V(0:N, layers))       ;V     = zero   ! Y-VELOCITY
+  allocate(WW(0:N, layers))      ;WW    = zero   ! Z-VELOCITY
+  allocate(UT(0:N, layers))      ;UT    = zero   ! X-VELOCITY FROM PREVIOUS TIMESTEP
+  allocate(VT(0:N, layers))      ;VT    = zero   ! Y-VELOCITY FROM PREVIOUS TIMESTEP
+  allocate(WWT(0:N, layers))     ;WWT   = zero   ! Z-VELOCITY FROM PREVIOUS TIMESTEP
+  allocate(KH(0:N, layers))     ;KH    = zero   ! TURBULENT QUANTITY
 
   ! 3d variable arrays-(node based)
-  allocate(T1(0:M, KB))       ;T1     = zero  ! TEMPERATURE AT NODES
-  allocate(TT1(0:M, KB))      ;TT1    = zero  ! TEMPERATURE FROM PREVIOUS TIME
+  allocate(T1(0:M, layers))       ;T1     = zero  ! TEMPERATURE AT NODES
+  allocate(TT1(0:M, layers))      ;TT1    = zero  ! TEMPERATURE FROM PREVIOUS TIME
 
   ! Shape coefficient arrays and control volume metrics
   allocate(A1U(0:N, 4))         ;A1U   = zero
@@ -195,7 +195,7 @@ program main
   write(*, *)
   write(*, *) '    Nodes        :', M
   write(*, *) '    Elements     :', N
-  write(*, *) '    Sigma layers :', KB
+  write(*, *) '    Sigma layers :', layers
   write(*, *)
 
   call domain%init(exp_type) ! allocate and initialize global environmental variables, and additional mesh-based variables
@@ -340,7 +340,7 @@ program main
         if ( mod(IINT, int(DTOUT/DTI) ) == 0) then
           call agent%cyanobacteria%writePosition(iocp) ! output position, same for all particle types
           call agent%cyanobacteria%writeState(iocs)
-          write(iotox,"(1f20.3,51F20.6)") domain%time, domain%verticaltox(1:KB)
+          write(iotox,"(1f20.3,51F20.6)") domain%time, domain%verticaltox(1:layers)
         end if
       end if
 
